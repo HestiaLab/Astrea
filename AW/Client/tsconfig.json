@@ -1,0 +1,67 @@
+{
+  "compilerOptions": {
+    // 目标 JavaScript 版本
+    "target": "ES2020",
+
+    // 模块系统：ESNext 用于现代模块导入/导出，适合 Blazor 的 JS Interop
+    "module": "ESNext",
+
+    // 输出目录：编译后的 JS 文件将放在 wwwroot/js 中
+    "outDir": "wwwroot/js",
+
+    // 源映射：生成 .js.map 文件，便于调试
+    "sourceMap": true,
+
+    // 严格模式：启用类型检查，提高代码质量（推荐）
+    "strict": true,
+
+    // 允许合成默认导入
+    "esModuleInterop": true,
+
+    // 允许从 AMD 模块导入 CommonJS 模块
+    "allowSyntheticDefaultImports": true,
+
+    // 库：包含浏览器 DOM API 的类型定义
+    "lib": [ "ES2020", "DOM", "DOM.Iterable" ],
+
+    // 模块解析策略：Node.js 风格
+    "moduleResolution": "node",
+
+    // 避免隐式 any 类型
+    "noImplicitAny": true,
+
+    // 跳过库检查
+    "skipLibCheck": true,
+
+    // 声明文件输出
+    "declaration": true,
+
+    // 声明文件输出目录
+    "declarationDir": "wwwroot/js/types",
+
+    // 保留 const enum
+    "preserveConstEnums": true,
+
+    // 强制使用单引号
+    "forceConsistentCasingInFileNames": true,
+
+    // 允许导入 .json 文件
+    "resolveJsonModule": true
+  },
+
+  // 包含的文件/目录
+  "include": [
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx"
+  ],
+
+  // 排除的文件/目录
+  "exclude": [
+    "node_modules",
+    "wwwroot",
+    "bin",
+    "obj",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
+}

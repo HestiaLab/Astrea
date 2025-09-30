@@ -51,10 +51,10 @@
             // 加载统一管理模块
             _module = await JsRuntime.InvokeAsync<IJSObjectReference>(
                 "import", 
-                "./js/scriptsInOne.js"
+                "./js/main.js"
             );
 
-            await _module.InvokeVoidAsync("ScriptsInOne.initialize");
+            await _module.InvokeVoidAsync("Main.initialize");
         }
     }
 

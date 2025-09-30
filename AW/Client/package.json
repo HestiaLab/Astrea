@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "build:ts": "tsc",
+    "watch:ts": "tsc --watch",
+    "clean": "rimraf wwwroot/js",
+    "build:clean": "npm run clean && npm run build:ts",
+    "dev:ts": "npm run clean && npm run watch:ts"
+  }
+}

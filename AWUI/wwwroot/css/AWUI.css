@@ -285,3 +285,33 @@
 .aw-table.fixed-header tbody::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+/* 输入框验证信息 */
+/* 气泡框基础样式 */
+.validation-bubble {
+    position: absolute;
+    transform: translateY(-100%);
+    padding: 6px 12px;
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #ef9a9a;
+    border-radius: 4px;
+    font-size: 0.8em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 100;
+    white-space: nowrap;
+}
+
+    /* 气泡框小三角 */
+    .validation-bubble::after {
+        content: "";
+        position: absolute;
+        bottom: -5px;
+        left: 10px;
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid #ef9a9a;
+    }
+
