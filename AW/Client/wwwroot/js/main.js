@@ -1,18 +1,15 @@
-﻿export const ScriptsInOne = (() => {
+import { initSidebarDrag } from './sidebarDrag.js';
+import { initThemeToggle } from './themeToggle.js';
+export const Main = (() => {
     return {
         initialize() {
             console.log('Initializing scripts...');
-
             // 挂载侧边栏拖拽
-            if (typeof initSidebarDrag === 'function') {
-                window.initSidebarDrag();
-            }
-
+            initSidebarDrag();
+            console.log('side bar drag script is loaded...');
             // 挂载主题切换
-            if (typeof initThemeToggle === 'function') {
-                window.initThemeToggle();
-            }
-
+            initThemeToggle();
+            console.log('theme toggle script is loaded...');
             // 关闭页面前执行销毁任务
             window.addEventListener('beforeunload', () => this.cleanup());
         },
@@ -24,12 +21,10 @@
             /**
              * 强制清除
              */
-
             this.cleanup();
-
             localStorage.removeItem('theme');
         }
     };
 })();
-
-window.ScriptsInOne = ScriptsInOne;
+export default Main;
+//# sourceMappingURL=main.js.map
