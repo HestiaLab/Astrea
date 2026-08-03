@@ -3,11 +3,11 @@
 | 项目 | 内容 |
 |------|------|
 | 项目名称 | Astrea |
-| 版本 | 0.1.0 |
+| 版本 | 0.3.0 |
 | 状态 | 草案 |
-| 日期 | 2026-08-01 |
+| 日期 | 2026-08-03 |
 | 作者 | wubing7755 |
-| 适用范围 | Blazor 组件库（net10.0） |
+| 适用范围 | Blazor 组件库（.NET 6.0） |
 
 ---
 
@@ -15,19 +15,19 @@
 
 ## 1.1 目的
 
-本文档定义 Astrea——一个面向 .NET 10 / Blazor 的 UI 组件库——的功能需求与非功能需求。本文档是后续概要设计、详细设计与代码开发的权威依据。
+本文档定义 Astrea——一个面向 .NET 6.0 / Blazor 的 UI 组件库——的功能需求与非功能需求。本文档是 Astrea 用户可观察行为和非功能需求的权威来源，是后续概要设计、详细设计、开发与测试的需求依据。
 
 ## 1.2 范围
 
 ### 1.2.1 范围内
 
-Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数据展示场景。组件清单如下：
+Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数据展示场景。组件清单如下：
 
 | 分类 | 组件 |
 |------|------|
-| Basic | Button、Alert、Divider、Label |
+| Basic | Button、Divider、Label |
 | Form | Input、Select |
-| Feedback | Modal（对话框） |
+| Feedback | Alert、Modal（对话框） |
 | Data Display | Table、Tree、Progress |
 
 ### 1.2.2 范围外
@@ -41,6 +41,7 @@ Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数
 | 数学运算 | 矩阵、几何变换等数学工具不纳入 |
 | 应用级服务 | 撤销/重做服务、事件总线、跨组件通信框架不纳入 |
 | 应用级布局 | 可停靠布局、分栏面板等应用级布局能力不纳入组件库 |
+| 未纳入首版的 UI 组件 | NumberInput、Checkbox、Radio、Switch、TextArea、DatePicker、Combobox、Tooltip、Toast 等未列于 §1.2.1 的组件不纳入本版 |
 
 ## 1.3 术语
 
@@ -52,18 +53,23 @@ Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数
 | Variant | 变体 | 组件的视觉风格（如 Primary、Danger） |
 | Size | 尺寸 | 组件的尺寸级别（Small、Medium、Large） |
 | IsDisabled | 禁用 | 组件不可交互但仍可见的状态 |
-| EventCallback | 事件回调 | Blazor 组件向使用方通知事件的标准机制 |
-| AdditionalAttributes | 附加属性 | 未被组件识别的属性透传给根元素 |
+| Event Notification | 事件通知 | 组件向应用开发者报告终端用户操作或状态变化的可观察行为 |
+| AdditionalAttributes | 附加属性 | 未被组件单独声明的属性应用到组件文档规定的目标元素 |
 | CSS Variable | CSS 变量 | 用于主题定制的自定义属性（--ast-*） |
 | Acceptance Criteria | 验收标准 | 需求的可验证行为准则 |
+| Accessible Name | 可访问名称 | 辅助技术用于识别控件用途的名称 |
+| Focus Trap | 焦点陷阱 | 对话框打开时将键盘焦点限制在对话框内的行为 |
+| Live Region | 实时区域 | 内容变化时可由辅助技术自动播报的页面区域 |
 
 ### 1.3.2 角色定义
 
 | English | 中文 | 说明 |
 |---------|------|------|
-| Application Developer | 应用开发者 | 使用 Astrea 组件的开发者，负责配置参数、绑定事件与模板 |
-| End User | 终端用户 | 使用构建后应用的最终用户，执行点击、输入等交互 |
-| System | 系统 | Astrea 组件自身，负责渲染、状态管理与行为保证 |
+| Application Developer | 应用开发者 | 在应用中使用 Astrea 组件，并观察公开配置、数据、通知和内容效果的开发者 |
+| End User | 终端用户 | 使用构建后应用的最终用户，执行点击、输入和浏览等交互 |
+| Keyboard User | 键盘用户 | 主要通过键盘导航和操作界面的终端用户 |
+| Assistive Technology User | 辅助技术用户 | 通过屏幕阅读器或其他辅助技术感知和操作界面的终端用户 |
+| System | 系统 | Astrea 组件在运行时产生对外可观察结果的行为主体 |
 
 ## 1.4 文档约定
 
@@ -74,7 +80,7 @@ Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数
 - **REQ**: Requirement（需求）
 - **F**: Functional（功能需求）
 - **NF**: Non-Functional（非功能需求）
-- **XXX**: 三位数字顺序号（F: 001~074；NF: 001~008）
+- **XXX**: 三位数字顺序号（F: 001~085；NF: 001~012）。新增需求沿用末尾编号并归入对应组件章节，因此正文中的物理顺序不要求与编号顺序一致
 
 ### 1.4.2 优先级定义
 
@@ -82,16 +88,31 @@ Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数
 |:---:|:---:|------|
 | P0 | 🔴 | 必须实现——核心功能，缺失则系统不可用 |
 | P1 | 🟡 | 应当实现——重要功能，缺失则显著降低可用性 |
-| P2 | 🟢 | 可以实现——增强功能，提升用户体验 |
+| P2 | 🟢 | 增强能力——是否纳入当前版本由需求状态决定 |
 
-### 1.4.3 需求格式
+### 1.4.3 需求状态
+
+- 除附录 B 明确列出的需求外，本文档中的需求均为 **Active**，属于当前版本需求基线。
+- 附录 B 中的需求状态为 **Deferred**，不属于当前版本必须实现的范围，但保留其预期行为供后续版本评估。
+- 优先级表示需求的重要程度，需求状态表示是否纳入当前版本，两者不得混用。
+
+### 1.4.4 需求格式
 
 每条需求包含以下字段，并使用代码围栏包裹：
 
 - **编号与优先级**: `REQ-F-XXX` + 优先级符号（🔴🟡🟢）+ `[Actor: 角色]`
 - **Title**: 需求标题
 - **Description**: 需求描述
+- **Source**: 需求来源、产品决策、标准或经验教训
 - **Acceptance Criteria**: 使用 Given/When/Then 格式的验收标准，每行一个步骤
+
+---
+
+## 1.5 需求与软件设计边界
+
+本文档只规定应用开发者、终端用户和辅助技术能够观察到的行为，以及可验证的非功能约束。需求应描述系统必须表现出的结果，不规定实现这些结果的软件结构或技术方案。
+
+需求条目可以规定公开能力、输入效果、事件通知、渲染语义、键盘行为、状态变化和质量目标，但不得规定内部基类、继承关系、具体类型、接口签名、状态字段、项目结构、样式隔离机制、测试工具或其他软件设计细节。上述内容由后续概要设计和详细设计确定。
 
 ---
 
@@ -101,22 +122,22 @@ Astrea 提供可复用的 UI 组件，覆盖基础表单、反馈、导航与数
 
 Astrea 是一个企业级 Blazor UI 组件库，强调**正确性、可访问性与可测试性**。组件命名源自希腊神话中的星辰女神 Astraea（阿斯特蕾亚），寓意组件如同夜空中的星辰，为界面提供清晰、可靠、一致的视觉元素。
 
-## 2.2 设计原则
+## 2.2 产品与需求原则
 
-以下原则源自前身项目 AWComponent 的经验教训，是需求评审的判定依据：
+以下原则源自前身项目 AWComponent 的经验教训，是确定和评审需求的依据：
 
-1. **行为可预测**：组件遵循 Blazor 标准渲染与事件语义，不引入"优化渲染"等自定义行为。
-2. **职责单一**：组件库只承载 UI 组件职责，不混入应用级服务。
-3. **可访问性优先**：每个组件必须提供正确的语义角色与键盘交互。
-4. **可验证**：每个组件的关键行为必须有自动化测试覆盖。
-5. **文档真实**：文档描述的每项能力必须真实存在，禁止"声称已实现但实际缺失"。
+1. **行为可预测**：相同输入和用户操作产生一致、可说明的可观察结果。
+2. **职责单一**：组件库只承载 UI 组件职责，不纳入应用级服务。
+3. **可访问性优先**：每个组件提供与用途一致的语义；可交互组件提供与交互模式一致的键盘行为。
+4. **可验证**：每项关键行为和质量约束具有可执行、结果可判定的验收标准。
+5. **文档真实**：文档描述的能力与发布包的实际可观察行为一致。
 
 ## 2.3 约束与假设
 
 | 类型 | 内容 |
 |------|------|
-| 技术约束 | 目标框架 net10.0；运行时依赖仅 Microsoft.AspNetCore.Components.Web |
-| 浏览器约束 | 支持现代浏览器最近两个主版本（Chrome、Edge、Firefox、Safari） |
+| 技术约束 | 目标框架为 .NET 6.0；支持在 .NET 6.0 Blazor Server 与 Blazor WebAssembly 应用中使用 |
+| 浏览器约束 | 支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本 |
 | 假设 | 使用方项目已配置 Blazor 所需的基础设施 |
 
 ---
@@ -125,651 +146,938 @@ Astrea 是一个企业级 Blazor UI 组件库，强调**正确性、可访问性
 
 ## 3.1 通用组件需求
 
-> 本节需求适用于所有 Astrea 组件，各组件需求隐含继承本节约束。
+> 本节需求与各组件的专用需求共同适用；专用需求明确限定适用组件时，以该限定为准。
 
 ```
 REQ-F-001 🔴 [Actor: Application Developer]
 
 Title
-组件基类与属性透传
+公共外观属性与附加属性
 
 Description
-所有组件继承统一的基类（AstreaComponentBase），支持 Class（CSS 类）、Style（内联样式）、IsDisabled（禁用）参数；未识别的属性通过 AdditionalAttributes 透传到根元素。
+所有 Astrea 组件必须允许应用开发者提供自定义 CSS 类、内联样式和附加 HTML 属性。组件文档必须说明这些属性作用于哪个可观察元素，并采用一致的名称冲突规则：自定义类与组件类同时保留；同名样式声明以应用提供的值为准；组件保证的状态和可访问性属性以组件值为准；其他附加属性使用应用提供的值。
 
 Source
-组件库基础能力定义
+组件公共使用契约
 
 Acceptance Criteria
 
-AC1：Class 参数合并
+AC1：CSS 类
 
-Given 使用方传入 Class="my-class"
-When 组件渲染
-Then 根元素 class 包含组件基类与 my-class
+Given 应用开发者提供一个或多个自定义 CSS 类
+When 组件显示
+Then 自定义类和组件自身用于表达外观或状态的类均保留
 
-AC2：附加属性透传
+AC2：内联样式
 
-Given 使用方传入 id="btn-save" 与 data-test="42"
-When 组件渲染
-Then 根元素包含 id 与 data-test 属性
+Given 应用开发者提供的内联样式与组件默认样式包含同一 CSS 属性
+When 组件显示
+Then 该 CSS 属性采用应用提供的值，其他默认样式继续生效
 
-AC3：Style 参数
+AC3：普通附加属性
 
-Given 使用方传入 Style="margin: 8px"
-When 组件渲染
-Then 根元素内联样式包含 margin: 8px
+Given 应用开发者提供组件未单独声明且不与保证属性冲突的 HTML 属性
+When 组件显示
+Then 该属性和值出现在组件文档声明的目标元素上
+
+AC4：保证属性冲突
+
+Given 应用提供的附加属性与组件保证的状态或可访问性属性同名
+When 组件显示
+Then 使用组件为当前状态计算的值，且文档说明该冲突规则
 ```
 
 ```
-REQ-F-002 🔴 [Actor: Application Developer]
+REQ-F-002 🔴 [Actor: End User]
 
 Title
-禁用状态语义
+适用组件的禁用状态
 
 Description
-组件禁用时不可交互但仍可见。禁用必须通过原生机制表达（如 disabled 属性），不得通过隐藏元素实现。
+具有禁用能力的交互组件在禁用时必须保持可见、不可触发交互，并向视觉用户和辅助技术表达禁用状态。非交互组件不要求提供禁用能力。
 
 Source
-经验教训：AWComponent 禁用实现为隐藏元素
+AWComponent 经验教训：禁用状态不应通过隐藏元素实现
 
 Acceptance Criteria
 
-AC1：禁用可见
+AC1：交互抑制
 
-Given 组件 IsDisabled="true"
-When 组件渲染
-Then 组件仍渲染在页面中且可见
+Given 一个支持禁用状态的组件处于禁用状态
+When 终端用户尝试通过鼠标、触摸或键盘触发其主要操作
+Then 组件不执行操作且不发送对应的事件通知
 
-AC2：禁用不可交互
+AC2：状态表达
 
-Given 组件 IsDisabled="true"
-When 终端用户触发交互（点击、输入等）
-Then 交互不生效，事件回调不被触发
+Given 一个支持禁用状态的组件处于禁用状态
+When 组件呈现给视觉用户和辅助技术
+Then 组件保持可见并提供可辨识的禁用状态
 
-AC3：禁用状态表达
+AC3：适用范围
 
-Given 组件 IsDisabled="true"
-When 组件渲染
-Then 根元素带原生禁用属性，且带可感知的禁用视觉反馈
+Given 一个没有交互或禁用语义的展示组件
+When 应用开发者使用该组件
+Then 组件不要求提供无意义的禁用状态
 ```
 
 ```
-REQ-F-003 🔴 [Actor: System]
+REQ-F-003 🔴 [Actor: Application Developer]
 
 Title
-事件处理与渲染语义
+稳定的状态更新
 
 Description
-组件的事件处理遵循 Blazor 标准语义：事件回调执行后，组件状态变更必须反映到界面。禁止自定义跳过渲染的"优化"。
+组件在应用重新渲染或更新公开输入后，必须反映应用提供的最新状态，不得无故重置未被替换的用户可观察状态，也不得产生重复事件。
 
 Source
-经验教训：AWComponent 渲染优化致 UI 不更新
+组件状态一致性要求
 
 Acceptance Criteria
 
-AC1：事件后重渲染
+AC1：应用更新
 
-Given 事件回调修改了组件状态
-When 事件处理完成
-Then 界面反映最新状态
+Given 组件已经呈现
+When 应用开发者更新该组件的公开输入并触发重新渲染
+Then 组件呈现与最新输入一致的结果
+
+AC2：无关重新渲染
+
+Given 组件状态未被应用更新
+When 父级内容因无关原因重新渲染
+Then 组件的用户可观察状态保持不变且不产生额外事件通知
+
+AC3：重复更新
+
+Given 应用连续提供相同的状态值
+When 组件重新渲染
+Then 组件不产生重复的用户操作通知
 ```
 
 ```
-REQ-F-004 🔴 [Actor: Application Developer]
+REQ-F-004 🟡 [Actor: Application Developer]
 
 Title
 主题定制
 
 Description
-组件的颜色、尺寸、圆角等视觉属性通过 CSS 变量（前缀 --ast-）定制，并提供合理的默认值。
+组件的颜色、间距、圆角、字体和边框等视觉特征必须能够通过公开的 --ast-* 主题变量进行定制；未提供自定义值时使用完整且可用的默认主题。
 
 Source
-经验教训：AWComponent 内联硬编码样式无法主题化
+主题定制需求
 
 Acceptance Criteria
 
-AC1：CSS 变量覆盖
+AC1：默认主题
 
-Given 使用方在根容器定义 --ast-primary: #ff0000
+Given 应用未覆盖任何 Astrea 主题变量
 When 组件渲染
-Then 组件主色使用覆盖值
+Then 组件使用完整的默认主题且内容保持可读
 
-AC2：默认值
+AC2：主题覆盖
 
-Given 使用方未定义任何 CSS 变量
-When 组件渲染
-Then 组件使用内置默认值且视觉完整
+Given 应用覆盖一个已记录的 --ast-* 主题变量
+When 相关组件渲染
+Then 对应视觉特征使用覆盖值，其他视觉特征保持默认值
+
+AC3：无效覆盖
+
+Given 应用提供无效的主题变量值
+When 浏览器无法采用该值
+Then 组件仍可使用公开的回退值保持内容可见和可操作
 ```
 
 ```
-REQ-F-005 🔴 [Actor: System]
+REQ-F-005 🟡 [Actor: Application Developer]
 
 Title
-样式作用域隔离
+样式影响范围
 
 Description
-组件样式使用 scoped CSS（.razor.css），不得使用会泄漏到全局的选择器。
+组件自带样式不得意外改变宿主应用中组件外部元素的视觉结果；应用按文档覆盖组件公开样式入口时，影响范围必须可预测。
 
 Source
-经验教训：AWComponent 全局 CSS 选择器泄漏
+组件集成隔离要求
 
 Acceptance Criteria
 
-AC1：无全局泄漏
+AC1：宿主隔离
 
-Given 使用方页面存在同名 class
-When 组件渲染
-Then 组件样式不覆盖使用方页面的无关元素
+Given 宿主页面包含 Astrea 组件和普通 HTML 元素
+When 组件样式加载
+Then 组件外部的普通 HTML 元素不会仅因 Astrea 样式而发生非预期变化
+
+AC2：公开覆盖
+
+Given 应用仅覆盖某一组件记录的公开样式入口
+When 页面渲染
+Then 覆盖结果限定在文档声明的组件或作用域内
 ```
 
 ```
-REQ-F-006 🔴 [Actor: System]
+REQ-F-006 🔴 [Actor: Assistive Technology User]
 
 Title
-语义角色
+语义与可访问名称
 
 Description
-每个组件根元素必须设置正确的语义 role 或使用原生语义元素（如 button、table）。
+每个组件必须向辅助技术暴露与其用途一致的语义。可交互组件和表达状态的组件必须具有可访问名称，并在状态变化后同步更新可访问性信息。
 
 Source
-经验教训：AWComponent A11Y 缺失；WCAG 2.1
+WCAG 2.2 与 WAI-ARIA 语义要求
 
 Acceptance Criteria
 
-AC1：语义正确
+AC1：语义
 
 Given 任意 Astrea 组件
-When 渲染完成
-Then 根元素具有与组件语义匹配的角色或原生元素
+When 辅助技术读取该组件
+Then 获得与组件用途一致且不重复冲突的语义
+
+AC2：可访问名称
+
+Given 一个需要名称的交互组件或状态组件
+When 辅助技术聚焦或读取该组件
+Then 获得能够说明其用途的可访问名称
+
+AC3：状态同步
+
+Given 组件具有选中、展开、禁用、无效或进度等可观察状态
+When 该状态发生变化
+Then 辅助技术获得的状态信息与视觉状态一致
 ```
 
 ```
-REQ-F-007 🟡 [Actor: End User]
+REQ-F-007 🔴 [Actor: Keyboard User]
 
 Title
-键盘交互基础
+键盘可操作性
 
 Description
-可交互组件必须支持标准键盘操作（Tab 聚焦、Enter/Space 激活等），并使用 focus-visible 提供可见的焦点指示。
+所有可交互组件必须支持与其组件类型和交互模式一致的键盘操作。键盘用户必须能够到达、操作并离开组件，且不得陷入无退出路径的焦点状态。
 
 Source
-WCAG 2.1
+WCAG 2.2 键盘可访问性要求
 
 Acceptance Criteria
 
-AC1：焦点可见
+AC1：焦点到达
 
-Given 组件可交互
-When 键盘 Tab 聚焦到组件
-Then 显示清晰的焦点环
+Given 页面包含可交互的 Astrea 组件
+When 键盘用户按顺序导航
+Then 每个可用交互目标均能获得焦点，顺序与页面视觉阅读顺序一致且没有目标被跳过
+
+AC2：组件操作
+
+Given 键盘焦点位于可交互组件
+When 用户使用该组件专用需求规定的按键
+Then 组件产生该专用需求规定的用户可观察结果
+
+AC3：焦点可见与退出
+
+Given 键盘用户正在操作组件
+When 焦点移动或用户离开组件
+Then 当前焦点具有可见指示，且用户能够继续导航到组件外部
 ```
 
 ```
 REQ-F-008 🔴 [Actor: Application Developer]
 
 Title
-组件测试要求
+外部状态同步
 
 Description
-每个组件必须提供 bUnit 自动化测试，覆盖渲染、核心交互与禁用状态。
+组件公开显示的值、可见性、选择、展开和集合内容必须与应用提供的最新状态保持一致。终端用户操作产生状态变更请求时，应用必须能够收到一次明确通知。
 
 Source
-经验教训：AWComponent 测试覆盖不足
+组件状态所有权与同步需求
 
 Acceptance Criteria
 
-AC1：测试存在
+AC1：外部状态更新
 
-Given 任意已实现的组件
-Then 测试项目中存在对应测试文件且全部通过
+Given 组件已经显示一个公开状态
+When 应用开发者提供新的状态值
+Then 组件显示结果更新为新状态
+
+AC2：用户状态操作
+
+Given 终端用户执行会改变公开状态的操作
+When 操作被组件接受
+Then 应用收到一次对应的状态变更通知
+
+AC3：应用决定最终状态
+
+Given 组件发送状态变更通知
+When 应用随后提供最终状态
+Then 组件显示结果与应用提供的最终状态一致
 ```
 
 ```
 REQ-F-009 🟡 [Actor: Application Developer]
 
 Title
-组件文档要求
+内置文本可配置
 
 Description
-每个组件必须配套使用文档，包含：组件用途、参数列表、使用示例。文档描述的每项能力必须真实存在。
+组件提供的关闭、确认、取消、空数据、加载和错误等内置可见文本必须可由应用开发者替换，组件不得要求终端用户理解固定语言。
 
 Source
-经验教训：AWComponent 调试代码混入库、文档描述夸大
+国际化与应用集成需求
 
 Acceptance Criteria
 
-AC1：文档真实
+AC1：默认文本
 
-Given 文档声称某组件支持某参数
-When 审查文档与实现
-Then 参数真实存在且行为与文档一致
+Given 应用未提供替代文本
+When 组件需要显示内置文本
+Then 组件显示已记录的默认文本
+
+AC2：替代文本
+
+Given 应用为内置文本提供替代内容
+When 对应内容显示
+Then 视觉用户和辅助技术获得替代内容
+
+AC3：无固定语言依赖
+
+Given 应用替换全部用户可见的内置文本
+When 终端用户操作组件
+Then 组件功能不依赖默认文本所使用的语言
 ```
 
 ## 3.2 Button（按钮）
 
+> 当前版本不包含专用加载或忙碌状态；该增强能力见 Deferred 的 REQ-F-080。
+
 ```
-REQ-F-010 🔴 [Actor: System]
+REQ-F-010 🔴 [Actor: End User]
 
 Title
-渲染为原生按钮
+Button 基础呈现
 
 Description
-Button 渲染为原生 button 元素，Class 合并规则遵循 REQ-F-001。
+Button 必须显示应用提供的内容，并向视觉用户和辅助技术表达为可操作按钮。
 
 Source
-组件需求定义
+Button 基础能力
 
 Acceptance Criteria
 
-AC1：元素类型
+AC1：内容呈现
 
-Given 使用方渲染 Button 组件
-When 组件渲染
-Then 生成 button 元素
+Given 应用为 Button 提供文本或其他可见内容
+When Button 渲染
+Then 所有提供的内容按原顺序显示且可用于识别按钮用途
+
+AC2：按钮语义
+
+Given Button 已渲染
+When 视觉用户或辅助技术访问 Button
+Then Button 被识别为一个可操作按钮
 ```
 
 ```
 REQ-F-011 🔴 [Actor: End User]
 
 Title
-点击事件
+Button 点击事件
 
 Description
-Button 提供 OnClick 事件回调（EventCallback），点击时触发。
+终端用户通过鼠标、触摸或键盘激活可用 Button 时，应用必须收到一次点击通知。
 
 Source
-组件需求定义
+Button 交互需求
 
 Acceptance Criteria
 
-AC1：点击触发
+AC1：鼠标或触摸激活
 
-Given 使用方绑定 OnClick
-When 终端用户点击按钮
-Then OnClick 被触发一次
+Given Button 可用且已显示
+When 终端用户单次点击或轻触 Button
+Then 应用收到一次点击通知
 
-AC2：未绑定不报错
+AC2：键盘激活
 
-Given 使用方未绑定 OnClick
-When 终端用户点击按钮
-Then 无异常发生
+Given 键盘焦点位于可用 Button
+When 用户使用按钮的标准激活键
+Then 应用收到一次点击通知且行为与点击一致
+
+AC3：单次通知
+
+Given 一次用户激活操作已被接受
+When Button 完成该操作
+Then 不会因同一次操作产生重复点击通知
 ```
 
 ```
 REQ-F-012 🔴 [Actor: Application Developer]
 
 Title
-按钮类型
+Button 表单行为
 
 Description
-Button 支持原生类型：Button（默认）、Submit、Reset。默认值必须为 Button，避免意外提交表单。
+应用开发者必须能够选择 Button 的普通、提交或重置行为。未明确选择时，Button 不得意外提交或重置所属表单。
 
 Source
-组件需求定义
+HTML 表单交互需求
 
 Acceptance Criteria
 
-AC1：默认类型
+AC1：默认行为
 
-Given 使用方未指定类型
-When 组件渲染
-Then type="button"
+Given Button 位于表单内且应用未指定表单行为
+When 终端用户激活 Button
+Then Button 不会自动提交或重置表单
 
-AC2：提交类型
+AC2：提交行为
 
-Given 使用方指定 Type="Submit" 且按钮位于表单内
-When 终端用户点击按钮
-Then 表单提交
+Given 应用将 Button 配置为提交操作
+When 终端用户激活 Button
+Then 所属表单按宿主应用规则发起提交
+
+AC3：重置行为
+
+Given 应用将 Button 配置为重置操作
+When 终端用户激活 Button
+Then 所属表单恢复其可观察的初始值
 ```
 
 ```
-REQ-F-013 🔴 [Actor: Application Developer]
+REQ-F-013 🟡 [Actor: Application Developer]
 
 Title
-视觉变体
+Button 视觉变体
 
 Description
-Button 支持 Variant 参数：Primary（默认）、Secondary、Text、Danger。各变体必须有可辨识的视觉差异。
+Button 必须提供 Primary、Secondary、Danger、Ghost 四种公开视觉变体。各变体必须能够被视觉用户辨识，且不得只依赖颜色传达危险或主要操作含义。
 
 Source
-组件需求定义
+Button 视觉层次需求
 
 Acceptance Criteria
 
-AC1：变体类名
+AC1：变体选择
 
-Given 使用方指定 Variant="Danger"
-When 组件渲染
-Then 根元素 class 包含对应的变体标识
+Given 应用选择任一受支持的 Button 视觉变体
+When Button 渲染
+Then Button 呈现该变体记录的视觉结果
 
-AC2：变体差异
+AC2：默认变体
 
-Given 各变体按钮同时渲染
-When 视觉检查
-Then 变体之间可辨识
+Given 应用未选择 Button 视觉变体
+When Button 渲染
+Then Button 使用 Primary 变体
+
+AC3：主题适配
+
+Given 应用覆盖公开主题变量
+When 不同 Button 变体渲染
+Then 各变体保持可辨识且文本与状态保持可读
 ```
 
 ```
 REQ-F-014 🟡 [Actor: Application Developer]
 
 Title
-尺寸
+Button 尺寸
 
 Description
-Button 支持 Size 参数：Small、Medium（默认）、Large。具体尺寸数值由详细设计确定。
+Button 必须提供 Small、Medium、Large 三种公开尺寸，并在改变尺寸时保持内容、焦点指示和可操作区域完整。
 
 Source
-组件需求定义
+Button 尺寸需求
 
 Acceptance Criteria
 
-AC1：尺寸类名
+AC1：尺寸选择
 
-Given 使用方指定 Size="Large"
-When 组件渲染
-Then 根元素 class 包含对应的尺寸标识
+Given 应用选择任一受支持的 Button 尺寸
+When Button 渲染
+Then Button 使用该尺寸记录的高度、间距和字体比例
+
+AC2：默认尺寸
+
+Given 应用未选择 Button 尺寸
+When Button 渲染
+Then Button 使用 Medium 尺寸
+
+AC3：内容完整
+
+Given Button 包含文本和图标
+When Button 以任一支持尺寸渲染
+Then 内容不被裁剪且焦点指示完整可见
 ```
 
 ```
-REQ-F-015 🔴 [Actor: Application Developer]
+REQ-F-015 🔴 [Actor: End User]
 
 Title
-禁用
+Button 禁用
 
 Description
-Button 禁用时不可点击，遵循 REQ-F-002 语义。
+Button 禁用时必须保持可见但不可激活，不得提交或重置表单，也不得向应用发送点击通知。
 
 Source
 REQ-F-002
 
 Acceptance Criteria
 
-AC1：禁用属性
+AC1：用户操作
 
-Given IsDisabled="true"
-When 组件渲染
-Then button 带 disabled 属性
-And 点击不触发 OnClick
+Given Button 处于禁用状态
+When 终端用户通过鼠标、触摸或键盘尝试激活
+Then Button 不执行普通、提交或重置操作，应用不收到点击通知
+
+AC2：状态表达
+
+Given Button 处于禁用状态
+When 视觉用户或辅助技术访问 Button
+Then 能够识别 Button 当前不可用
 ```
 
 ```
 REQ-F-016 🟡 [Actor: Application Developer]
 
 Title
-图标支持
+Button 图标
 
 Description
-Button 支持前置图标（Icon 参数，接受图标字体类名）。
+应用开发者必须能够在 Button 文本之前提供图标内容。Astrea 不得要求应用使用特定图标字体或图标库。
 
 Source
-组件需求定义
+Button 图标需求
 
 Acceptance Criteria
 
-AC1：图标渲染
+AC1：图标与文本
 
-Given 使用方指定 Icon="fa-solid fa-save"
-When 组件渲染
-Then 图标元素渲染在文本之前
+Given 应用同时提供图标和文本
+When Button 渲染
+Then 图标显示在文本之前并保持合理间距
+
+AC2：装饰图标
+
+Given 图标仅用于装饰且 Button 已有可访问文本
+When 辅助技术读取 Button
+Then 图标不会重复加入 Button 的可访问名称
+
+AC3：无图标
+
+Given 应用未提供图标
+When Button 渲染
+Then 文本布局不保留无意义的图标空位
 ```
 
 ```
-REQ-F-017 🔴 [Actor: End User]
+REQ-F-017 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Button 可访问性
 
 Description
-Button 必须支持键盘激活（Enter/Space）、focus-visible 焦点环、禁用时 aria-disabled。
+Button 必须具有可访问名称，暴露可用或禁用状态，并支持按钮的标准键盘操作。纯图标 Button 必须由应用提供能够说明操作目的的名称。
 
 Source
-REQ-F-006、REQ-F-007
+WCAG 2.2 与 HTML 按钮语义
 
 Acceptance Criteria
 
-AC1：键盘激活
+AC1：名称
 
-Given 焦点在按钮上
-When 按下 Enter 或 Space
-Then OnClick 触发
+Given Button 包含可见文本或应用提供的可访问名称
+When 辅助技术读取 Button
+Then 获得能够说明操作目的的名称
 
 AC2：禁用状态
 
-Given IsDisabled="true"
-When 组件渲染
-Then 同时带 disabled 与 aria-disabled 属性
+Given Button 处于禁用状态
+When 键盘用户或辅助技术访问 Button
+Then Button 不可激活且禁用状态可被识别
+
+AC3：键盘激活
+
+Given 键盘焦点位于可用 Button
+When 用户按 Enter 或 Space
+Then Button 执行与单次点击相同的操作
+```
+
+```
+REQ-F-080 🟢 [Actor: Application Developer]
+
+Title
+Button 加载与忙碌状态
+
+Description
+应用可以使 Button 表达异步操作正在进行。忙碌期间 Button 保留可访问名称和可见反馈，不接受重复激活；应用结束忙碌状态后，Button 恢复其公开可用状态。
+
+Source
+Button 增强需求（Deferred）
+
+Acceptance Criteria
+
+AC1：进入忙碌状态
+
+Given 可用 Button 已触发异步操作
+When 应用将 Button 设置为忙碌状态
+Then 用户能够识别操作正在进行且 Button 不接受新的激活
+
+AC2：可访问名称
+
+Given Button 处于忙碌状态
+When 辅助技术读取 Button
+Then 用户获得原操作目的和忙碌状态信息
+
+AC3：重复操作
+
+Given Button 处于忙碌状态
+When 用户重复点击或使用键盘激活
+Then 应用不收到新的点击通知
+
+AC4：恢复
+
+Given Button 处于忙碌状态
+When 应用结束忙碌状态
+Then Button 根据应用提供的禁用状态恢复为可用或禁用
 ```
 
 ## 3.3 Alert（警告提示）
 
 ```
-REQ-F-018 🔴 [Actor: Application Developer]
+REQ-F-018 🔴 [Actor: End User]
 
 Title
-渲染与类型
+Alert 类型
 
 Description
-Alert 渲染为区块元素，支持类型：Info、Success、Warning、Error。各类型有可辨识的视觉差异。
+Alert 必须提供 Info、Success、Warning、Error 四种类型。类型必须通过可辨识的文本、图标或其他非颜色线索表达，不得仅依赖颜色。
 
 Source
-组件需求定义
+Alert 状态反馈需求
 
 Acceptance Criteria
 
-AC1：类型渲染
+AC1：类型呈现
 
-Given 使用方指定 Type="Error"
-When 组件渲染
-Then 根元素 class 包含对应类型标识
-And 视觉上可辨识
+Given 应用选择任一受支持的 Alert 类型
+When Alert 显示
+Then 视觉用户能够区分该类型且内容保持可读
+
+AC2：辅助技术信息
+
+Given Alert 类型对理解消息重要
+When 辅助技术读取 Alert
+Then 用户能够获得与该类型等效的信息
 ```
 
 ```
 REQ-F-019 🔴 [Actor: Application Developer]
 
 Title
-内容
+Alert 内容
 
 Description
-Alert 支持通过 ChildContent 渲染任意内容，支持标题与正文（标题可选）。
+Alert 必须显示应用提供的正文，并可以显示可选标题或组合内容。标题和正文顺序必须稳定，内容不得被关闭操作遮挡。
 
 Source
-组件需求定义
+Alert 内容需求
 
 Acceptance Criteria
 
-AC1：内容渲染
+AC1：正文
 
-Given 使用方传入 ChildContent
-When 组件渲染
-Then 内容完整渲染在 Alert 内部
+Given 应用提供 Alert 正文
+When Alert 显示
+Then 正文完整可见
+
+AC2：标题
+
+Given 应用同时提供标题和正文
+When Alert 显示
+Then 标题显示在正文之前且两者均可由辅助技术访问
+
+AC3：组合内容
+
+Given 应用提供可交互的组合内容
+When Alert 显示
+Then 内容保持可操作且关闭操作不会遮挡内容
 ```
 
 ```
 REQ-F-020 🔴 [Actor: End User]
 
 Title
-关闭行为
+Alert 关闭操作
 
 Description
-Alert 提供显式的关闭按钮。仅点击关闭按钮时触发 OnClose，点击 Alert 其他区域不得触发。
+Alert 必须提供具有可访问名称的关闭操作。终端用户激活关闭操作后，应用收到一次关闭请求；Alert 后续是否显示必须与应用提供的最新可见状态一致。
 
 Source
-经验教训：AWComponent Alert 整区点击关闭
+Alert 关闭交互需求
 
 Acceptance Criteria
 
-AC1：关闭按钮
+AC1：关闭请求
 
-Given Alert 可见且绑定 OnClose
-When 终端用户点击关闭按钮
-Then OnClose 触发
+Given Alert 可见且关闭操作可用
+When 终端用户激活关闭操作
+Then 应用收到一次关闭请求
 
-AC2：区域点击不关闭
+AC2：状态一致
 
-Given Alert 可见且绑定 OnClose
-When 终端用户点击 Alert 非按钮区域
-Then OnClose 不触发
+Given 应用收到关闭请求
+When 应用提供新的可见状态
+Then Alert 显示结果与该状态一致
+
+AC3：可访问名称
+
+Given 辅助技术读取 Alert 的关闭操作
+When 关闭操作获得焦点
+Then 用户获得能够说明“关闭此消息”用途的名称
 ```
 
 ```
 REQ-F-021 🔴 [Actor: Application Developer]
 
 Title
-可见性控制
+Alert 可见性
 
 Description
-Alert 通过 IsVisible 参数控制显示，隐藏时不渲染。
+应用开发者必须能够控制 Alert 是否显示。可见状态变化不得产生未经用户或应用请求的关闭通知。
 
 Source
-组件需求定义
+Alert 状态控制需求
 
 Acceptance Criteria
 
-AC1：隐藏
+AC1：显示
 
-Given IsVisible="false"
-When 组件渲染
-Then Alert 不渲染
+Given 应用提供可见状态
+When Alert 渲染
+Then Alert 内容和关闭操作显示
+
+AC2：隐藏
+
+Given 应用提供隐藏状态
+When Alert 渲染
+Then Alert 不显示且不占据页面布局空间
+
+AC3：外部切换
+
+Given Alert 已显示
+When 应用将状态切换为隐藏
+Then Alert 隐藏且不额外发送用户关闭请求
 ```
 
 ```
-REQ-F-022 🟢 [Actor: System]
+REQ-F-022 🟢 [Actor: Application Developer]
 
 Title
-自动关闭
+Alert 自动关闭
 
 Description
-Alert 支持 AutoClose 与超时配置，达到超时后自动触发 OnClose。具体超时数值由详细设计确定。
+应用开发者可以选择让 Alert 在可配置时间后发送一次自动关闭请求。自动关闭默认不启用，且不得在用户正在阅读或操作 Alert 时使内容意外消失。
 
 Source
-组件需求定义（P2 待定）
+Alert 增强需求（Deferred）
 
 Acceptance Criteria
 
-AC1：自动关闭
+AC1：默认行为
 
-Given 使用方启用 AutoClose
-When 显示时长超过配置超时
-Then 自动触发 OnClose
+Given 应用未启用自动关闭
+When Alert 持续显示
+Then Alert 不会因时间经过而请求关闭
+
+AC2：超时请求
+
+Given 应用启用自动关闭并设置有效持续时间
+When 持续时间结束且用户未与 Alert 交互
+Then 应用收到一次自动关闭请求
+
+AC3：用户交互
+
+Given 自动关闭计时正在进行
+When 键盘焦点进入 Alert 或指针停留在 Alert 上
+Then Alert 不会在该交互期间自动消失
 ```
 
 ```
-REQ-F-023 🔴 [Actor: End User]
+REQ-F-023 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Alert 可访问性
 
 Description
-Alert 必须设置 role="alert"，关闭按钮可键盘操作。
+Alert 必须向辅助技术表达消息内容和重要程度。Warning 与 Error 动态消息默认作为需要及时注意的消息播报；Info 与 Success 动态消息默认以不打断当前任务的方式播报。消息出现或已显示消息内容更新时不得无故移动当前键盘焦点，同一次可观察更新不得产生重复通知。
 
 Source
-REQ-F-006
+WAI-ARIA Alert Pattern 与 WCAG 2.2
 
 Acceptance Criteria
 
-AC1：角色
+AC1：高优先消息
 
-Given Alert 渲染
-Then 根元素 role="alert"
+Given Warning 或 Error Alert 作为动态消息出现
+When 辅助技术监测页面变化
+Then 消息被及时识别或播报
 
-AC2：关闭按钮可键盘操作
+AC2：普通状态消息
 
-Given 焦点在 Alert 关闭按钮上
-When 按下 Enter 或 Space
-Then 关闭按钮被激活
+Given Info 或 Success Alert 作为动态消息出现
+When 辅助技术监测页面变化
+Then 消息以不打断当前任务的方式被识别或播报
+
+AC3：焦点保持
+
+Given 键盘焦点位于页面中的其他控件
+When Alert 出现或已显示消息内容更新
+Then 当前焦点不会仅因该变化而移动
+
+AC4：关闭操作
+
+Given Alert 允许关闭
+When 键盘用户导航到关闭操作并激活
+Then 应用收到一次关闭请求
+
+AC5：已显示消息更新
+
+Given Alert 已显示且应用更新正文、标题或重要程度
+When 辅助技术监测该次更新
+Then 用户获得最新消息和重要程度，组件不因同一次更新产生重复通知
 ```
 
 ## 3.4 Divider（分割线）
 
 ```
-REQ-F-024 🔴 [Actor: Application Developer]
+REQ-F-024 🔴 [Actor: End User]
 
 Title
-渲染与方向
+Divider 方向与语义
 
 Description
-Divider 渲染为分割线元素，支持水平与垂直方向。
+Divider 必须支持水平和垂直方向。应用可以将 Divider 用作表达内容区域边界的语义分隔，也可以将其标记为纯视觉装饰；语义 Divider 必须向辅助技术表达分隔及方向，装饰 Divider 不得产生无信息价值的分隔语义。默认使用语义分隔模式。
 
 Source
-组件需求定义
+Divider 基础能力与 WAI-ARIA Separator Pattern
 
 Acceptance Criteria
 
-AC1：水平默认
+AC1：水平方向
 
-Given 使用方未指定方向
-When 组件渲染
-Then 渲染为水平分割线
+Given 应用选择水平方向和语义分隔模式
+When Divider 显示
+Then 分隔线沿水平方向显示并向辅助技术表达水平方向
 
 AC2：垂直方向
 
-Given 使用方指定垂直方向
-When 组件渲染
-Then 渲染为垂直分割线
+Given 应用选择垂直方向和语义分隔模式
+When Divider 显示
+Then 分隔线沿垂直方向显示并向辅助技术表达垂直方向
+
+AC3：默认模式
+
+Given 应用未指定方向或语义模式
+When Divider 显示
+Then Divider 使用水平方向并作为语义分隔供辅助技术识别
+
+AC4：装饰模式
+
+Given 应用将 Divider 标记为纯视觉装饰
+When 辅助技术浏览页面
+Then Divider 不被表达为内容分隔元素且不增加无信息价值的导航项
 ```
 
 ```
 REQ-F-025 🟡 [Actor: Application Developer]
 
 Title
-视觉定制
+Divider 视觉定制
 
 Description
-Divider 支持自定义颜色、粗细与线型（实线、虚线等）。
+应用开发者必须能够定制 Divider 的颜色、粗细以及实线或虚线样式。定制结果不得使 Divider 嵌入内容不可读。
 
 Source
-组件需求定义
+Divider 视觉定制需求
 
 Acceptance Criteria
 
 AC1：视觉属性
 
-Given 使用方指定颜色与线型
-When 组件渲染
-Then 分割线呈现指定视觉
+Given 应用提供受支持的颜色、粗细和线型
+When Divider 显示
+Then 分隔线呈现对应视觉结果
+
+AC2：默认外观
+
+Given 应用未提供视觉定制
+When Divider 显示
+Then 使用默认主题外观
+
+AC3：内容可读
+
+Given Divider 包含嵌入内容
+When 应用定制分隔线外观
+Then 嵌入内容仍保持可读
 ```
 
 ```
 REQ-F-026 🟡 [Actor: Application Developer]
 
 Title
-嵌入内容
+Divider 嵌入内容
 
 Description
-Divider 支持在分割线中间嵌入文本或自定义内容。
+应用开发者可以在 Divider 中提供文本或其他可见内容。内容必须位于分隔区域中并保持正确阅读顺序。
 
 Source
-组件需求定义
+Divider 内容需求
 
 Acceptance Criteria
 
-AC1：嵌入内容
+AC1：文本内容
 
-Given 使用方传入 ChildContent
-When 组件渲染
-Then 内容渲染在分割线中间位置
+Given 应用提供文本内容
+When Divider 显示
+Then 文本显示在分隔区域中且分隔线不会穿过文字
+
+AC2：组合内容
+
+Given 应用提供其他可见内容
+When Divider 显示
+Then 内容完整显示并保持在页面阅读顺序中
+
+AC3：无内容
+
+Given 应用未提供嵌入内容
+When Divider 显示
+Then 分隔线连续显示且不保留空白内容区域
 ```
 
 ```
-REQ-F-027 🟢 [Actor: System]
+REQ-F-027 🟢 [Actor: End User]
 
 Title
-响应式适配
+Divider 响应式表现
 
 Description
-Divider 在容器尺寸变化时保持完整显示，不出现溢出或截断。
+Divider 在容器尺寸变化和受支持的页面缩放条件下必须保持方向、内容位置和边界完整，不得造成页面非预期溢出。
 
 Source
-组件需求定义
+响应式布局需求
 
 Acceptance Criteria
 
-AC1：无溢出
+AC1：容器尺寸变化
 
-Given 容器宽度变化
-When 组件渲染
-Then 分割线不溢出容器
+Given Divider 位于可调整尺寸的容器中
+When 容器宽度或高度变化
+Then Divider 重新适配可用空间且方向保持不变
+
+AC2：页面缩放
+
+Given 浏览器页面缩放至受支持范围
+When Divider 显示
+Then 分隔线和嵌入内容不被裁剪且不产生非预期滚动
 ```
 
 ## 3.5 Input（输入框）
@@ -778,217 +1086,327 @@ Then 分割线不溢出容器
 REQ-F-028 🔴 [Actor: Application Developer]
 
 Title
-渲染与类型
+Input 文本输入类型
 
 Description
-Input 渲染为原生 input 元素，支持类型：Text（默认）、Email、Password、Number、Checkbox 等。
+Input 必须支持 Text、Email、Password、Search、Tel、Url 六种文本输入类型。未列出的 Number、Checkbox、Radio 等输入能力不属于本版 Input 范围。
 
 Source
-组件需求定义
+首版表单组件范围决策
 
 Acceptance Criteria
 
-AC1：类型映射
+AC1：受支持类型
 
-Given 使用方指定 Type="Password"
-When 组件渲染
-Then input 的 type 为 password
+Given 应用选择任一受支持的 Input 类型
+When Input 渲染
+Then 终端用户获得与该类型一致的输入行为
+
+AC2：默认类型
+
+Given 应用未指定 Input 类型
+When Input 渲染
+Then Input 使用 Text 类型
+
+AC3：范围明确
+
+Given 应用需要未列出的输入类型
+When 查阅本版 Input 文档
+Then 文档明确说明该类型不在本版支持范围内
 ```
 
 ```
 REQ-F-029 🔴 [Actor: Application Developer]
 
 Title
-值绑定
+Input 值同步
 
 Description
-Input 支持双向绑定：Value 参数 + ValueChanged 回调（EventCallback）。
+Input 显示的文本值必须与应用提供的最新值保持一致。终端用户每次完成并提交一次实际文本变化时，应用必须通过 REQ-F-030 规定的同一条文本变化通知收到最新值；不得为同一次文本变化另外发送第二条值同步通知。无关的父级重新渲染不得回退已由应用接受的输入。未提供文本或文本被清空时，Input 必须显示为空。
 
 Source
-组件需求定义
+Input 数据绑定行为
 
 Acceptance Criteria
 
-AC1：外部值渲染
+AC1：初始值
 
-Given 使用方传入 Value="hello"
-When 组件渲染
-Then 输入框显示 hello
+Given 应用为 Input 提供初始文本
+When Input 首次显示
+Then Input 显示该文本
 
-AC2：用户输入通知
+AC2：用户输入
 
-Given 使用方绑定 ValueChanged
-When 终端用户输入内容
-Then ValueChanged 携带最新值触发
+Given Input 可编辑
+When 终端用户修改文本
+Then 应用通过一条文本变化通知收到当前输入内容，不再收到第二条值同步通知
 
-AC3：外部值不覆盖输入
+AC3：外部更新
 
-Given 终端用户正在输入
-When 父组件因无关原因重渲染
-Then 用户输入中的内容不被覆盖
+Given Input 已显示一个值
+When 应用提供不同的新值
+Then Input 显示新值且不把该外部更新报告为用户输入
+
+AC4：无关重新渲染
+
+Given 应用已接受终端用户输入且未提供替代值
+When 父级内容因无关原因重新渲染
+Then Input 不回退到更早的值
+
+AC5：无初始文本
+
+Given 应用未提供初始文本
+When Input 首次显示
+Then Input 显示为空且不产生文本变化通知
+
+AC6：用户清空
+
+Given Input 当前包含文本且可编辑
+When 终端用户清空全部文本
+Then Input 显示为空且应用只收到一条包含空文本的变化通知
 ```
 
 ```
-REQ-F-030 🟡 [Actor: End User]
+REQ-F-030 🟡 [Actor: Application Developer]
 
 Title
-输入事件
+Input 交互通知
 
 Description
-Input 支持 OnBlur（失焦）、OnEnter（回车）事件回调。
+应用开发者必须能够获知 Input 的文本变化、Enter 激活和失去焦点操作。每次用户操作最多产生一次对应通知；文本变化通知同时承担 REQ-F-029 的最新值同步，不是额外于值同步通知的第二条通知。键盘输入、粘贴、浏览器自动填充和输入法完成输入后均遵守相同的最终文本通知契约。
 
 Source
-组件需求定义
+Input 交互需求
 
 Acceptance Criteria
 
-AC1：回车事件
+AC1：文本变化
 
-Given 使用方绑定 OnEnter
-When 终端用户聚焦输入框并按下 Enter
-Then OnEnter 携带当前值触发
+Given Input 可编辑
+When 终端用户改变当前文本
+Then 应用只收到一条文本变化通知，且该通知包含最新文本
 
-AC2：失焦事件
+AC2：Enter
 
-Given 使用方绑定 OnBlur
-When 输入框失焦
-Then OnBlur 携带当前值触发
+Given 键盘焦点位于 Input
+When 用户按 Enter
+Then 应用收到一次 Enter 操作通知
+
+AC3：失去焦点
+
+Given Input 已获得焦点
+When 焦点移动到 Input 外部
+Then 应用收到一次失去焦点通知
+
+AC4：其他文本输入路径
+
+Given Input 可编辑
+When 用户通过粘贴、浏览器自动填充或输入法完成一次实际文本变化
+Then 应用按与键盘输入相同的契约收到一次包含最终文本的变化通知，输入法尚未完成的组合文本不产生业务文本变化通知
 ```
 
 ```
-REQ-F-031 🟡 [Actor: Application Developer]
+REQ-F-031 🟡 [Actor: End User]
 
 Title
-占位符与自动补全
+Input 占位提示
 
 Description
-Input 支持 Placeholder 占位符与 Autocomplete 自动补全配置。
+Input 在值为空时可以显示应用提供的占位提示，并允许应用声明受支持的浏览器自动填充目的。占位提示不得代替持久可见标签或可访问名称。
 
 Source
-组件需求定义
+Input 提示需求
 
 Acceptance Criteria
 
-AC1：占位符
+AC1：空值
 
-Given 使用方指定 Placeholder
-When 组件渲染
-Then input 带对应占位符属性
+Given Input 的值为空且应用提供占位提示
+When Input 显示
+Then 占位提示可见
+
+AC2：有值
+
+Given Input 已包含文本
+When Input 显示
+Then 占位提示不遮挡或替代当前文本
+
+AC3：可访问名称
+
+Given Input 只有占位提示但没有标签或其他可访问名称
+When 辅助技术读取 Input
+Then 该用法不满足组件记录的可访问性使用条件
+
+AC4：浏览器自动填充
+
+Given 应用为 Input 声明受支持的自动填充目的
+When 浏览器提供匹配的已保存值
+Then 终端用户可以识别并接受浏览器提供的值
 ```
 
 ```
-REQ-F-032 🔴 [Actor: Application Developer]
+REQ-F-032 🔴 [Actor: End User]
 
 Title
-禁用与只读
+Input 禁用与只读
 
 Description
-Input 支持禁用（IsDisabled）与只读状态，禁用遵循 REQ-F-002。
+Input 必须分别支持禁用和只读状态。禁用 Input 不可编辑且不参与用户提交操作；只读 Input 不可编辑但其值仍可阅读、选择并按宿主表单规则提交。
 
 Source
-REQ-F-002
+HTML 输入状态语义
 
 Acceptance Criteria
 
-AC1：禁用
+AC1：禁用状态
 
-Given IsDisabled="true"
-When 组件渲染
-Then input 带 disabled 属性
-And 不可输入
+Given Input 处于禁用状态
+When 终端用户尝试编辑或激活 Input
+Then 值不变化且应用不收到输入通知
+
+AC2：只读状态
+
+Given Input 处于只读状态
+When 终端用户尝试修改文本
+Then 值不变化，但用户仍可聚焦并读取当前文本
+
+AC3：状态辨识
+
+Given Input 处于禁用或只读状态
+When 视觉用户或辅助技术访问 Input
+Then 用户能够识别相应状态
 ```
 
 ```
 REQ-F-033 🔴 [Actor: Application Developer]
 
 Title
-验证
+Input 验证反馈
 
 Description
-Input 支持验证器（Validator 委托）与错误消息显示。验证失败时显示错误样式与消息，通过 aria-invalid 表达。
+Input 在 Blazor 表单中使用时，其值变化、有效性和错误消息必须能够参与宿主表单的验证流程；脱离表单使用时不得因缺少表单上下文而失败。
 
 Source
-组件需求定义
+表单验证集成需求
 
 Acceptance Criteria
 
-AC1：验证失败
+AC1：无效状态
 
-Given 使用方配置 Validator 且输入值不合法
-When 触发验证
-Then 组件显示错误消息
-And aria-invalid="true"
+Given 宿主应用将 Input 对应字段标记为无效并提供错误消息
+When Input 显示验证结果
+Then 视觉用户看到错误反馈，辅助技术能够识别无效状态及关联的错误消息
 
-AC2：验证通过
+AC2：恢复有效
 
-Given 使用方配置 Validator 且输入值合法
-When 触发验证
-Then 无错误显示
-And aria-invalid="false"
+Given Input 当前显示错误状态
+When 宿主应用将字段更新为有效
+Then 错误反馈被移除且辅助技术不再读取旧错误
+
+AC3：独立使用
+
+Given Input 不位于宿主表单验证上下文中
+When 终端用户输入有效文本
+Then Input 正常更新并通知应用，不发生未处理错误
 ```
 
 ```
 REQ-F-034 🟢 [Actor: Application Developer]
 
 Title
-图标支持
+Input 前后内容
 
 Description
-Input 支持前置与后置图标。
+应用开发者可以在 Input 的文本输入区域之前或之后提供图标或其他辅助内容。Astrea 不得要求使用特定图标技术，辅助内容不得遮挡输入文本或破坏可访问名称。
 
 Source
-组件需求定义
+Input 增强需求
 
 Acceptance Criteria
 
-AC1：图标渲染
+AC1：前置内容
 
-Given 使用方指定前置或后置图标
-When 组件渲染
-Then 图标渲染在输入框对应位置
+Given 应用提供前置内容
+When Input 显示
+Then 前置内容位于输入区域之前且输入文本完整可见
+
+AC2：后置内容
+
+Given 应用提供后置内容
+When Input 显示
+Then 后置内容位于输入区域之后且输入文本完整可见
+
+AC3：装饰内容
+
+Given 前后内容仅用于装饰
+When 辅助技术读取 Input
+Then 装饰内容不会重复加入 Input 的可访问名称
 ```
 
 ```
-REQ-F-035 🟡 [Actor: System]
+REQ-F-035 🟡 [Actor: End User]
 
 Title
-自动聚焦
+Input 自动聚焦
 
 Description
-Input 支持 AutoFocus 参数，仅在组件首次渲染时聚焦，不得重复抢占焦点。
+应用可以请求 Input 在首次成为可交互内容后获得焦点。自动聚焦只执行一次，不得在后续重新渲染时反复抢占用户焦点。
 
 Source
-经验教训：AWComponent AutoFocus 每次渲染反复聚焦
+Input 焦点需求
 
 Acceptance Criteria
 
-AC1：仅首次聚焦
+AC1：请求自动聚焦
 
-Given AutoFocus="true"
-When 组件反复重渲染
-Then 仅在首次渲染后聚焦
-And 后续渲染不移动焦点
+Given 应用请求 Input 自动聚焦且 Input 可用
+When Input 首次成为可交互内容
+Then Input 获得键盘焦点
+
+AC2：后续渲染
+
+Given Input 已完成首次自动聚焦
+When 页面因状态更新重新渲染
+Then Input 不会仅因重新渲染再次抢占焦点
+
+AC3：不可用状态
+
+Given Input 在首次显示时禁用或不可见
+When 页面完成显示
+Then 自动聚焦不会把焦点移至不可操作目标
 ```
 
 ```
-REQ-F-036 🔴 [Actor: End User]
+REQ-F-036 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Input 标签与错误关联
 
 Description
-Input 必须可关联 Label（通过 for/id），错误状态通过 aria-invalid 表达。
+Input 必须能够与可见标签建立可访问性关联。存在帮助文本或验证错误时，辅助技术必须能够在读取 Input 时获得相关说明。
 
 Source
-REQ-F-006、REQ-F-007
+WCAG 2.2 表单标签与错误识别要求
 
 Acceptance Criteria
 
-AC1：可关联标签
+AC1：可见标签
 
-Given 使用方为 Input 提供关联标签
-When 点击标签
-Then 焦点移动到输入框
+Given 页面为 Input 提供可见标签
+When 辅助技术聚焦 Input
+Then 读取到与该标签一致的可访问名称
+
+AC2：帮助文本
+
+Given Input 具有相关帮助文本
+When 辅助技术读取 Input
+Then 能够获得帮助文本而不替代 Input 名称
+
+AC3：错误消息
+
+Given Input 处于无效状态并显示错误消息
+When 辅助技术读取 Input
+Then 能够识别无效状态并读取关联错误消息
 ```
 
 ## 3.6 Label（标签）
@@ -997,556 +1415,1011 @@ Then 焦点移动到输入框
 REQ-F-037 🔴 [Actor: Application Developer]
 
 Title
-渲染与关联
+Label 内容与控件关联
 
 Description
-Label 渲染为原生 label 元素，支持通过 For 关联目标控件（生成 for 属性）。
+Label 必须显示应用提供的标签内容，并能够与实际表单控件建立明确关联。终端用户点击 Label 时，关联控件获得该控件类型规定的焦点或激活行为。
 
 Source
-组件需求定义
+Label 基础能力与 HTML 标签语义
 
 Acceptance Criteria
 
-AC1：关联
+AC1：标签内容
 
-Given 使用方指定 For="username"
-When 组件渲染
-Then label 带 for="username"
+Given 应用提供文本或组合标签内容
+When Label 显示
+Then 内容完整可见且用途清晰
+
+AC2：控件关联
+
+Given Label 与一个表单控件关联
+When 终端用户点击 Label
+Then 关联控件获得焦点或执行其标准标签激活行为
+
+AC3：空内容
+
+Given 应用未提供标签内容
+When Label 显示
+Then 不生成误导性的空白标签
 ```
 
 ```
 REQ-F-038 🟡 [Actor: Application Developer]
 
 Title
-内容与必填标记
+Label 必填指示
 
 Description
-Label 支持文本（Text）或自定义内容（ChildContent，优先级更高），支持必填标记。
+Label 可以显示必填指示。必填状态不得仅通过颜色表达，且必填指示必须与关联控件的实际验证要求保持一致。
 
 Source
-组件需求定义
+表单必填状态表达需求
 
 Acceptance Criteria
 
-AC1：内容优先级
+AC1：必填字段
 
-Given 同时传入 Text 与 ChildContent
-When 组件渲染
-Then 渲染 ChildContent
+Given 应用将关联字段声明为必填
+When Label 显示
+Then 用户能够通过非颜色线索识别必填状态
 
-AC2：必填标记
+AC2：非必填字段
 
-Given 使用方标记必填
-When 组件渲染
-Then 显示必填指示符（如星号）
+Given 关联字段不是必填
+When Label 显示
+Then 不显示误导性的必填指示
 ```
 
 ```
-REQ-F-039 🔴 [Actor: System]
+REQ-F-039 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Label 可访问性
 
 Description
-Label 使用原生 label 元素语义，不设置误导性角色。
+Label 与表单控件关联后，必须成为该控件可访问名称的来源。必填指示不得产生重复或无意义播报。
 
 Source
-REQ-F-006
+WCAG 2.2 表单标签要求
 
 Acceptance Criteria
 
-AC1：原生语义
+AC1：可访问名称
 
-Given Label 渲染
-Then 生成 label 元素
+Given Label 与一个表单控件关联
+When 辅助技术读取该控件
+Then 获得与 Label 内容一致的可访问名称
+
+AC2：唯一关联
+
+Given 页面存在多个标签和表单控件
+When 辅助技术读取任一控件
+Then 获得其自身标签而不是其他控件标签
+
+AC3：必填状态
+
+Given Label 显示必填指示且关联控件为必填
+When 辅助技术读取该控件
+Then 用户能够识别必填状态且不会收到重复无意义内容
 ```
 
 ## 3.7 Modal（对话框）
+
+> 当前 Active 基线只保证页面同时显示一个 Modal；多个或嵌套 Modal 见 Deferred 的 REQ-F-081。
 
 ```
 REQ-F-040 🔴 [Actor: Application Developer]
 
 Title
-打开与关闭
+Modal 可见状态与关闭请求
 
 Description
-Modal 通过 IsVisible 参数控制打开/关闭；关闭时触发 OnClose 事件回调。隐藏时不渲染。
+应用开发者必须能够控制 Modal 是否显示。终端用户通过关闭按钮、取消按钮、Escape 或允许的遮罩操作请求关闭时，应用必须只收到一条关闭通知，并能够识别请求途径。取消按钮使用途径为“取消”的关闭通知，不另外发送第二条取消通知。
 
 Source
-组件需求定义
+Modal 状态与事件契约
 
 Acceptance Criteria
 
-AC1：打开
+AC1：显示状态
 
-Given IsVisible="true"
-When 组件渲染
-Then 对话框显示
+Given 应用提供显示状态
+When Modal 渲染
+Then Modal 内容和遮罩显示
 
-AC2：关闭通知
+AC2：隐藏状态
 
-Given 对话框打开且绑定 OnClose
-When 触发任一关闭途径（关闭按钮、ESC、遮罩点击、确认按钮）
-Then OnClose 触发
+Given 应用提供隐藏状态
+When Modal 渲染
+Then Modal 不显示且不阻挡页面交互
 
-AC3：隐藏不渲染
+AC3：关闭请求
 
-Given IsVisible="false"
-When 组件渲染
-Then 对话框不渲染
+Given Modal 已显示
+When 终端用户通过关闭按钮、Escape 或允许的遮罩操作请求关闭
+Then 应用只收到一条关闭通知并能够识别对应途径
+
+AC4：取消关闭请求
+
+Given Modal 已显示取消操作
+When 终端用户激活取消操作
+Then 应用只收到一条途径为“取消”的关闭通知，不收到额外取消通知
+
+AC5：最终状态
+
+Given 应用收到关闭通知
+When 应用提供最终可见状态
+Then Modal 显示结果与该状态一致
 ```
 
 ```
 REQ-F-041 🟡 [Actor: Application Developer]
 
 Title
-尺寸预设
+Modal 尺寸预设
 
 Description
-Modal 支持尺寸预设（Small、Medium、Large）。具体尺寸数值由详细设计确定。
+Modal 必须提供 Small、Medium、Large 三种公开尺寸。尺寸变化不得遮挡标题、关闭操作或正文，内容超过可用高度时用户能够访问全部内容。
 
 Source
-组件需求定义
+Modal 尺寸需求
 
 Acceptance Criteria
 
-AC1：尺寸应用
+AC1：尺寸选择
 
-Given 使用方指定 Size="Large"
-When 组件渲染
-Then 对话框呈现对应尺寸
+Given 应用选择任一支持的 Modal 尺寸
+When Modal 显示
+Then 对话框使用对应尺寸并保持在可用视口内
+
+AC2：默认尺寸
+
+Given 应用未指定 Modal 尺寸
+When Modal 显示
+Then 使用 Medium 尺寸
+
+AC3：长内容
+
+Given Modal 内容超过当前可用高度
+When Modal 显示
+Then 用户可以访问全部内容且标题与关闭路径仍可到达
 ```
 
 ```
 REQ-F-042 🔴 [Actor: Application Developer]
 
 Title
-区域模板
+Modal 内容区域
 
 Description
-Modal 支持三个区域模板：标题（Header）、内容（Body）、页脚（Footer）。
+应用开发者必须能够分别提供 Modal 的标题、正文和页脚内容。未提供某一可选区域时，不得显示无意义空白区域。
 
 Source
-组件需求定义
+Modal 内容组织需求
 
 Acceptance Criteria
 
-AC1：模板渲染
+AC1：完整内容
 
-Given 使用方提供标题、内容、页脚模板
-When 组件渲染
-Then 三个区域分别渲染对应内容
+Given 应用提供标题、正文和页脚内容
+When Modal 显示
+Then 三个区域按标题、正文、页脚顺序完整显示
+
+AC2：可选区域
+
+Given 应用未提供页脚内容
+When Modal 显示
+Then 不显示无意义的空白页脚区域
+
+AC3：交互内容
+
+Given 正文或页脚包含可交互内容
+When 键盘用户导航 Modal
+Then 所有可用目标按合理顺序获得焦点
 ```
 
 ```
-REQ-F-043 🟡 [Actor: Application Developer]
+REQ-F-043 🔴 [Actor: End User]
 
 Title
-操作按钮配置
+Modal 确认与取消操作
 
 Description
-Modal 提供确认与取消按钮，支持分别控制显示（ShowConfirmButton、ShowCancelButton、ShowCloseButton）。
+Modal 可以显示确认和取消操作。确认操作只产生一条确认通知；取消操作只产生 REQ-F-040 规定的、途径为“取消”的关闭通知，不产生独立取消通知。是否关闭 Modal 由应用随后提供的可见状态决定。
 
 Source
-经验教训：AWComponent ShowCancelButton 参数未实现
+Modal 操作需求
 
 Acceptance Criteria
 
-AC1：按钮显隐
+AC1：确认
 
-Given 使用方设置 ShowConfirmButton="false"
-When 组件渲染
-Then 确认按钮不渲染
+Given Modal 显示确认操作
+When 终端用户激活确认操作
+Then 应用只收到一条确认通知，不同时收到关闭通知
 
-AC2：确认事件
+AC2：取消
 
-Given 按钮可见且绑定 OnConfirm
-When 终端用户点击确认按钮
-Then OnConfirm 触发
+Given Modal 显示取消操作
+When 终端用户激活取消操作
+Then 应用只收到一条途径为“取消”的关闭通知，不收到独立取消通知
+
+AC3：操作文本
+
+Given 应用提供自定义确认或取消文本
+When Modal 显示操作区
+Then 视觉用户和辅助技术获得自定义文本
+
+AC4：状态一致
+
+Given 应用收到确认通知或关闭通知
+When 应用提供最终可见状态
+Then Modal 显示结果与该状态一致
 ```
 
 ```
 REQ-F-044 🟡 [Actor: End User]
 
 Title
-遮罩行为
+Modal 遮罩关闭
 
 Description
-Modal 显示遮罩层，支持配置点击遮罩是否关闭（CloseOnBackdrop，默认关闭不触发）。
+应用开发者可以决定点击 Modal 外部遮罩是否产生关闭请求。点击 Modal 内容区域不得被误判为遮罩点击。
 
 Source
-组件需求定义
+Modal 遮罩交互需求
 
 Acceptance Criteria
 
-AC1：默认不关闭
+AC1：允许遮罩关闭
 
-Given 未启用 CloseOnBackdrop
+Given 应用允许遮罩关闭且 Modal 已显示
+When 终端用户点击 Modal 内容区域之外的遮罩
+Then 应用收到一次来源为遮罩的关闭通知
+
+AC2：禁止遮罩关闭
+
+Given 应用禁止遮罩关闭
 When 终端用户点击遮罩
-Then 对话框不关闭
+Then Modal 保持显示且应用不收到遮罩关闭通知
 
-AC2：启用后关闭
+AC3：内容点击
 
-Given 启用 CloseOnBackdrop
-When 终端用户点击遮罩
-Then 对话框关闭
-And 触发 OnClose
+Given Modal 已显示
+When 终端用户点击 Modal 内容区域
+Then 不产生遮罩关闭通知
 ```
 
 ```
-REQ-F-045 🔴 [Actor: End User]
+REQ-F-045 🔴 [Actor: Keyboard User]
 
 Title
-键盘交互
+Modal Escape 关闭
 
 Description
-对话框打开时，按下 ESC 键关闭并触发 OnClose。ESC 键判定必须符合浏览器 KeyboardEvent.key 规范（"Escape"）。
+Modal 显示时，键盘用户按 Escape 必须产生一次来源为 Escape 的关闭请求。Modal 隐藏后不再处理该关闭操作。
 
 Source
-经验教训：AWComponent ESC 键大小写不匹配失效
+WAI-ARIA Modal Dialog Pattern
 
 Acceptance Criteria
 
-AC1：ESC 关闭
+AC1：显示时按 Escape
 
-Given 对话框打开且焦点在对话框内
-When 终端用户按下 ESC
-Then 对话框关闭
-And 触发 OnClose
+Given Modal 已显示
+When 键盘用户按 Escape
+Then 应用收到一次来源为 Escape 的关闭通知
+
+AC2：隐藏后按 Escape
+
+Given Modal 已隐藏
+When 用户按 Escape
+Then 该 Modal 不产生关闭通知
+
+AC3：单次通知
+
+Given 用户单次按下 Escape
+When Modal 接受该操作
+Then 只产生一次关闭通知
 ```
 
 ```
-REQ-F-046 🔴 [Actor: System]
+REQ-F-046 🔴 [Actor: Keyboard User]
 
 Title
-焦点管理
+Modal 焦点与背景交互
 
 Description
-对话框打开时将焦点移入对话框，关闭后将焦点还原到打开前的元素。焦点被限制在对话框内（焦点陷阱）。
+Modal 显示后，焦点必须进入 Modal，并在 Modal 显示期间限制在其可操作内容内；背景内容不可交互。Modal 隐藏后，焦点必须返回打开它的元素；若该元素可能在关闭前消失，应用必须提供仍然存在且可聚焦的恢复目标。背景交互和滚动随后恢复。
 
 Source
-经验教训：AWComponent Modal 无焦点管理
+WAI-ARIA Modal Dialog Pattern 与 WCAG 2.2
 
 Acceptance Criteria
 
-AC1：打开聚焦
+AC1：应用指定初始焦点
 
-Given 对话框打开
-When 打开动画完成
-Then 焦点位于对话框内
+Given 应用提供一个位于 Modal 内且可聚焦的初始目标
+When Modal 完成显示
+Then 焦点位于该目标
 
-AC2：焦点陷阱
+AC2：默认初始焦点
 
-Given 对话框打开
-When 终端用户连续按 Tab
-Then 焦点在对话框内循环，不逃逸到背景页面
+Given 应用未提供初始目标
+When Modal 完成显示
+Then 焦点位于第一个可操作目标；没有可操作目标时位于可供辅助技术读取标题和正文的对话框区域
 
-AC3：关闭还原
+AC3：焦点限制
 
-Given 对话框关闭
-When 关闭完成
-Then 焦点还原到打开前的元素
+Given Modal 已显示
+When 用户使用 Tab 或 Shift+Tab 导航
+Then 焦点在 Modal 的可操作内容之间循环且不会进入背景内容
+
+AC4：背景交互
+
+Given Modal 已显示
+When 用户尝试操作或滚动被遮罩的背景内容
+Then 背景内容不响应交互且页面不会在背景中滚动
+
+AC5：关闭恢复
+
+Given 打开 Modal 的元素仍然存在且可聚焦
+When Modal 隐藏
+Then 焦点返回该元素，背景交互和滚动恢复
+
+AC6：替代恢复目标
+
+Given 打开 Modal 的元素将在关闭前消失
+When 应用提供的替代恢复目标仍然存在且 Modal 隐藏
+Then 焦点返回替代目标，背景交互和滚动恢复
 ```
 
 ```
-REQ-F-047 🔴 [Actor: System]
+REQ-F-047 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Modal 可访问性语义
 
 Description
-Modal 必须设置 role="dialog" 与 aria-modal="true"，标题区域与 aria-labelledby 关联。
+Modal 必须向辅助技术表达为模态对话框，并具有可访问名称。标题存在时应作为名称来源；没有可见标题时，应用必须能够提供等效名称。
 
 Source
-经验教训：AWComponent Modal 无 role/aria；WCAG 2.1
+WAI-ARIA Modal Dialog Pattern
 
 Acceptance Criteria
 
-AC1：角色与属性
+AC1：对话框语义
 
-Given Modal 打开
-Then 根元素 role="dialog"
-And aria-modal="true"
+Given Modal 已显示
+When 辅助技术读取 Modal
+Then 识别为模态对话框
+
+AC2：名称
+
+Given Modal 具有可见标题或应用提供的替代名称
+When 辅助技术进入 Modal
+Then 读取能够说明对话框用途的名称
+
+AC3：正文说明
+
+Given Modal 正文包含理解任务所必需的简短说明
+When 辅助技术进入 Modal
+Then 用户能够访问该说明且不会被迫一次性读取不适合线性播报的长内容
+
+AC4：关闭操作
+
+Given Modal 提供关闭操作
+When 辅助技术聚焦该操作
+Then 获得能够说明“关闭对话框”用途的名称
+```
+
+```
+REQ-F-081 🟢 [Actor: Application Developer]
+
+Title
+Modal 多实例与嵌套
+
+Description
+应用可以同时管理多个或嵌套 Modal。只有最上层 Modal 接受键盘和关闭操作；关闭最上层 Modal 后，焦点与背景交互必须恢复到其直接下层 Modal，而不是越过仍然显示的 Modal。
+
+Source
+Modal 增强需求（Deferred）
+
+Acceptance Criteria
+
+AC1：最上层交互
+
+Given 页面同时显示多个 Modal
+When 用户按 Escape、使用 Tab 或点击可关闭遮罩
+Then 只有最上层 Modal 响应该操作
+
+AC2：下层隔离
+
+Given 一个 Modal 上方仍显示另一个 Modal
+When 用户尝试操作下层 Modal 或页面背景
+Then 下层 Modal 和页面背景不响应交互
+
+AC3：关闭恢复
+
+Given 最上层 Modal 由另一个 Modal 内的操作打开
+When 最上层 Modal 隐藏
+Then 焦点返回直接下层 Modal 中的打开位置且焦点仍受该 Modal 约束
+
+AC4：最后一个关闭
+
+Given 页面只剩最后一个可见 Modal
+When 该 Modal 隐藏
+Then 按 REQ-F-046 恢复页面焦点、背景交互和滚动
+
+AC5：非嵌套多实例恢复
+
+Given 多个独立打开的 Modal 同时显示
+When 最上层 Modal 隐藏
+Then 焦点返回下一层 Modal 中此前聚焦的目标；该目标不存在时使用该 Modal 按 REQ-F-046 确定的默认初始焦点
 ```
 
 ## 3.8 Progress（进度条）
 
 ```
-REQ-F-048 🔴 [Actor: Application Developer]
+REQ-F-048 🔴 [Actor: End User]
 
 Title
-渲染与值
+Progress 确定进度
 
 Description
-Progress 渲染为进度条元素，通过 Value 参数表示进度。
+Progress 必须根据应用提供的当前值、最小值和最大值显示确定进度。当前值变化后，视觉结果和辅助技术获得的进度信息必须同步更新。
 
 Source
-组件需求定义
+Progress 基础能力
 
 Acceptance Criteria
 
-AC1：渲染
+AC1：范围内值
 
-Given 使用方传入 Value
-When 组件渲染
-Then 进度条按比例填充
+Given 最小值小于最大值且当前值位于范围内
+When Progress 显示
+Then 填充比例与当前值在该范围中的位置一致
+
+AC2：值更新
+
+Given Progress 已显示
+When 应用提供新的当前值
+Then 视觉填充和辅助技术进度同步更新
+
+AC3：默认范围
+
+Given 应用未提供最小值和最大值
+When Progress 显示
+Then 使用 0 到 100 的默认范围
 ```
 
 ```
-REQ-F-049 🟡 [Actor: System]
+REQ-F-049 🔴 [Actor: Application Developer]
 
 Title
-数值范围
+Progress 边界处理
 
 Description
-Progress 支持 Min/Max 范围（默认 0–100），值超出范围时按边界收敛。
+Progress 在确定进度模式下必须以确定且已记录的方式处理超出范围或无效范围输入，不得显示超出 0% 到 100% 的填充，也不得产生未处理错误。
 
 Source
-组件需求定义
+Progress 边界行为需求
 
 Acceptance Criteria
 
-AC1：收敛
+AC1：低于最小值
 
-Given Value 大于 Max
-When 组件渲染
-Then 进度按 Max 收敛
-And 不出现异常值
+Given Progress 处于确定模式且当前值低于最小值
+When Progress 显示
+Then 视觉进度按 0% 显示，辅助技术获得的当前值不低于最小值
+
+AC2：高于最大值
+
+Given Progress 处于确定模式且当前值高于最大值
+When Progress 显示
+Then 视觉进度按 100% 显示，辅助技术获得的当前值不高于最大值
+
+AC3：无效范围
+
+Given Progress 处于确定模式且最大值小于或等于最小值
+When Progress 显示
+Then 组件显示 0% 进度、保持有效的可访问状态且不产生未处理错误
 ```
 
 ```
-REQ-F-050 🟡 [Actor: Application Developer]
+REQ-F-050 🟡 [Actor: End User]
 
 Title
-文本显示
+Progress 百分比文本
 
 Description
-Progress 支持显示百分比文本（ShowValue），文本内容为计算后的百分比。
+应用可以在确定进度模式下选择显示百分比文本。百分比按当前有效范围计算并四舍五入为最接近的整数；不确定进度模式遵守 REQ-F-076。
 
 Source
-组件需求定义
+Progress 文本反馈需求
 
 Acceptance Criteria
 
-AC1：文本
+AC1：显示百分比
 
-Given ShowValue="true"
-When 组件渲染
-Then 显示百分比文本
+Given Progress 处于确定模式，应用启用百分比文本且进度为 45.6%
+When Progress 显示
+Then 可见文本为 46%
+
+AC2：隐藏百分比
+
+Given Progress 处于确定模式且应用未启用百分比文本
+When Progress 显示
+Then 不显示额外百分比文本
+
+AC3：边界百分比
+
+Given Progress 处于确定模式且当前值低于最小值或高于最大值
+When 百分比文本显示
+Then 文本分别限制为 0% 或 100%
 ```
 
 ```
 REQ-F-051 🟡 [Actor: Application Developer]
 
 Title
-视觉定制
+Progress 视觉状态
 
 Description
-Progress 的填充颜色支持通过 CSS 变量定制。
+Progress 必须提供 Default、Success、Warning、Error 四种视觉状态。状态需要通过颜色以外的文本、图标或可访问信息传达。
 
 Source
-组件需求定义
+Progress 状态反馈需求
 
 Acceptance Criteria
 
-AC1：颜色定制
+AC1：状态选择
 
-Given 使用方覆盖进度条颜色变量
-When 组件渲染
-Then 填充呈现定制颜色
+Given 应用选择任一支持的 Progress 状态
+When Progress 显示
+Then 呈现对应视觉状态
+
+AC2：默认状态
+
+Given 应用未选择状态
+When Progress 显示
+Then 使用 Default 状态
+
+AC3：非颜色表达
+
+Given Progress 状态对理解任务结果重要
+When 视觉用户或辅助技术访问 Progress
+Then 用户能够通过颜色以外的信息识别该状态
 ```
 
 ```
-REQ-F-052 🔴 [Actor: System]
+REQ-F-052 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Progress 可访问性
 
 Description
-Progress 必须设置 role="progressbar" 与 aria-valuenow/aria-valuemin/aria-valuemax。
+Progress 必须具有可访问名称；在确定进度模式下向辅助技术提供有效的最小值、最大值和当前值，在不确定模式下遵守 REQ-F-076。显示百分比文本时，视觉文本与辅助技术获得的进度不得矛盾。
 
 Source
-REQ-F-006
+WAI-ARIA Progressbar 语义与 WCAG 2.2
 
 Acceptance Criteria
 
-AC1：属性
+AC1：名称与角色
 
-Given Progress 渲染
-Then 携带 role="progressbar"
-And 携带 aria-valuenow、aria-valuemin、aria-valuemax 且值正确
+Given 应用为 Progress 提供可见标签或替代名称
+When 辅助技术读取 Progress
+Then 识别为进度指示并获得该名称
+
+AC2：范围信息
+
+Given Progress 显示确定进度
+When 辅助技术读取 Progress
+Then 获得有效的最小值、最大值和当前值
+
+AC3：同步
+
+Given 应用更新当前值
+When Progress 重新显示
+Then 辅助技术获得的值与视觉进度和百分比文本一致
+```
+
+```
+REQ-F-076 🟡 [Actor: End User]
+
+Title
+Progress 不确定进度
+
+Description
+应用无法提供可计算进度值时，可以显式使 Progress 显示不确定进度。该模式必须表达操作仍在进行，但不得显示或向辅助技术提供虚假的当前百分比。只有应用关闭不确定模式并提供有效范围和值后，Progress 才切换为确定进度。
+
+Source
+未知总量任务的进度反馈需求
+
+Acceptance Criteria
+
+AC1：不确定状态
+
+Given 应用启用不确定进度
+When Progress 显示
+Then 用户能够识别操作仍在进行且界面不显示确定完成比例
+
+AC2：辅助技术信息
+
+Given Progress 处于不确定模式
+When 辅助技术读取 Progress
+Then 获得进度指示和可访问名称，但不获得虚假的当前完成值或百分比
+
+AC3：百分比文本
+
+Given Progress 处于不确定模式且应用启用了百分比文本
+When Progress 显示
+Then 不显示百分比文本
+
+AC4：切换为确定进度
+
+Given Progress 正处于不确定模式
+When 应用关闭不确定模式并提供有效的最小值、最大值和当前值
+Then Progress 按 REQ-F-048 显示确定进度且视觉与辅助技术信息同步更新
+
+AC5：值更新不改变模式
+
+Given Progress 处于不确定模式
+When 应用只更新最小值、最大值或当前值但未关闭不确定模式
+Then Progress 保持不确定状态且不显示确定百分比
 ```
 
 ## 3.9 Select（下拉选择）
 
 ```
-REQ-F-053 🔴 [Actor: Application Developer]
+REQ-F-053 🔴 [Actor: End User]
 
 Title
-渲染与选项
+Select 选项与单选
 
 Description
-Select 渲染为原生 select 元素，Options 提供选项集合。
+Select 必须显示应用提供的选项，并允许终端用户从可用选项中选择一个值。选项显示顺序必须与应用提供的顺序一致。
 
 Source
-组件需求定义
+Select 基础选择需求
 
 Acceptance Criteria
 
-AC1：选项渲染
+AC1：选项显示
 
-Given 使用方提供选项集合
-When 组件渲染
-Then 每个选项渲染为 option 元素
+Given 应用提供多个选项
+When Select 显示
+Then 所有选项按提供顺序可供浏览
+
+AC2：单项选择
+
+Given Select 包含多个可用选项
+When 终端用户选择其中一项
+Then 该项成为当前选项且应用收到一次新值通知
+
+AC3：空集合
+
+Given 应用未提供选项或提供空集合
+When Select 显示
+Then 不出现虚假选项且组件保持稳定可访问
 ```
 
 ```
 REQ-F-054 🔴 [Actor: Application Developer]
 
 Title
-值绑定
+Select 值与选项同步
 
 Description
-Select 支持双向绑定：Value + ValueChanged。
+Select 的当前值必须与应用提供的最新值保持一致。选项集合更新后，如果当前值不再对应任何选项，Select 不得自行修改应用提供的值或发送值变化通知；界面不得继续显示已移除选项，并显示占位提示或无选择状态。在 Blazor 表单中使用时，Select 能够参与宿主表单验证。
 
 Source
-组件需求定义
+Select 状态与表单集成需求
 
 Acceptance Criteria
 
-AC1：选中同步
+AC1：用户选择
 
-Given 使用方绑定 Value
-When 终端用户选择选项
-Then ValueChanged 携带选中值触发
-And 界面选中状态更新
+Given Select 包含可用选项
+When 终端用户选择不同选项
+Then 应用收到一次新值通知
+
+AC2：外部值更新
+
+Given Select 已显示
+When 应用提供另一个存在于选项集合中的值
+Then 对应选项显示为当前选项且不发送用户值变化通知
+
+AC3：当前选项被移除
+
+Given 当前值对应的选项被应用移除
+When Select 接收新选项集合
+Then 已移除选项不再显示为当前选择；存在占位提示时显示该提示，否则显示无选择状态
+And 应用提供的当前值保持不变，应用不收到值变化通知
+
+AC4：重新出现
+
+Given 当前值暂时不对应任何选项
+When 应用再次提供包含该值的选项集合
+Then 对应选项恢复为当前选项且不发送用户值变化通知
+
+AC5：表单验证
+
+Given 宿主表单将 Select 对应字段标记为无效
+When Select 显示验证结果
+Then 视觉用户和辅助技术能够识别无效状态及关联错误消息
 ```
 
 ```
-REQ-F-055 🟡 [Actor: Application Developer]
+REQ-F-055 🟡 [Actor: End User]
 
 Title
-占位符
+Select 占位选项
 
 Description
-Select 支持 Placeholder，未选中时显示占位选项。
+Select 可以在尚未选择有效值时显示占位提示。占位提示不得被误认为有效业务选项，且不得代替 Select 的可访问名称。
 
 Source
-组件需求定义
+Select 提示需求
 
 Acceptance Criteria
 
-AC1：占位选项
+AC1：未选择
 
-Given 未选中任何值且提供 Placeholder
-When 组件渲染
-Then 显示占位选项
+Given 应用提供占位提示且当前没有有效选择
+When Select 显示
+Then 占位提示可见但不作为有效业务值提交
+
+AC2：已有选择
+
+Given Select 已具有有效选择
+When Select 显示
+Then 当前选项显示且占位提示不替代当前值
+
+AC3：名称
+
+Given Select 只有占位提示但没有标签或替代名称
+When 辅助技术读取 Select
+Then 该用法不满足组件记录的可访问性使用条件
 ```
 
 ```
-REQ-F-056 🔴 [Actor: Application Developer]
+REQ-F-056 🔴 [Actor: End User]
 
 Title
-禁用
+Select 禁用状态
 
 Description
-Select 支持禁用，遵循 REQ-F-002。
+Select 处于禁用状态时必须保持可见，不允许改变选择，也不发送值变化通知，并向视觉用户和辅助技术表达禁用状态。
 
 Source
-REQ-F-002
+Select 禁用交互需求
 
 Acceptance Criteria
 
-AC1：禁用
+AC1：禁止选择
 
-Given IsDisabled="true"
-When 组件渲染
-Then select 带 disabled 属性
-And 不可操作
+Given Select 处于禁用状态
+When 终端用户尝试打开或改变选择
+Then 当前值不变且应用不收到值变化通知
+
+AC2：状态表达
+
+Given Select 处于禁用状态
+When 视觉用户或辅助技术访问 Select
+Then 能够识别禁用状态
 ```
 
 ```
 REQ-F-057 🟡 [Actor: Application Developer]
 
 Title
-选项模板
+Select 自定义选项内容
 
 Description
-Select 支持 OptionTemplate（RenderFragment）自定义选项渲染。
+应用开发者可以定制选项的可见内容。自定义内容不得破坏选项顺序、可访问名称、选中状态和键盘操作，也不得要求所有受支持浏览器采用不一致的交互方式。
 
 Source
-组件需求定义
+Select 展示扩展需求
 
 Acceptance Criteria
 
-AC1：模板
+AC1：自定义显示
 
-Given 使用方提供 OptionTemplate
-When 组件渲染
-Then 每个选项按模板渲染
+Given 应用为选项提供自定义可见内容
+When Select 显示选项
+Then 每个选项显示对应内容
+
+AC2：可访问名称
+
+Given 自定义内容包含装饰元素
+When 辅助技术读取选项
+Then 获得清晰且不重复的选项名称
+
+AC3：兼容行为
+
+Given Select 在任一受支持浏览器中显示自定义选项
+When 终端用户使用鼠标或键盘选择
+Then 选择结果与未定制选项一致
 ```
 
 ```
 REQ-F-058 🟢 [Actor: End User]
 
 Title
-多选模式
+Select 多选
 
 Description
-Select 支持多选模式。
+应用可以启用多选模式。终端用户能够选择和取消选择多个选项，应用收到与当前选择集合一致的更新结果。
 
 Source
-组件需求定义（P2 待定）
+Select 增强需求（Deferred）
 
 Acceptance Criteria
 
-AC1：多选
+AC1：选择多个选项
 
-Given 启用多选
+Given Select 处于多选模式并包含多个可用选项
 When 终端用户选择多个选项
-Then 选中值集合正确
+Then 所有选中项具有可辨识状态且应用收到当前选择集合
+
+AC2：取消选择
+
+Given 多选 Select 已有多个选中项
+When 用户取消其中一项
+Then 仅该项取消选中且应用收到更新后的集合
+
+AC3：外部集合更新
+
+Given 多选 Select 已显示
+When 应用提供新的选择集合
+Then 显示的选中状态与该集合一致
 ```
 
 ```
 REQ-F-059 🟢 [Actor: End User]
 
 Title
-搜索过滤
+Select 搜索过滤
 
 Description
-Select 支持在选项较多时按关键字过滤。
+应用可以启用选项搜索。终端用户输入查询后，只显示匹配选项；清除查询后恢复完整选项列表，已有有效选择不得无故丢失。
 
 Source
-组件需求定义（P2 待定）
+Select 增强需求（Deferred）
 
 Acceptance Criteria
 
 AC1：过滤
 
-Given 终端用户输入过滤关键字
-When 选项集合变化
-Then 仅显示匹配的选项
+Given 搜索已启用且存在多个选项
+When 终端用户输入查询文本
+Then 只显示与查询匹配的选项并提供结果数量或无结果反馈
+
+AC2：清除搜索
+
+Given 选项列表已被过滤
+When 用户清除查询文本
+Then 完整选项列表恢复
+
+AC3：保留选择
+
+Given 当前选择在过滤结果中暂时不可见
+When 用户修改或清除查询
+Then 该有效选择不会仅因过滤而丢失
 ```
 
 ```
-REQ-F-060 🔴 [Actor: End User]
+REQ-F-060 🔴 [Actor: Keyboard User]
 
 Title
-可访问性
+Select 可访问性与键盘操作
 
 Description
-Select 使用原生 select 语义（原生支持键盘导航），禁用时带 aria-disabled。
+Select 必须具有可访问名称，并向辅助技术表达当前值、选项状态、展开状态和禁用状态。键盘操作必须与组件呈现的选择交互模式一致。
 
 Source
-REQ-F-006
+WCAG 2.2、HTML Select 与 WAI-ARIA 选择模式
 
 Acceptance Criteria
 
-AC1：原生语义
+AC1：名称和当前值
 
-Given Select 渲染
-Then 生成 select 元素
-And 键盘上下键可切换选项
+Given Select 具有可见标签或替代名称
+When 辅助技术读取 Select
+Then 获得名称和当前选择值
+
+AC2：键盘选择
+
+Given 键盘焦点位于可用 Select
+When 用户使用该选择模式规定的方向键、确认键和退出键
+Then 能够浏览、选择或取消操作且不会陷入组件
+
+AC3：状态同步
+
+Given Select 的当前值、展开状态或禁用状态发生变化
+When 辅助技术再次读取 Select
+Then 获得与视觉状态一致的信息
+```
+
+```
+REQ-F-075 🔴 [Actor: Application Developer]
+
+Title
+Select 选项值唯一性
+
+Description
+同一 Select 选项集合中的值必须唯一，以便当前值能够唯一对应一个选项。重复值属于无效应用输入；组件必须拒绝整个歧义集合，保留上一份有效选项集合和选择，并向应用提供一次已记录的错误结果，不得发送用户值变化通知。首次收到歧义集合时显示无选择状态。
+
+Source
+Select 选项身份边界需求
+
+Acceptance Criteria
+
+AC1：唯一值
+
+Given 应用提供值互不重复的选项集合
+When Select 根据当前值显示选择
+Then 当前值唯一对应一个选项
+
+AC2：首次收到重复值
+
+Given Select 尚未接受过有效选项集合且应用提供重复值
+When Select 接收该集合
+Then 组件拒绝该集合、显示无选择状态并向应用报告一次错误，不发送值变化通知
+
+AC3：有效集合更新为重复值
+
+Given Select 已显示有效选项集合和当前选择
+When 应用提供包含重复值的新集合
+Then 组件保留上一有效集合和选择并向应用报告一次错误，不发送值变化通知
+
+AC4：恢复有效集合
+
+Given Select 已拒绝一个重复值集合
+When 应用提供值互不重复的新集合
+Then 组件接受并显示新集合，当前选择按 REQ-F-054 与应用提供的值同步
+```
+
+```
+REQ-F-083 🔴 [Actor: End User]
+
+Title
+Select 单个选项禁用
+
+Description
+应用可以禁用单个 Select 选项。禁用选项保持可见并向视觉用户和辅助技术表达禁用状态，但不能由终端用户选择。当前选项随后被禁用时继续显示，直到应用提供其他值；该外部状态更新不发送用户值变化通知。
+
+Source
+Select 单项可用状态需求
+
+Acceptance Criteria
+
+AC1：浏览禁用选项
+
+Given 一个未选中的选项被应用标记为禁用
+When 终端用户浏览该选项
+Then 选项保持可见且视觉用户和辅助技术能够识别禁用状态
+
+AC2：尝试选择
+
+Given 一个未选中的选项处于禁用状态
+When 终端用户尝试选择该选项
+Then 当前值不变且应用不收到值变化通知
+
+AC3：当前选项被禁用
+
+Given 当前选项随后被应用标记为禁用
+When Select 接收更新后的选项集合
+Then 该选项仍显示为当前值并表达禁用状态，且不发送用户值变化通知
+
+AC4：外部替换值
+
+Given 当前选项处于禁用状态
+When 应用提供另一个存在且可用的选项值
+Then 新选项显示为当前值且不把该外部更新报告为用户选择
 ```
 
 ## 3.10 Tree（树）
@@ -1555,336 +2428,766 @@ And 键盘上下键可切换选项
 REQ-F-061 🔴 [Actor: Application Developer]
 
 Title
-渲染与层级
+Tree 节点数据
 
 Description
-Tree 渲染节点层级结构，节点模型支持文本、图标、子节点、展开/折叠状态。
+应用开发者必须能够为 Tree 提供层级节点。每个节点必须具有稳定身份、可见标签和子节点关系，并可提供禁用、展开或选中等公开状态。禁用节点仍须能够通过 Tree 的方向键导航被访问和识别，但不能被选择、展开或激活。
 
 Source
-组件需求定义
+Tree 数据契约需求
 
 Acceptance Criteria
 
-AC1：层级渲染
+AC1：层级显示
 
-Given 使用方提供多级节点树
-When 组件渲染
-Then 各级节点按层级缩进渲染
+Given 应用提供包含多层子节点的集合
+When Tree 显示
+Then 节点按照父子层级和应用提供的顺序呈现
+
+AC2：稳定身份
+
+Given 应用重新排序节点但保持节点身份不变
+When Tree 接收更新后的集合
+Then 选中和展开状态仍与相同逻辑节点关联
+
+AC3：空数据
+
+Given 应用未提供节点或提供空集合
+When Tree 显示
+Then 不出现虚假节点且组件保持稳定可访问
+
+AC4：禁用节点导航
+
+Given 应用将一个节点标记为禁用
+When 键盘用户使用 Tree 的方向键导航到该节点
+Then 节点可以获得 Tree 内部焦点，辅助技术能够读取其名称和禁用状态
+
+AC5：禁用节点操作
+
+Given 焦点位于禁用节点
+When 终端用户尝试选择、展开或激活该节点
+Then 节点状态不改变，应用不收到选择、展开或激活通知
 ```
 
 ```
 REQ-F-062 🔴 [Actor: End User]
 
 Title
-展开与折叠
+Tree 展开与折叠
 
 Description
-有子节点的节点支持展开/折叠，通过点击展开指示器切换。
+具有子节点且未禁用的 Tree 节点必须能够由终端用户展开和折叠。应用仍可以通过外部状态更新禁用节点的展开状态。展开状态必须清晰可见并向辅助技术表达；隐藏的子节点不得继续出现在键盘导航或辅助技术的可见节点序列中。
 
 Source
-组件需求定义
+Tree 基础交互与 WAI-ARIA Tree View Pattern
 
 Acceptance Criteria
 
-AC1：展开切换
+AC1：展开
 
-Given 节点有子节点且当前折叠
-When 终端用户点击展开指示器
-Then 子节点显示
+Given 一个可用且具有子节点的节点处于折叠状态
+When 终端用户执行展开操作
+Then 其直接子节点显示且应用收到一次展开状态通知
 
-AC2：折叠切换
+AC2：折叠
 
-Given 节点当前展开
-When 终端用户点击展开指示器
-Then 子节点隐藏
+Given 一个可用且具有已显示子节点的节点处于展开状态
+When 终端用户执行折叠操作
+Then 后代节点从可见导航序列中移除且应用收到一次折叠状态通知
+
+AC3：应用更新
+
+Given Tree 已显示
+When 应用改变某节点的展开状态
+Then 该节点显示结果和辅助技术状态同步更新
 ```
 
 ```
-REQ-F-063 🟡 [Actor: End User]
+REQ-F-063 🔴 [Actor: End User]
 
 Title
-节点选中
+Tree 单选与焦点
 
 Description
-点击节点文本触发 OnNodeSelected 事件，携带选中节点。
+Tree 必须支持单节点选择，并清晰区分键盘焦点与选中状态。选择新节点时，应用收到一次选择通知；仅移动焦点不得改变选中状态或发送选择通知。
 
 Source
-组件需求定义
+Tree 选择与焦点需求
 
 Acceptance Criteria
 
-AC1：选中事件
+AC1：选择节点
 
-Given 使用方绑定 OnNodeSelected
-When 终端用户点击节点文本
-Then 事件携带对应节点触发
+Given Tree 包含多个可选节点
+When 终端用户执行选择操作
+Then 仅该节点显示为选中且应用收到一次选择通知
+
+AC2：焦点移动
+
+Given 一个节点已选中
+When 键盘用户只移动焦点到另一节点
+Then 原选中状态保持不变且应用不收到选择通知
+
+AC3：外部选择
+
+Given Tree 已显示
+When 应用提供另一个有效节点作为当前选择
+Then 选中状态移动到该节点且不把外部更新报告为用户选择
 ```
 
 ```
 REQ-F-064 🟡 [Actor: Application Developer]
 
 Title
-节点图标
+Tree 节点图标
 
 Description
-节点支持图标：折叠/展开状态可分别配置图标，叶子节点可配置独立图标。
+应用开发者可以为 Tree 节点提供图标内容。Astrea 不得强制应用使用特定图标技术；装饰图标不得替代或重复节点名称。
 
 Source
-组件需求定义
+Tree 节点展示需求
 
 Acceptance Criteria
 
-AC1：状态图标
+AC1：节点图标
 
-Given 节点配置展开与折叠图标
-When 节点状态切换
-Then 图标随之切换
+Given 应用为节点提供图标
+When Tree 显示该节点
+Then 图标显示在节点标签之前且不遮挡标签
+
+AC2：无图标
+
+Given 节点没有图标
+When Tree 显示
+Then 标签布局不保留无意义的图标空位
+
+AC3：辅助技术
+
+Given 节点图标仅用于装饰
+When 辅助技术读取节点
+Then 图标不会重复加入节点名称
 ```
 
 ```
-REQ-F-065 🟢 [Actor: System]
+REQ-F-065 🟢 [Actor: Application Developer]
 
 Title
-懒加载
+Tree 懒加载
 
 Description
-Tree 支持子节点懒加载，展开时通过回调获取子节点。
+应用可以在父节点首次展开时异步提供子节点。加载期间必须显示可感知状态；失败时必须提供错误反馈和重试路径；同一展开操作不得产生重复加载请求。
 
 Source
-组件需求定义（P2 待定）
+Tree 增强需求（Deferred）
 
 Acceptance Criteria
 
-AC1：懒加载
+AC1：首次加载
 
-Given 节点启用懒加载且未加载
-When 首次展开
-Then 通过回调加载子节点并显示
+Given 一个可展开节点尚未加载子节点
+When 终端用户首次展开该节点
+Then 应用收到一次加载请求且节点显示加载状态
+
+AC2：加载成功
+
+Given 节点正在加载
+When 应用提供子节点
+Then 加载状态结束并显示子节点
+
+AC3：加载失败
+
+Given 节点正在加载
+When 应用报告加载失败
+Then 节点显示可访问的错误反馈并允许重试
+
+AC4：重复操作
+
+Given 同一节点的加载请求尚未完成
+When 用户重复执行展开操作
+Then 不产生并发的重复加载请求
 ```
 
 ```
-REQ-F-066 🔴 [Actor: End User]
+REQ-F-066 🔴 [Actor: Keyboard User]
 
 Title
-可访问性
+Tree 可访问性与键盘操作
 
 Description
-Tree 必须设置 role="tree"、节点 role="treeitem"，支持键盘导航（方向键移动、Enter 选中、Space/Enter 展开折叠）。
+Tree 必须符合树形控件的键盘和辅助技术交互模式。Tree 只有一个顺序导航入口；进入后，方向键在可见节点间移动焦点，焦点、选中、展开和层级状态保持可区分。
 
 Source
-REQ-F-006、REQ-F-007
+WAI-ARIA Tree View Pattern
 
 Acceptance Criteria
 
-AC1：角色
+AC1：上下导航
 
-Given Tree 渲染
-Then 根元素 role="tree"
-And 节点 role="treeitem"
+Given 键盘焦点位于 Tree 节点
+When 用户按 ArrowDown 或 ArrowUp
+Then 焦点移动到下一个或上一个可见节点
 
-AC2：键盘导航
+AC2：右方向键
 
-Given 焦点在树节点上
-When 使用方向键与 Enter
-Then 焦点在节点间移动
-And 选中与展开折叠行为正确
+Given 焦点位于可用且可展开的节点
+When 用户按 ArrowRight
+Then 折叠节点展开；已展开节点的焦点移动到第一个子节点
+
+AC3：左方向键
+
+Given 焦点位于可用的展开节点或子节点
+When 用户按 ArrowLeft
+Then 展开节点折叠；子节点的焦点移动到父节点
+
+AC4：首尾导航
+
+Given Tree 中存在可见节点
+When 用户按 Home 或 End
+Then 焦点分别移动到第一个或最后一个可见节点
+
+AC5：选择
+
+Given 焦点位于可选节点
+When 用户按 Space 或执行公开的选择操作
+Then 该节点成为唯一选中节点且应用收到一次选择通知
+
+AC6：辅助技术状态
+
+Given Tree 显示层级节点
+When 辅助技术读取任一节点
+Then 获得其名称、层级、展开状态、选中状态和禁用状态中适用的信息
+```
+
+```
+REQ-F-077 🔴 [Actor: Keyboard User]
+
+Title
+Tree 动态节点移除与焦点恢复
+
+Description
+应用删除节点或折叠包含当前焦点的分支后，Tree 必须把焦点恢复到仍然存在的可见目标，不得让焦点停留在已移除或隐藏节点上。删除当前选中节点时进入无选择状态，数据更新不得被报告为用户选择。
+
+Source
+Tree 动态数据、焦点与选择一致性需求
+
+Acceptance Criteria
+
+AC1：移除焦点节点
+
+Given 键盘焦点位于即将被应用移除的节点
+When Tree 接收更新后的节点集合
+Then 焦点依次选择仍存在的下一个可见同级节点、上一个可见同级节点或最近的可见祖先节点；若这些目标均不存在但 Tree 非空，则移动到第一个可见节点
+
+AC2：Tree 变为空
+
+Given 焦点节点被移除且 Tree 不再包含任何节点
+When Tree 显示空状态
+Then 焦点位于 Tree 的可聚焦入口，不停留在已移除节点上
+
+AC3：移除选中节点
+
+Given 当前选中节点被应用移除
+When Tree 接收更新后的节点集合
+Then Tree 进入无选择状态且应用不收到用户选择通知
+
+AC4：折叠焦点所在分支
+
+Given 焦点位于一个已展开节点的后代
+When 应用或用户折叠该节点
+Then 焦点移动到被折叠的父节点，隐藏后代不再进入可见导航序列
 ```
 
 ## 3.11 Table（表格）
 
+> 当前 Active 基线不包含排序、筛选、行选择、列调整大小或数据虚拟化；排序、筛选和行选择分别见 Deferred 的 REQ-F-082、REQ-F-084、REQ-F-085，列调整大小和数据虚拟化仅作为延期范围记录。
+
 ```
-REQ-F-067 🔴 [Actor: System]
+REQ-F-067 🔴 [Actor: Application Developer]
 
 Title
-渲染真实数据
+Table 数据集合
 
 Description
-Table 必须渲染 Data 集合中的真实行数据，禁止硬编码或占位内容。
+应用开发者必须能够为 Table 提供行数据。Table 在正常数据状态下必须区分有数据、空集合和未提供数据，并在应用更新、增加、删除或重排行后显示最新结果；加载与错误状态遵守 REQ-F-078。
 
 Source
-经验教训：AWComponent Table 硬编码假数据
+Table 数据显示需求
 
 Acceptance Criteria
 
-AC1：真实数据
+AC1：数据显示
 
-Given 使用方提供 3 行数据
-When 组件渲染
-Then 表格渲染 3 行
-And 内容与数据一致
+Given 应用提供多行数据
+When Table 显示
+Then 每个数据项对应一行且顺序与应用提供的顺序一致
 
-AC2：空数据
+AC2：数据更新
 
-Given 使用方提供空集合
-When 组件渲染
-Then 表格体不渲染行
-And 渲染空状态（见 REQ-F-071）
+Given Table 已显示
+When 应用更新、增加、删除或重排行数据
+Then Table 显示最新行集合且不会保留已删除行
+
+AC3：空或未提供数据
+
+Given Table 处于正常数据状态且应用提供空集合或未提供数据
+When Table 显示
+Then Table 进入空数据状态且不产生未处理错误
 ```
 
 ```
 REQ-F-068 🔴 [Actor: Application Developer]
 
 Title
-列定义
+Table 列定义
 
 Description
-Table 通过列定义控制列：列标题、值模板（RenderFragment）、对齐方式。
+应用开发者必须能够定义每列的标题、顺序、对齐方式和单元格显示内容。每个单元格必须使用其所在行的数据生成可观察内容。
 
 Source
-组件需求定义
+Table 列展示需求
 
 Acceptance Criteria
 
-AC1：列标题
+AC1：列标题与顺序
 
-Given 使用方定义 2 列并指定标题
-When 组件渲染
-Then 表头渲染 2 个列标题
+Given 应用定义多列
+When Table 显示
+Then 表头按定义顺序显示对应标题
 
-AC2：值模板
+AC2：单元格内容
 
-Given 使用方为列提供值模板
-When 组件渲染
-Then 每行对应单元格按模板渲染
+Given 应用定义列内容规则并提供多行数据
+When Table 显示
+Then 每个单元格显示当前行对应内容
+
+AC3：对齐方式
+
+Given 应用为某列选择受支持的对齐方式
+When Table 显示
+Then 该列表头和单元格采用一致对齐结果
 ```
 
 ```
-REQ-F-069 🟡 [Actor: Application Developer]
+REQ-F-069 🟡 [Actor: End User]
 
 Title
-表头固定
+Table 固定表头
 
 Description
-Table 支持 IsFixedHeader，启用后表头固定、表体滚动。
+应用可以在 Table 数据区域滚动时保持表头可见。固定表头不得遮挡数据、改变列对齐或产生第二套冲突的表头语义。
 
 Source
-组件需求定义
+Table 长数据浏览需求
 
 Acceptance Criteria
 
-AC1：固定表头
+AC1：启用固定表头
 
-Given 启用 IsFixedHeader 且数据超出一屏
-When 表体滚动
-Then 表头保持可见
+Given Table 内容超过可用高度且应用启用固定表头
+When 终端用户滚动数据区域
+Then 表头保持可见且列标题与数据列对齐
+
+AC2：未启用固定表头
+
+Given 应用未启用固定表头
+When 终端用户滚动包含 Table 的页面
+Then 表头随表格正常滚动
+
+AC3：缩放与调整尺寸
+
+Given 固定表头正在使用
+When 浏览器缩放或容器尺寸变化
+Then 表头不遮挡第一行数据且保持列对齐
 ```
 
 ```
 REQ-F-070 🟡 [Actor: End User]
 
 Title
-行交互
+Table 行操作
 
 Description
-Table 支持行点击事件（OnRowClick），携带对应行数据。
+应用可以使数据行成为可操作目标。可操作行必须同时支持指针和键盘操作，具有可见焦点，并在每次用户激活时向应用发送一次当前行通知。
 
 Source
-组件需求定义
+Table 行交互需求
 
 Acceptance Criteria
 
-AC1：行点击
+AC1：指针激活
 
-Given 使用方绑定 OnRowClick
-When 终端用户点击行
-Then 事件携带该行数据触发
+Given 一行被应用声明为可操作
+When 终端用户点击该行
+Then 应用收到一次该行通知
+
+AC2：键盘激活
+
+Given 键盘焦点位于可操作行
+When 用户按 Enter 或 Space
+Then 应用收到一次与点击相同的该行通知
+
+AC3：非交互行
+
+Given 应用未将行声明为可操作
+When 用户浏览 Table
+Then 该行不会仅因显示数据而进入键盘焦点顺序
 ```
 
 ```
-REQ-F-071 🟡 [Actor: System]
+REQ-F-071 🟡 [Actor: End User]
 
 Title
-空状态
+Table 空状态
 
 Description
-数据为空时 Table 渲染空状态提示（EmptyTemplate 可自定义）。
+Table 在正常数据状态下没有可显示行时必须显示应用提供的空状态内容；未提供自定义内容时显示可替换的默认文本。加载或错误状态遵守 REQ-F-078，不得同时显示为空数据。空状态不得伪装成正常数据行。
 
 Source
-组件需求定义
+Table 空数据反馈需求
 
 Acceptance Criteria
 
 AC1：默认空状态
 
-Given 数据为空且未提供 EmptyTemplate
-When 组件渲染
-Then 显示默认空状态提示
+Given Table 处于正常数据状态、没有行且应用未提供空状态内容
+When Table 显示
+Then 显示默认空数据文本
 
 AC2：自定义空状态
 
-Given 数据为空且提供 EmptyTemplate
-When 组件渲染
-Then 按模板渲染空状态
+Given Table 处于正常数据状态、没有行且应用提供自定义空状态内容
+When Table 显示
+Then 显示自定义内容
+
+AC3：恢复数据
+
+Given Table 正在显示空状态
+When 应用提供非空数据并保持正常数据状态
+Then 空状态消失并显示数据行
 ```
 
 ```
-REQ-F-072 🟢 [Actor: Application Developer]
+REQ-F-072 🟢 [Actor: End User]
 
 Title
-斑马纹
+Table 斑马纹
 
 Description
-Table 支持斑马纹（隔行变色），可通过参数开关。
+应用可以启用交替行视觉样式。该样式只用于辅助浏览，不得成为表达行状态或选择状态的唯一方式。
 
 Source
-组件需求定义
+Table 可读性增强需求
 
 Acceptance Criteria
 
-AC1：斑马纹
+AC1：启用斑马纹
 
-Given 启用斑马纹
-When 组件渲染
-Then 相邻行底色可辨识差异
+Given Table 包含多行且应用启用交替行样式
+When Table 显示
+Then 相邻行呈现交替视觉效果
+
+AC2：禁用斑马纹
+
+Given 应用未启用交替行样式
+When Table 显示
+Then 不强制使用交替行背景
+
+AC3：状态区分
+
+Given 某行同时具有选择、错误或禁用等业务状态
+When Table 显示
+Then 该状态不只依赖斑马纹颜色表达
 ```
 
 ```
 REQ-F-073 🟢 [Actor: End User]
 
 Title
-分页
+Table 分页
 
 Description
-Table 支持分页（页大小可配置）。
+应用可以启用分页浏览。分页状态必须显示当前页、总页数和可用操作；用户请求换页时应用收到一次目标页通知，最终显示内容与应用提供的页状态和数据一致。
 
 Source
-组件需求定义（P2 待定）
+Table 增强需求（Deferred）
 
 Acceptance Criteria
 
-AC1：分页
+AC1：分页状态
 
-Given 数据超过页大小
-When 组件渲染
-Then 仅显示当前页数据
-And 提供翻页控件
+Given Table 启用分页且总页数大于一
+When Table 显示
+Then 用户能够识别当前页、总页数和可用的上一页或下一页操作
+
+AC2：用户换页
+
+Given 存在可访问的目标页
+When 终端用户请求切换页面
+Then 应用收到一次目标页通知
+
+AC3：边界页
+
+Given 当前位于第一页或最后一页
+When 分页操作显示
+Then 不可用的上一页或下一页操作具有明确禁用状态
+
+AC4：外部更新
+
+Given Table 已显示某一页
+When 应用提供新的页状态和行数据
+Then Table 的分页信息和数据内容同步更新
 ```
 
 ```
-REQ-F-074 🔴 [Actor: System]
+REQ-F-074 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性
+Table 可访问性语义
 
 Description
-Table 必须使用原生 table 语义（thead/tbody/th），支持 Caption 标题，表头 scope="col"。
+Table 必须向辅助技术表达为数据表，并保持表题、列标题、行和数据单元格之间的关联。可操作内容必须保留其自身的可访问名称和键盘行为。
 
 Source
-REQ-F-006
+HTML Table 语义与 WCAG 2.2
 
 Acceptance Criteria
 
-AC1：语义结构
+AC1：表格结构
 
-Given Table 渲染
-Then 生成 table 元素
-And 表头 th 带 scope="col"
+Given Table 包含列标题和数据行
+When 辅助技术浏览 Table
+Then 能够识别表格、列标题、行和数据单元格
 
-AC2：标题
+AC2：表题
 
-Given 使用方提供 Caption
-When 组件渲染
-Then 渲染 caption 内容
+Given 应用为 Table 提供表题或替代名称
+When 辅助技术进入 Table
+Then 获得能够说明表格用途的名称
+
+AC3：标题关联
+
+Given 辅助技术读取任一数据单元格
+When 用户请求其标题上下文
+Then 能够获得对应列标题
+
+AC4：单元格操作
+
+Given 单元格包含按钮、链接或其他控件
+When 键盘用户导航和激活该控件
+Then 控件保持自身名称、焦点和标准交互行为
+```
+
+```
+REQ-F-078 🟡 [Actor: End User]
+
+Title
+Table 加载与错误状态
+
+Description
+Table 必须区分错误、加载、正常数据和空数据状态。状态优先级固定为：错误高于加载；既非错误也非加载时，有行则为正常数据，无行则为空数据。应用可以为加载与错误状态提供可访问内容；状态变化后不得把加载或错误误报为空数据。
+
+Source
+异步数据展示状态需求
+
+Acceptance Criteria
+
+AC1：加载状态
+
+Given 应用将 Table 标记为正在加载且未报告错误
+When Table 显示
+Then 用户获得可识别的加载反馈，空状态不同时显示
+
+AC2：自定义错误状态
+
+Given 应用报告 Table 数据加载失败并提供错误内容
+When Table 显示
+Then 用户获得应用提供的可访问错误反馈，错误状态不被显示为空数据
+
+AC3：默认错误反馈
+
+Given 应用报告 Table 数据加载失败但未提供错误内容
+When Table 显示
+Then 用户获得可配置的默认错误文本且空状态不同时显示
+
+AC4：加载成功
+
+Given Table 正显示加载状态
+When 应用提供非空数据并结束加载状态
+Then 加载反馈消失并显示最新数据行
+
+AC5：错误恢复
+
+Given Table 正显示错误状态
+When 应用提供有效数据并清除错误状态
+Then 错误反馈消失并显示最新数据行
+
+AC6：错误优先
+
+Given 应用同时提供加载和错误状态
+When Table 显示
+Then 显示错误状态而不同时显示加载或空数据状态
+
+AC7：状态可感知
+
+Given Table 从正常或空数据状态切换为加载或错误状态
+When 辅助技术监测该次状态变化
+Then 用户能够识别最新状态且当前键盘焦点不会仅因状态变化而移动
+```
+
+```
+REQ-F-079 🟡 [Actor: End User]
+
+Title
+Table 宽内容访问
+
+Description
+Table 的列总宽度超过可用容器时，不得裁掉或永久隐藏数据。终端用户必须能够访问全部列；横向浏览后，列标题与数据单元格的对应关系以及单元格内交互控件的键盘行为必须保持有效。
+
+Source
+宽数据表可用性与 WCAG 2.2 二维内容要求
+
+Acceptance Criteria
+
+AC1：宽表访问
+
+Given Table 的列总宽度超过可用容器
+When 终端用户浏览 Table
+Then 用户能够横向访问全部列且数据内容不被永久裁掉
+
+AC2：标题对应
+
+Given 用户已经横向移动 Table 的可见区域
+When 用户读取任一可见数据单元格
+Then 对应列标题仍可识别且与该单元格对齐
+
+AC3：键盘控件
+
+Given 宽 Table 的非初始可见列包含可交互控件
+When 键盘用户导航到该控件
+Then 控件能够进入可见区域并保持自身标准焦点和操作行为
+
+AC4：静态列键盘访问
+
+Given 宽 Table 的非初始可见列只包含静态数据
+When 键盘用户聚焦 Table 的横向浏览区域并使用 ArrowLeft 或 ArrowRight
+Then 可见区域沿对应方向移动，用户能够读取全部列并返回初始列
+```
+
+```
+REQ-F-082 🟢 [Actor: Application Developer]
+
+Title
+Table 排序
+
+Description
+应用可以为列启用受控排序。用户请求改变排序时，应用只收到一次目标列和目标方向通知；最终排序状态和行数据由应用提供，Table 不自行覆盖应用状态。
+
+Source
+Table 排序增强需求（Deferred）
+
+Acceptance Criteria
+
+AC1：首次排序
+
+Given 应用为某列启用排序且当前未排序
+When 用户请求按该列排序
+Then 应用收到一次目标列和目标排序方向通知
+
+AC2：改变方向
+
+Given 某列已有排序方向
+When 用户请求改变该列排序
+Then 应用收到一次新的目标方向通知，不同时产生第二条排序通知
+
+AC3：外部状态
+
+Given Table 已显示排序状态
+When 应用提供新的排序状态和行数据
+Then 排序指示和行顺序与应用提供的最终状态一致
+
+AC4：可访问状态
+
+Given 某列具有当前排序状态
+When 视觉用户或辅助技术读取该列表头
+Then 能够识别该列及适用的升序或降序状态
+```
+
+```
+REQ-F-084 🟢 [Actor: Application Developer]
+
+Title
+Table 筛选
+
+Description
+应用可以启用受控筛选。用户提交筛选条件时，应用只收到一次筛选请求；最终筛选条件和行数据由应用提供，Table 必须区分筛选后无结果与未应用筛选的普通空数据。
+
+Source
+Table 筛选增强需求（Deferred）
+
+Acceptance Criteria
+
+AC1：提交筛选
+
+Given 应用启用筛选并提供可操作的筛选入口
+When 用户提交筛选条件
+Then 应用收到一次包含该条件的筛选请求
+
+AC2：外部结果
+
+Given 应用收到筛选请求
+When 应用提供最终筛选条件和行数据
+Then Table 显示的条件与行数据和应用提供的结果一致
+
+AC3：无匹配结果
+
+Given 已应用筛选且应用提供空结果
+When Table 显示
+Then 用户能够识别“无匹配结果”，不将其误认为尚未加载数据
+
+AC4：清除筛选
+
+Given Table 已显示筛选结果
+When 用户请求清除筛选
+Then 应用收到一次清除请求，最终条件和行数据仍由应用提供
+```
+
+```
+REQ-F-085 🟢 [Actor: End User]
+
+Title
+Table 行选择
+
+Description
+应用可以启用受控行选择。每次用户选择或取消选择一行时，应用只收到一次包含目标行和目标选择状态的通知；最终选择状态由应用提供。行选择与 REQ-F-070 的行操作必须使用具有不同含义的交互，不得由同一次操作同时触发两类通知。
+
+Source
+Table 行选择增强需求（Deferred）
+
+Acceptance Criteria
+
+AC1：选择行
+
+Given 应用启用行选择且某行当前未选中
+When 用户执行已记录的行选择操作
+Then 应用收到一次该行的选中请求，不同时收到行操作通知
+
+AC2：取消选择
+
+Given 一行当前已选中
+When 用户执行已记录的取消选择操作
+Then 应用收到一次该行的取消选择请求
+
+AC3：外部状态
+
+Given Table 已显示选择状态
+When 应用提供新的行选择状态
+Then 视觉用户和辅助技术获得的选择状态与应用提供的结果一致
+
+AC4：行操作隔离
+
+Given 同一行同时支持行选择和 REQ-F-070 的行操作
+When 用户执行行操作
+Then 应用只收到行操作通知且选择状态不因该操作改变
 ```
 
 ---
@@ -1892,171 +3195,399 @@ Then 渲染 caption 内容
 # 4 非功能需求
 
 ```
-REQ-NF-001 🔴 [Actor: System]
+REQ-NF-001 🔴 [Actor: Application Developer]
 
 Title
-目标框架
+.NET 6.0 目标框架
 
 Description
-组件库目标框架为 net10.0。
+Astrea 发布包的目标框架标识必须为 net6.0，并且能够由以 .NET 6.0 为目标的 Blazor 应用引用、还原、编译和运行，不得要求应用升级到更高 .NET 版本。
 
 Source
-技术决策：目标框架 net10.0
+项目技术基线：.NET 6.0
 
 Acceptance Criteria
 
-AC1：构建
+AC1：包框架标识
 
-Given 解决方案
-When 执行构建
-Then 无错误生成
+Given Astrea 发布包已经生成
+When 应用开发者检查包中声明的目标框架资产
+Then 存在 net6.0 资产且不以更高目标框架资产代替
+
+AC2：应用消费
+
+Given 一个以 net6.0 为目标的最小 Blazor 应用
+When 安装 Astrea 包、使用一个基础组件并执行还原与编译
+Then 还原和编译成功且不要求更改目标框架
+
+AC3：运行
+
+Given 前述最小应用已编译
+When 应用运行并显示 Astrea 组件
+Then 组件能够显示并按对应功能需求交互
 ```
 
 ```
-REQ-NF-002 🔴 [Actor: System]
+REQ-NF-002 🟡 [Actor: End User]
 
 Title
-浏览器兼容
+桌面浏览器兼容性
 
 Description
-组件在 Chrome、Edge、Firefox、Safari 最近两个主版本中行为一致。
+Astrea 必须支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本。受支持浏览器中的功能、键盘行为、可访问状态和核心布局必须一致；非核心视觉差异不得影响使用。
 
 Source
-非功能需求定义
+浏览器兼容性约束
 
 Acceptance Criteria
 
-AC1：兼容
+AC1：核心功能
 
-Given 任一组件
-When 在受支持浏览器中渲染与交互
-Then 行为一致
+Given 同一示例应用运行于任一受支持浏览器版本
+When 终端用户执行组件文档中的核心操作
+Then 操作结果和事件通知一致
+
+AC2：键盘与可访问性
+
+Given 键盘用户或辅助技术在任一受支持浏览器中访问组件
+When 执行组件规定的操作
+Then 焦点、名称、角色和状态行为符合需求
+
+AC3：发布记录
+
+Given Astrea 版本准备发布
+When 兼容性验证完成
+Then 发布记录明确列出实际验证的浏览器及版本
 ```
 
 ```
-REQ-NF-003 🟡 [Actor: System]
+REQ-NF-003 🟡 [Actor: End User]
 
 Title
-性能
+代表性数据量性能
 
 Description
-组件渲染遵循 Blazor 标准渲染语义，不引入不必要的重渲染；常规列表（≤100 行）渲染无感知延迟。
+在发布测试记录所声明的参考环境中，应用已经提供数据且页面处于可交互状态时，包含 100 行、10 列简单文本数据的 Table 必须在 1 秒内完成显示并可供用户操作。
 
 Source
-设计原则 1（行为可预测）
+代表性数据量性能目标
 
 Acceptance Criteria
 
-AC1：常规渲染
+AC1：Table 显示性能
 
-Given 100 行数据的表格
-When 渲染
-Then 完成时间在可感知范围（具体指标由详细设计确定）
+Given 参考测试应用已处于可交互状态并准备好 100 行、10 列简单文本数据
+When 应用将数据提供给 Table
+Then 从数据提供到 Table 完成显示并可操作的时间不超过 1 秒
+
+AC2：重复测量
+
+Given 相同参考环境和数据集
+When 性能场景连续执行 10 次
+Then 至少 9 次满足 1 秒目标，且测试记录包含环境、测量方法和原始结果
 ```
 
 ```
-REQ-NF-004 🔴 [Actor: System]
+REQ-NF-004 🔴 [Actor: Assistive Technology User]
 
 Title
-可访问性标准
+支持 WCAG 2.2 AA
 
 Description
-组件整体达到 WCAG 2.1 AA 级别。
+Astrea 生成的语义、内置样式和内置交互在按照组件文档使用时，不得阻碍宿主应用达到 WCAG 2.2 AA。应用开发者提供的内容、标签、模板、主题覆盖和页面组合由应用开发者负责。
 
 Source
-WCAG 2.1
+WCAG 2.2
 
 Acceptance Criteria
 
-AC1：标准
+AC1：适用标准
 
-Given 任一组件
-When 使用辅助技术（屏幕阅读器）与键盘访问
-Then 所有功能可访问
+Given Astrea 组件按文档提供必要标签和内容
+When 按组件适用的 WCAG 2.2 A 与 AA 成功标准验证
+Then 组件生成的语义、键盘行为、焦点和内置视觉状态不存在阻断性不符合项
+
+AC2：非颜色表达
+
+Given 组件表达错误、警告、选择、禁用或必填状态
+When 视觉用户访问组件
+Then 状态不只依赖颜色传达
+
+AC3：默认主题对比度
+
+Given 组件使用 Astrea 默认主题
+When 测量文本、控件边界、焦点指示和表达状态所需图形的对比度
+Then 各项满足适用的 WCAG 2.2 AA 对比度要求
+
+AC4：页面缩放
+
+Given 组件使用 Astrea 默认样式且浏览器页面缩放至 200%
+When 用户浏览和操作组件
+Then 内容和功能均可访问，且组件自身不产生同时要求横向和纵向滚动的二维内容区域；Table 等本质二维内容除外
+
+AC5：主题责任边界
+
+Given 应用覆盖颜色或其他公开主题变量
+When 覆盖结果不满足可访问性要求
+Then 文档明确该覆盖属于应用开发者责任，Astrea 默认主题仍满足其适用要求
+
+AC6：验证证据
+
+Given Astrea 版本准备发布
+When 可访问性验证完成
+Then 保留自动检查、人工键盘检查以及适用辅助技术场景的人工验证结果
 ```
 
 ```
-REQ-NF-005 🔴 [Actor: System]
+REQ-NF-005 🟡 [Actor: Application Developer]
 
 Title
-依赖最小化
+运行时依赖约束
 
 Description
-组件库运行时依赖仅允许 Microsoft.AspNetCore.Components.Web，不引入 UI 无关的第三方包。
+使用 Astrea 的 .NET 6.0 Blazor 应用不得被强制安装与组件功能无关的第三方运行时包。任何必须随 Astrea 安装的运行时依赖都必须在包元数据和使用文档中声明。
 
 Source
-设计原则 2（职责单一）
+组件库轻量依赖要求
 
 Acceptance Criteria
 
-AC1：依赖审计
+AC1：依赖可见
 
-Given 组件库项目文件
-When 审查 PackageReference
-Then 仅包含允许的运行时依赖
+Given 应用安装 Astrea NuGet 包
+When 应用开发者查看解析后的运行时依赖
+Then 所有必需依赖均已声明且不存在未记录依赖
+
+AC2：最小应用
+
+Given 一个仅包含 .NET 6.0 Blazor 基础能力的最小应用
+When 安装 Astrea 并使用基础组件
+Then 不需要手工安装文档之外的第三方运行时包
 ```
 
 ```
-REQ-NF-006 🟡 [Actor: System]
+REQ-NF-006 🔴 [Actor: Application Developer]
 
 Title
-包发布
+NuGet 包可消费性
 
 Description
-组件库可打包为 NuGet 包（PackageId Astrea），静态资源（CSS/JS）随包分发。
+Astrea 必须以 NuGet 包交付。包必须包含运行组件所需的程序集和静态资源，并能够被干净的 .NET 6.0 Blazor Server 与 Blazor WebAssembly 应用安装和使用。
 
 Source
-非功能需求定义
+发布与分发要求
 
 Acceptance Criteria
 
-AC1：打包
+AC1：包内容
 
-Given 执行 dotnet pack
-When 构建完成
-Then 生成有效 nupkg
-And 包含静态资源
+Given Astrea 发布包已生成
+When 检查包内容
+Then 包含运行公开组件所需的程序集、静态资源和包元数据
+
+AC2：Server 消费
+
+Given 一个干净的 .NET 6.0 Blazor Server 应用
+When 安装 Astrea 包并显示代表性组件
+Then 应用构建和运行成功，组件样式与交互可用
+
+AC3：WebAssembly 消费
+
+Given 一个干净的 .NET 6.0 Blazor WebAssembly 应用
+When 安装 Astrea 包并显示代表性组件
+Then 应用构建和运行成功，组件样式与交互可用
 ```
 
 ```
 REQ-NF-007 🟡 [Actor: Application Developer]
 
 Title
-代码文档
+公共使用文档
 
 Description
-公共 API 必须提供 XML 文档注释，注释描述行为而非重复参数名。
+所有面向应用开发者公开的组件能力、输入、事件通知、默认值、状态行为、可访问性责任和限制必须具有准确文档。文档不得声称当前包中不存在的能力。
 
 Source
-设计原则 5（文档真实）
+公共文档质量要求
 
 Acceptance Criteria
 
-AC1：公共 API 注释
+AC1：能力文档
 
-Given 任一公共类型或成员
-Then 存在 XML 文档注释
+Given 任一公开组件能力
+When 应用开发者查阅文档
+Then 能够找到用途、默认行为、输入效果、事件结果和最小使用示例
+
+AC2：限制文档
+
+Given 某能力存在适用范围、浏览器限制或应用开发者责任
+When 应用开发者查阅对应组件文档
+Then 限制和责任被明确说明
+
+AC3：真实性
+
+Given 发布包和公开文档属于同一版本
+When 对照文档示例与实际包验证
+Then 示例可构建且文档中声称的能力实际存在
 ```
 
 ```
 REQ-NF-008 🔴 [Actor: Application Developer]
 
 Title
-测试覆盖
+需求可验证性与发布门禁
 
 Description
-每个组件的关键行为（渲染、交互、禁用、A11Y 属性）有测试覆盖，测试套件全部通过。
+每条 Active 的 P0 和 P1 需求必须具有可追溯的验证证据。验证方式必须与行为风险匹配；浏览器布局、焦点、键盘、静态资源和包消费行为不得只依赖非浏览器级验证。
 
 Source
-设计原则 4（可验证）
+发布质量保障要求
 
 Acceptance Criteria
 
-AC1：套件通过
+AC1：需求追踪
 
-Given 测试套件
-When 执行 dotnet test
-Then 全部通过
+Given 任一 Active 的 P0 或 P1 需求
+When 检查发布验证记录
+Then 能够定位覆盖该需求验收标准的自动或人工验证证据
+
+AC2：验证层级
+
+Given 验收标准涉及真实浏览器布局、焦点、键盘、静态资源或包消费
+When 执行发布验证
+Then 在能够观察对应行为的环境中完成验证
+
+AC3：发布门禁
+
+Given 任一 Active 的 P0 或 P1 验收标准失败
+When 评估当前版本是否可发布
+Then 发布被阻止，除非需求状态经正式变更并记录
+```
+
+```
+REQ-NF-009 🔴 [Actor: Application Developer]
+
+Title
+.NET 6 Blazor 托管兼容性
+
+Description
+Astrea 的公开组件能力必须同时支持 .NET 6.0 Blazor Server 和 Blazor WebAssembly。Blazor Server 预呈现阶段应提供稳定的初始内容，建立交互连接后功能正常；WebAssembly 应用加载完成后提供相同行为。
+
+Source
+.NET 6 Blazor 应用兼容性要求
+
+Acceptance Criteria
+
+AC1：Blazor Server
+
+Given .NET 6.0 Blazor Server 应用使用 Astrea 组件
+When 页面完成初始显示并建立交互连接
+Then 初始内容稳定，交互功能按需求工作且不出现重复事件
+
+AC2：Blazor WebAssembly
+
+Given .NET 6.0 Blazor WebAssembly 应用使用相同组件场景
+When 应用加载完成
+Then 组件功能和状态结果与 Blazor Server 场景一致
+
+AC3：初始显示
+
+Given 组件在交互尚未就绪时产生初始页面内容
+When 用户查看该内容
+Then 不显示误导性的交互结果，交互就绪后状态保持连续
+```
+
+```
+REQ-NF-010 🔴 [Actor: Application Developer]
+
+Title
+安全内容呈现
+
+Description
+Astrea 必须把普通文本输入作为文本安全呈现，不得将其解释为可执行标记。组件不得在未记录且未经应用明确触发的情况下向外部网络发送数据。应用提供的自定义可执行内容由应用开发者负责。
+
+Source
+组件库安全边界要求
+
+Acceptance Criteria
+
+AC1：普通文本
+
+Given 应用向普通文本能力提供包含 HTML 或脚本字符的字符串
+When 组件显示该字符串
+Then 字符作为文本呈现且不会执行其中代码
+
+AC2：外部网络
+
+Given 应用未显式配置外部数据操作
+When 用户使用 Astrea 组件
+Then 组件不会自行向外部网络发送应用数据
+
+AC3：责任边界
+
+Given 应用开发者提供自定义可执行内容或主动绕过普通文本呈现
+When 该内容运行
+Then 文档明确其安全性由应用开发者负责
+```
+
+```
+REQ-NF-011 🔴 [Actor: End User]
+
+Title
+重复使用与移除可靠性
+
+Description
+组件被反复显示、隐藏、添加或移除后，必须保持与首次使用一致的行为。已移除组件不得继续响应用户输入、抢占焦点、阻止页面滚动或产生重复事件通知。
+
+Source
+组件生命周期可靠性要求
+
+Acceptance Criteria
+
+AC1：重复显示
+
+Given 同一组件场景被连续显示和隐藏多次
+When 用户再次操作当前显示的组件
+Then 每次操作只产生一次通知且行为与首次显示一致
+
+AC2：组件移除
+
+Given 一个交互组件已从页面移除
+When 用户继续操作页面
+Then 已移除组件不响应键盘或指针输入
+
+AC3：全局状态恢复
+
+Given Modal 等组件曾限制焦点或背景滚动
+When 组件隐藏或从页面移除
+Then 焦点导航和页面滚动恢复为可用状态
+```
+
+```
+REQ-NF-012 🟡 [Actor: Application Developer]
+
+Title
+公共行为兼容性
+
+Description
+Astrea 必须采用语义化版本表达公共行为兼容性。对已发布组件能力、默认行为或事件结果的不兼容变更必须在新的主版本中发布，并在发布说明中提供迁移信息。
+
+Source
+公共组件库版本兼容要求
+
+Acceptance Criteria
+
+AC1：兼容更新
+
+Given 一个补丁版本或次版本准备发布
+When 对照上一稳定版本检查公开行为
+Then 不包含未经说明的不兼容变更
+
+AC2：不兼容更新
+
+Given 发布包含不可避免的公开行为变更
+When 确定版本号和发布说明
+Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移方法
 ```
 
 ---
@@ -2067,28 +3598,28 @@ Then 全部通过
 
 | 优先级 | 数量 |
 |:---:|:---:|
-| 🔴 P0 | 48 |
-| 🟡 P1 | 26 |
-| 🟢 P2 | 8 |
-| 合计 | 82 |
+| 🔴 P0 | 54 |
+| 🟡 P1 | 30 |
+| 🟢 P2 | 13 |
+| 合计 | 97 |
 
 ## 5.2 按章节
 
 | 章节 | 范围 | 数量 |
 |------|------|:---:|
 | §3.1 通用 | REQ-F-001 ~ 009 | 9 |
-| §3.2 Button | REQ-F-010 ~ 017 | 8 |
+| §3.2 Button | REQ-F-010 ~ 017、080 | 9 |
 | §3.3 Alert | REQ-F-018 ~ 023 | 6 |
 | §3.4 Divider | REQ-F-024 ~ 027 | 4 |
 | §3.5 Input | REQ-F-028 ~ 036 | 9 |
 | §3.6 Label | REQ-F-037 ~ 039 | 3 |
-| §3.7 Modal | REQ-F-040 ~ 047 | 8 |
-| §3.8 Progress | REQ-F-048 ~ 052 | 5 |
-| §3.9 Select | REQ-F-053 ~ 060 | 8 |
-| §3.10 Tree | REQ-F-061 ~ 066 | 6 |
-| §3.11 Table | REQ-F-067 ~ 074 | 8 |
-| §4 NFR | REQ-NF-001 ~ 008 | 8 |
-| 合计 | | 82 |
+| §3.7 Modal | REQ-F-040 ~ 047、081 | 9 |
+| §3.8 Progress | REQ-F-048 ~ 052、076 | 6 |
+| §3.9 Select | REQ-F-053 ~ 060、075、083 | 10 |
+| §3.10 Tree | REQ-F-061 ~ 066、077 | 7 |
+| §3.11 Table | REQ-F-067 ~ 074、078、079、082、084、085 | 13 |
+| §4 NFR | REQ-NF-001 ~ 012 | 12 |
+| 合计 | | 97 |
 
 ---
 
@@ -2098,143 +3629,158 @@ Then 全部通过
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-001 | 🔴 | Application Developer | 组件基类与属性透传 |
-| REQ-F-002 | 🔴 | Application Developer | 禁用状态语义 |
-| REQ-F-003 | 🔴 | System | 事件处理与渲染语义 |
-| REQ-F-004 | 🔴 | Application Developer | 主题定制 |
-| REQ-F-005 | 🔴 | System | 样式作用域隔离 |
-| REQ-F-006 | 🔴 | System | 语义角色 |
-| REQ-F-007 | 🟡 | End User | 键盘交互基础 |
-| REQ-F-008 | 🔴 | Application Developer | 组件测试要求 |
-| REQ-F-009 | 🟡 | Application Developer | 组件文档要求 |
+| REQ-F-001 | 🔴 | Application Developer | 公共外观属性与附加属性 |
+| REQ-F-002 | 🔴 | End User | 适用组件的禁用状态 |
+| REQ-F-003 | 🔴 | Application Developer | 稳定的状态更新 |
+| REQ-F-004 | 🟡 | Application Developer | 主题定制 |
+| REQ-F-005 | 🟡 | Application Developer | 样式影响范围 |
+| REQ-F-006 | 🔴 | Assistive Technology User | 语义与可访问名称 |
+| REQ-F-007 | 🔴 | Keyboard User | 键盘可操作性 |
+| REQ-F-008 | 🔴 | Application Developer | 外部状态同步 |
+| REQ-F-009 | 🟡 | Application Developer | 内置文本可配置 |
 
 ### §3.2 Button（按钮）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-010 | 🔴 | System | 渲染为原生按钮 |
-| REQ-F-011 | 🔴 | End User | 点击事件 |
-| REQ-F-012 | 🔴 | Application Developer | 按钮类型 |
-| REQ-F-013 | 🔴 | Application Developer | 视觉变体 |
-| REQ-F-014 | 🟡 | Application Developer | 尺寸 |
-| REQ-F-015 | 🔴 | Application Developer | 禁用 |
-| REQ-F-016 | 🟡 | Application Developer | 图标支持 |
-| REQ-F-017 | 🔴 | End User | 可访问性 |
+| REQ-F-010 | 🔴 | End User | Button 基础呈现 |
+| REQ-F-011 | 🔴 | End User | Button 点击事件 |
+| REQ-F-012 | 🔴 | Application Developer | Button 表单行为 |
+| REQ-F-013 | 🟡 | Application Developer | Button 视觉变体 |
+| REQ-F-014 | 🟡 | Application Developer | Button 尺寸 |
+| REQ-F-015 | 🔴 | End User | Button 禁用 |
+| REQ-F-016 | 🟡 | Application Developer | Button 图标 |
+| REQ-F-017 | 🔴 | Assistive Technology User | Button 可访问性 |
+| REQ-F-080 | 🟢 | Application Developer | Button 加载与忙碌状态 |
 
 ### §3.3 Alert（警告提示）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-018 | 🔴 | Application Developer | 渲染与类型 |
-| REQ-F-019 | 🔴 | Application Developer | 内容 |
-| REQ-F-020 | 🔴 | End User | 关闭行为 |
-| REQ-F-021 | 🔴 | Application Developer | 可见性控制 |
-| REQ-F-022 | 🟢 | System | 自动关闭 |
-| REQ-F-023 | 🔴 | End User | 可访问性 |
+| REQ-F-018 | 🔴 | End User | Alert 类型 |
+| REQ-F-019 | 🔴 | Application Developer | Alert 内容 |
+| REQ-F-020 | 🔴 | End User | Alert 关闭操作 |
+| REQ-F-021 | 🔴 | Application Developer | Alert 可见性 |
+| REQ-F-022 | 🟢 | Application Developer | Alert 自动关闭 |
+| REQ-F-023 | 🔴 | Assistive Technology User | Alert 可访问性 |
 
 ### §3.4 Divider（分割线）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-024 | 🔴 | Application Developer | 渲染与方向 |
-| REQ-F-025 | 🟡 | Application Developer | 视觉定制 |
-| REQ-F-026 | 🟡 | Application Developer | 嵌入内容 |
-| REQ-F-027 | 🟢 | System | 响应式适配 |
+| REQ-F-024 | 🔴 | End User | Divider 方向与语义 |
+| REQ-F-025 | 🟡 | Application Developer | Divider 视觉定制 |
+| REQ-F-026 | 🟡 | Application Developer | Divider 嵌入内容 |
+| REQ-F-027 | 🟢 | End User | Divider 响应式表现 |
 
 ### §3.5 Input（输入框）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-028 | 🔴 | Application Developer | 渲染与类型 |
-| REQ-F-029 | 🔴 | Application Developer | 值绑定 |
-| REQ-F-030 | 🟡 | End User | 输入事件 |
-| REQ-F-031 | 🟡 | Application Developer | 占位符与自动补全 |
-| REQ-F-032 | 🔴 | Application Developer | 禁用与只读 |
-| REQ-F-033 | 🔴 | Application Developer | 验证 |
-| REQ-F-034 | 🟢 | Application Developer | 图标支持 |
-| REQ-F-035 | 🟡 | System | 自动聚焦 |
-| REQ-F-036 | 🔴 | End User | 可访问性 |
+| REQ-F-028 | 🔴 | Application Developer | Input 文本输入类型 |
+| REQ-F-029 | 🔴 | Application Developer | Input 值同步 |
+| REQ-F-030 | 🟡 | Application Developer | Input 交互通知 |
+| REQ-F-031 | 🟡 | End User | Input 占位提示 |
+| REQ-F-032 | 🔴 | End User | Input 禁用与只读 |
+| REQ-F-033 | 🔴 | Application Developer | Input 验证反馈 |
+| REQ-F-034 | 🟢 | Application Developer | Input 前后内容 |
+| REQ-F-035 | 🟡 | End User | Input 自动聚焦 |
+| REQ-F-036 | 🔴 | Assistive Technology User | Input 标签与错误关联 |
 
 ### §3.6 Label（标签）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-037 | 🔴 | Application Developer | 渲染与关联 |
-| REQ-F-038 | 🟡 | Application Developer | 内容与必填标记 |
-| REQ-F-039 | 🔴 | System | 可访问性 |
+| REQ-F-037 | 🔴 | Application Developer | Label 内容与控件关联 |
+| REQ-F-038 | 🟡 | Application Developer | Label 必填指示 |
+| REQ-F-039 | 🔴 | Assistive Technology User | Label 可访问性 |
 
 ### §3.7 Modal（对话框）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-040 | 🔴 | Application Developer | 打开与关闭 |
-| REQ-F-041 | 🟡 | Application Developer | 尺寸预设 |
-| REQ-F-042 | 🔴 | Application Developer | 区域模板 |
-| REQ-F-043 | 🟡 | Application Developer | 操作按钮配置 |
-| REQ-F-044 | 🟡 | End User | 遮罩行为 |
-| REQ-F-045 | 🔴 | End User | 键盘交互 |
-| REQ-F-046 | 🔴 | System | 焦点管理 |
-| REQ-F-047 | 🔴 | System | 可访问性 |
+| REQ-F-040 | 🔴 | Application Developer | Modal 可见状态与关闭请求 |
+| REQ-F-041 | 🟡 | Application Developer | Modal 尺寸预设 |
+| REQ-F-042 | 🔴 | Application Developer | Modal 内容区域 |
+| REQ-F-043 | 🔴 | End User | Modal 确认与取消操作 |
+| REQ-F-044 | 🟡 | End User | Modal 遮罩关闭 |
+| REQ-F-045 | 🔴 | Keyboard User | Modal Escape 关闭 |
+| REQ-F-046 | 🔴 | Keyboard User | Modal 焦点与背景交互 |
+| REQ-F-047 | 🔴 | Assistive Technology User | Modal 可访问性语义 |
+| REQ-F-081 | 🟢 | Application Developer | Modal 多实例与嵌套 |
 
 ### §3.8 Progress（进度条）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-048 | 🔴 | Application Developer | 渲染与值 |
-| REQ-F-049 | 🟡 | System | 数值范围 |
-| REQ-F-050 | 🟡 | Application Developer | 文本显示 |
-| REQ-F-051 | 🟡 | Application Developer | 视觉定制 |
-| REQ-F-052 | 🔴 | System | 可访问性 |
+| REQ-F-048 | 🔴 | End User | Progress 确定进度 |
+| REQ-F-049 | 🔴 | Application Developer | Progress 边界处理 |
+| REQ-F-050 | 🟡 | End User | Progress 百分比文本 |
+| REQ-F-051 | 🟡 | Application Developer | Progress 视觉状态 |
+| REQ-F-052 | 🔴 | Assistive Technology User | Progress 可访问性 |
+| REQ-F-076 | 🟡 | End User | Progress 不确定进度 |
 
 ### §3.9 Select（下拉选择）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-053 | 🔴 | Application Developer | 渲染与选项 |
-| REQ-F-054 | 🔴 | Application Developer | 值绑定 |
-| REQ-F-055 | 🟡 | Application Developer | 占位符 |
-| REQ-F-056 | 🔴 | Application Developer | 禁用 |
-| REQ-F-057 | 🟡 | Application Developer | 选项模板 |
-| REQ-F-058 | 🟢 | End User | 多选模式 |
-| REQ-F-059 | 🟢 | End User | 搜索过滤 |
-| REQ-F-060 | 🔴 | End User | 可访问性 |
+| REQ-F-053 | 🔴 | End User | Select 选项与单选 |
+| REQ-F-054 | 🔴 | Application Developer | Select 值与选项同步 |
+| REQ-F-055 | 🟡 | End User | Select 占位选项 |
+| REQ-F-056 | 🔴 | End User | Select 禁用状态 |
+| REQ-F-057 | 🟡 | Application Developer | Select 自定义选项内容 |
+| REQ-F-058 | 🟢 | End User | Select 多选 |
+| REQ-F-059 | 🟢 | End User | Select 搜索过滤 |
+| REQ-F-060 | 🔴 | Keyboard User | Select 可访问性与键盘操作 |
+| REQ-F-075 | 🔴 | Application Developer | Select 选项值唯一性 |
+| REQ-F-083 | 🔴 | End User | Select 单个选项禁用 |
 
 ### §3.10 Tree（树）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-061 | 🔴 | Application Developer | 渲染与层级 |
-| REQ-F-062 | 🔴 | End User | 展开与折叠 |
-| REQ-F-063 | 🟡 | End User | 节点选中 |
-| REQ-F-064 | 🟡 | Application Developer | 节点图标 |
-| REQ-F-065 | 🟢 | System | 懒加载 |
-| REQ-F-066 | 🔴 | End User | 可访问性 |
+| REQ-F-061 | 🔴 | Application Developer | Tree 节点数据 |
+| REQ-F-062 | 🔴 | End User | Tree 展开与折叠 |
+| REQ-F-063 | 🔴 | End User | Tree 单选与焦点 |
+| REQ-F-064 | 🟡 | Application Developer | Tree 节点图标 |
+| REQ-F-065 | 🟢 | Application Developer | Tree 懒加载 |
+| REQ-F-066 | 🔴 | Keyboard User | Tree 可访问性与键盘操作 |
+| REQ-F-077 | 🔴 | Keyboard User | Tree 动态节点移除与焦点恢复 |
 
 ### §3.11 Table（表格）
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-F-067 | 🔴 | System | 渲染真实数据 |
-| REQ-F-068 | 🔴 | Application Developer | 列定义 |
-| REQ-F-069 | 🟡 | Application Developer | 表头固定 |
-| REQ-F-070 | 🟡 | End User | 行交互 |
-| REQ-F-071 | 🟡 | System | 空状态 |
-| REQ-F-072 | 🟢 | Application Developer | 斑马纹 |
-| REQ-F-073 | 🟢 | End User | 分页 |
-| REQ-F-074 | 🔴 | System | 可访问性 |
+| REQ-F-067 | 🔴 | Application Developer | Table 数据集合 |
+| REQ-F-068 | 🔴 | Application Developer | Table 列定义 |
+| REQ-F-069 | 🟡 | End User | Table 固定表头 |
+| REQ-F-070 | 🟡 | End User | Table 行操作 |
+| REQ-F-071 | 🟡 | End User | Table 空状态 |
+| REQ-F-072 | 🟢 | End User | Table 斑马纹 |
+| REQ-F-073 | 🟢 | End User | Table 分页 |
+| REQ-F-074 | 🔴 | Assistive Technology User | Table 可访问性语义 |
+| REQ-F-078 | 🟡 | End User | Table 加载与错误状态 |
+| REQ-F-079 | 🟡 | End User | Table 宽内容访问 |
+| REQ-F-082 | 🟢 | Application Developer | Table 排序 |
+| REQ-F-084 | 🟢 | Application Developer | Table 筛选 |
+| REQ-F-085 | 🟢 | End User | Table 行选择 |
 
 ### §4 非功能需求
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-NF-001 | 🔴 | System | 目标框架 |
-| REQ-NF-002 | 🔴 | System | 浏览器兼容 |
-| REQ-NF-003 | 🟡 | System | 性能 |
-| REQ-NF-004 | 🔴 | System | 可访问性标准 |
-| REQ-NF-005 | 🔴 | System | 依赖最小化 |
-| REQ-NF-006 | 🟡 | System | 包发布 |
-| REQ-NF-007 | 🟡 | Application Developer | 代码文档 |
-| REQ-NF-008 | 🔴 | Application Developer | 测试覆盖 |
+| REQ-NF-001 | 🔴 | Application Developer | .NET 6.0 目标框架 |
+| REQ-NF-002 | 🟡 | End User | 桌面浏览器兼容性 |
+| REQ-NF-003 | 🟡 | End User | 代表性数据量性能 |
+| REQ-NF-004 | 🔴 | Assistive Technology User | 支持 WCAG 2.2 AA |
+| REQ-NF-005 | 🟡 | Application Developer | 运行时依赖约束 |
+| REQ-NF-006 | 🔴 | Application Developer | NuGet 包可消费性 |
+| REQ-NF-007 | 🟡 | Application Developer | 公共使用文档 |
+| REQ-NF-008 | 🔴 | Application Developer | 需求可验证性与发布门禁 |
+| REQ-NF-009 | 🔴 | Application Developer | .NET 6 Blazor 托管兼容性 |
+| REQ-NF-010 | 🔴 | Application Developer | 安全内容呈现 |
+| REQ-NF-011 | 🔴 | End User | 重复使用与移除可靠性 |
+| REQ-NF-012 | 🟡 | Application Developer | 公共行为兼容性 |
 
 ---
 
@@ -2242,11 +3788,16 @@ Then 全部通过
 
 | 编号 | 标题 | 说明 |
 |------|------|------|
-| REQ-F-022 | Alert 自动关闭 | P2，待确认是否纳入首个版本 |
-| REQ-F-058 | Select 多选 | P2，待确认交互设计 |
-| REQ-F-059 | Select 搜索过滤 | P2，待确认交互设计 |
-| REQ-F-065 | Tree 懒加载 | P2，依赖数据加载策略 |
-| REQ-F-073 | Table 分页 | P2，依赖分页组件设计 |
+| REQ-F-022 | Alert 自动关闭 | Deferred；不属于当前版本需求基线 |
+| REQ-F-058 | Select 多选 | Deferred；不属于当前版本需求基线 |
+| REQ-F-059 | Select 搜索过滤 | Deferred；不属于当前版本需求基线 |
+| REQ-F-065 | Tree 懒加载 | Deferred；不属于当前版本需求基线 |
+| REQ-F-073 | Table 分页 | Deferred；不属于当前版本需求基线 |
+| REQ-F-080 | Button 加载与忙碌状态 | Deferred；不属于当前版本需求基线 |
+| REQ-F-081 | Modal 多实例与嵌套 | Deferred；不属于当前版本需求基线 |
+| REQ-F-082 | Table 排序 | Deferred；不属于当前版本需求基线 |
+| REQ-F-084 | Table 筛选 | Deferred；不属于当前版本需求基线 |
+| REQ-F-085 | Table 行选择 | Deferred；不属于当前版本需求基线 |
 
 ---
 
@@ -2256,20 +3807,29 @@ Then 全部通过
 |------|------|:---:|
 | 2026-08-01 | **创建 SRS**: 定义 Astrea 组件库范围、组件清单、非目标与全部功能/非功能需求 | wubing7755 |
 | 2026-08-01 | **格式对齐**: 需求条目改为代码围栏 + Title/Description/Acceptance Criteria 格式，非功能需求编号改为 REQ-NF，补充 Actor 与附录A 统计表 | wubing7755 |
+| 2026-08-01 | **需求去设计化**: 移除需求正文中涉及软件设计阶段的内容（继承基类、scoped CSS、bUnit、平台类型名、focus-visible、动画时机等），统一为行为与使用方契约表述；F-046 验收标准改用『渲染完成』 | wubing7755 |
+| 2026-08-03 | **v0.2.0 基线修订**: 目标框架改为 .NET 6.0；明确 SRS 仅规范用户可观察行为与非功能需求；修正状态、表单、键盘、可访问性、边界和延期范围；新增托管兼容、安全、可靠性与公共行为兼容要求 | Ada |
+| 2026-08-03 | **v0.3.0 组件边界补充**: 补充 Alert 动态更新、Divider 装饰语义、Input 清空与输入路径、Select 选项值唯一性与单项禁用、Progress 不确定状态、Tree 动态焦点恢复、Table 数据状态与宽内容访问；将 Button、Modal、Table 排序、筛选和行选择分别定义为延期需求 | Ada |
 
 ---
 
 ## 附录D：经验教训映射（AWComponent → Astrea）
 
-| AWComponent 问题 | 对应需求 |
-|------------------|----------|
-| Table 硬编码假数据 | REQ-F-067 |
-| 渲染优化导致 UI 不更新 | REQ-F-003 |
-| 禁用实现为隐藏元素 | REQ-F-002 |
-| Modal ESC 键大小写不匹配失效 | REQ-F-045 |
-| Modal A11Y 缺失（无 role/aria/焦点管理） | REQ-F-046、REQ-F-047 |
-| 内联硬编码样式无法主题化 | REQ-F-004 |
-| 调试演示代码混入组件库 | REQ-F-009、REQ-F-008 |
-| 上传/翻译/矩阵等范围蔓延 | §1.2.2 范围外 |
-| 全局 CSS 选择器泄漏 | REQ-F-005 |
-| 测试覆盖不足 | REQ-F-008、REQ-NF-008 |
+| AWComponent 的可观察问题 | 对应需求 |
+|---------------------------|----------|
+| Table 显示硬编码数据而不是应用提供的数据 | REQ-F-067 |
+| 应用状态更新后界面未同步 | REQ-F-003、REQ-F-008 |
+| 禁用控件被隐藏而不是保持可见 | REQ-F-002 |
+| Modal 的 Escape 关闭在部分按键输入下失效 | REQ-F-045 |
+| Modal 缺少名称、模态语义和焦点管理 | REQ-F-046、REQ-F-047 |
+| 固定视觉值导致应用无法统一主题 | REQ-F-004 |
+| 组件样式意外改变宿主页面外部元素 | REQ-F-005 |
+| 文档能力与实际包行为不一致 | REQ-NF-007 |
+| 关键行为缺少可追溯验证 | REQ-NF-008 |
+| 应用级功能持续进入组件库范围 | §1.2.2 范围外 |
+| 纯视觉分隔被辅助技术重复读取 | REQ-F-024 |
+| Select 重复值或禁用选项导致选择结果不明确 | REQ-F-075、REQ-F-083 |
+| 动态删除 Tree 节点后焦点丢失 | REQ-F-077 |
+| Table 将加载或错误状态误显示为空数据 | REQ-F-078 |
+| 宽 Table 内容被裁切或无法通过键盘访问 | REQ-F-079 |
+| 增强能力未与首版范围隔离 | REQ-F-080、REQ-F-081、REQ-F-082、REQ-F-084、REQ-F-085 |
