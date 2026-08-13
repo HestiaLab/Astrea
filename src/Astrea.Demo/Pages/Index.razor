@@ -1,0 +1,249 @@
+@page "/"
+@using Microsoft.AspNetCore.Components
+@using Astrea.Components.Tree
+
+<PageTitle>Astrea 组件库演示</PageTitle>
+
+<h1>Astrea Tree 演示</h1>
+<p>
+    多选（Ctrl 切换 / Shift 范围）、拖拽（上/中/下）、内联编辑（F2）、右键通知、
+    键盘导航（方向键 / Home / End / Space / Enter）。
+</p>
+
+<div class="demo-toolbar">
+    <label class="demo-check">
+        <input type="checkbox" checked="@_allowMultiSelect" @onchange="ToggleMultiSelect" /> 多选
+    </label>
+    <button @onclick="RebuildTree">重建树（保持状态）</button>
+    <button @onclick="RemoveSelected">移除选中</button>
+    <button @onclick="ClearTree">清空</button>
+    <button id="btn-load-50k" @onclick="BuildLargeTree">生成 5 万节点</button>
+    <span class="demo-hint">选中节点后按 F2 重命名；拖到「资源」会被否决；「已禁用页面」可导航但不可选。</span>
+</div>
+
+<div class="demo-panel">
+    <Tree DataSource="_dataSource"
+          Settings="_settings"
+          Callbacks="_callbacks"
+          OnSelect="HandleSelect"
+          OnClick="HandleClick"
+          OnDblClick="HandleDblClick"
+          OnContextMenu="HandleContextMenu"
+          OnDrop="HandleDrop"
+          OnInputEnter="HandleInputEnter"
+          OnKeyDown="HandleKeyDown"
+          OnTiming="HandleTiming"
+          @ref="_tree" />
+</div>
+
+<div class="demo-panel">
+    <h3>事件日志</h3>
+    <div class="demo-log">
+        <div class="demo-selected"><b>选中：</b>@(string.Join("、", _selectedNames))</div>
+        @foreach (var line in _log)
+        {
+            <div>@line</div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<TreeNode> _dataSource = new();
+    private TreeSettings _settings = new() { AllowDrag = true, AllowMultiSelect = true };
+    private readonly TreeCallbacks _callbacks = new();
+    private Tree? _tree;
+    private List<string> _selectedNames = new();
+    private readonly List<string> _log = new();
+    private bool _allowMultiSelect = true;
+
+    protected override void OnInitialized()
+    {
+        _callbacks.BeforeDrop = BeforeDrop;
+        // 演示否决：拒绝空值重命名（REQ-F-088 AC2）
+        _callbacks.BeforeRename = (node, value) => !string.IsNullOrWhiteSpace(value);
+        _dataSource = BuildTree();
+    }
+
+    /// <summary>用稳定 Id 构建树；重建树（新对象、同 Id）时验证状态保持。</summary>
+    private static List<TreeNode> BuildTree()
+    {
+        var root = new TreeNode("我的项目", id: "project") { IsVisible = true, IsExpanded = true };
+
+        var specs = new TreeNode("页面", id: "specs") { IsExpanded = true };
+        specs.Add(new TreeNode("页面 1", id: "df-1"));
+        specs.Add(new TreeNode("页面 2", id: "df-2"));
+        specs.Add(new TreeNode("已禁用页面", id: "df-3") { IsDisabled = true });
+        root.Add(specs);
+
+        var symbols = new TreeNode("图符", id: "symbols");
+        symbols.Add(new TreeNode("图符 A", id: "sym-1"));
+        root.Add(symbols);
+
+        var resources = new TreeNode("资源", id: "resources");
+        var colors = new TreeNode("颜色表", id: "colors");
+        colors.Add(new TreeNode("ColorTable", id: "res-color"));
+        resources.Add(colors);
+        resources.Add(new TreeNode("字体表", id: "res-font"));
+        root.Add(resources);
+
+        return new List<TreeNode> { root };
+    }
+
+    // 重建树：新对象、同 Id，验证 DataSource 替换后按稳定 Id 保持选中/展开/焦点（REQ-F-061 AC2）
+    private void RebuildTree()
+    {
+        _dataSource = BuildTree();
+        Log("已重建树（同 Id 新对象，状态应保持）");
+    }
+
+    // 移除选中节点：验证焦点恢复 + 悬空选择清理（REQ-F-077）
+    private void RemoveSelected()
+    {
+        var selected = _tree?.Controller?.GetSelectedNodes().ToList();
+        if (selected is null || selected.Count == 0)
+        {
+            Log("无选中节点可移除");
+            return;
+        }
+
+        foreach (var node in selected)
+        {
+            node.Parent?.Remove(node);
+        }
+
+        _tree?.Refresh();
+        Log($"移除 {selected.Count} 个节点（焦点应恢复）");
+    }
+
+    private void ClearTree()
+    {
+        _dataSource = new List<TreeNode>();
+        _selectedNames.Clear();
+        Log("已清空树");
+    }
+
+    // 性能探针：嵌套 5 万节点，最大 15 层，全展开（渲染最坏情况）
+    private void BuildLargeTree()
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        var root = new TreeNode("根节点", id: "perf-root") { IsExpanded = true, IsVisible = true };
+
+        // BFS 逐层扩展：前 6 层快速铺开，后 9 层稳定延伸，收敛到 5 万节点 / 15 层
+        var currentLayer = new List<TreeNode> { root };
+        int count = 1;
+
+        for (int level = 1; level < 15 && count < 50_000; level++)
+        {
+            int target = TargetCountForLevel(level, 50_000 - count, 15 - level);
+            var nextLayer = new List<TreeNode>();
+            int parentIdx = 0;
+            for (int i = 0; i < target && count < 50_000; i++)
+            {
+                var parent = currentLayer[parentIdx % currentLayer.Count];
+                var child = new TreeNode($"层级 {level}-{i}", id: $"p{count}") { IsExpanded = true };
+                parent.Add(child);
+                nextLayer.Add(child);
+                count++;
+                parentIdx++;
+            }
+
+            currentLayer = nextLayer;
+        }
+
+        _dataSource = new List<TreeNode> { root };
+        _selectedNames.Clear();
+        sw.Stop();
+        Log($"生成 {count} 节点（嵌套 15 层）：构建 {sw.ElapsedMilliseconds} ms");
+    }
+
+    private static int TargetCountForLevel(int level, int remaining, int levelsLeft)
+    {
+        return level switch
+        {
+            1 => Math.Min(5, remaining),
+            2 => Math.Min(25, remaining),
+            3 => Math.Min(125, remaining),
+            4 => Math.Min(500, remaining),
+            5 => Math.Min(2000, remaining),
+            6 => Math.Min(5000, remaining),
+            _ => Math.Min(remaining / Math.Max(1, levelsLeft), remaining),
+        };
+    }
+
+    private void ToggleMultiSelect(ChangeEventArgs e)
+    {
+        _allowMultiSelect = (bool)(e.Value ?? false);
+        // 重建 Settings 以确保参数变化被检测；关闭多选触发选择收敛（REQ-F-086 AC4）
+        _settings = new TreeSettings { AllowDrag = true, AllowMultiSelect = _allowMultiSelect };
+        Log(_allowMultiSelect ? "已开启多选" : "已关闭多选（选择应收敛）");
+    }
+
+    private bool BeforeDrop(DragNodesArgs args)
+    {
+        if (args.Target.Text == "资源")
+        {
+            Log($"否决拖放 → {args.Target.Text}");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void HandleSelect(IReadOnlyCollection<TreeNode> nodes)
+        => _selectedNames = nodes.Select(n => n.Text).ToList();
+
+    private void HandleClick(TreeNode node) => Log($"单击：{node.Text}");
+
+    private void HandleDblClick(TreeNode node) => Log($"双击：{node.Text}");
+
+    private void HandleContextMenu((MouseEventArgs, TreeNode) args) => Log($"右键：{args.Item2.Text}");
+
+    private void HandleDrop(DragNodesArgs args)
+    {
+        var names = string.Join("、", args.Sources.Select(n => n.Text));
+        Log($"拖放：{names} → {args.Target.Text}（{PositionName(args.Position)}）");
+    }
+
+    private void HandleInputEnter((TreeNode, string) args)
+    {
+        var (node, value) = args;
+        Log($"重命名：{node.Text} → {value}");
+        node.Text = value;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "F2")
+        {
+            var focused = _tree?.Controller?.Selection.FocusedNode;
+            if (focused is not null && _tree!.BeginEdit(focused))
+            {
+                Log($"进入编辑：{focused.Text}");
+            }
+        }
+    }
+
+    private void HandleTiming((string Operation, double ElapsedMs) timing)
+        => Log($"{OperationName(timing.Operation)}耗时：{timing.ElapsedMs:F2} ms");
+
+    private static string OperationName(string op) => op switch
+    {
+        "click" => "单击",
+        "dblclick" => "双击",
+        "drop" => "拖放",
+        _ => op,
+    };
+
+    private static string PositionName(DragPosition p) =>
+        p.IsTop ? "之前" : p.IsCenter ? "之内" : "之后";
+
+    private void Log(string message)
+    {
+        _log.Insert(0, message);
+        if (_log.Count > 20)
+        {
+            _log.RemoveAt(_log.Count - 1);
+        }
+    }
+}
