@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, 'feature/**', 'fix/**']
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Scan for leaked secrets (gitleaks, no token)
+        run: |
+          docker run --rm -v "${PWD}:/repo" -w /repo zricethezav/gitleaks:v8.30.1 detect --source /repo --no-banner
+
+      - name: Verify SRS consistency
+        run: python3 scripts/verify_srs_consistency.py
+
+      - name: Restore
+        run: dotnet restore Astrea.sln
+
+      - name: Build
+        run: dotnet build Astrea.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test Astrea.sln --no-build --no-restore --configuration Release
+
+      - name: Audit NuGet vulnerabilities (fail on any)
+        run: |
+          dotnet list Astrea.sln package --vulnerable --include-transitive --format json > vulns.json
+          python3 - <<'EOF'
+          import json, sys
+          with open('vulns.json', encoding='utf-8') as f:
+              data = json.load(f)
+          count = 0
+          for project in data.get('projects', []):
+              for framework in project.get('frameworks', []):
+                  for pkg in framework.get('topLevelPackages', []) + framework.get('transitivePackages', []):
+                      count += len(pkg.get('vulnerabilities', []))
+          print(f'vulnerable packages: {count}')
+          if count > 0:
+              sys.exit(1)
+          EOF
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: '6.0.x'
+      - run: dotnet restore Astrea.sln
+      - run: dotnet format Astrea.sln --verify-no-changes --no-restore --verbosity minimal
