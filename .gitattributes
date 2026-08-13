@@ -1,0 +1,3 @@
+# 统一行尾为 LF：dotnet format 与 Linux CI 依赖一致行尾。
+# text=auto 自动识别二进制（不转换）；eol=lf 强制文本文件使用 LF。
+* text=auto eol=lf
