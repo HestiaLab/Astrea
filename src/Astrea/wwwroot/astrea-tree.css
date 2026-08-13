@@ -1,0 +1,159 @@
+/* Astrea Tree 主题变量（--ast-tree-*，可被宿主覆盖） */
+.tree-container {
+    --ast-tree-font-size: 14px;
+    --ast-tree-line-height: 1.6;
+    --ast-tree-color-text: #1f2328;
+    --ast-tree-node-height: 32px;
+    --ast-tree-color-hover: rgba(0, 0, 0, 0.05);
+    --ast-tree-color-focus: rgba(24, 144, 255, 0.15);
+    --ast-tree-color-active: rgba(24, 144, 255, 0.25);
+    --ast-tree-color-border: #d0d7de;
+    --ast-tree-icon-size: 16px;
+    --ast-tree-control-indent: 20px;
+    --ast-tree-font-weight-bold: 600;
+
+    position: relative;
+    font-size: var(--ast-tree-font-size);
+    line-height: var(--ast-tree-line-height);
+    color: var(--ast-tree-color-text);
+    user-select: none;
+}
+
+/* 图标浮于连线之上 */
+.tree-container.show-link .tree-node-icon {
+    position: relative;
+    z-index: 1;
+}
+
+.tree-node {
+    display: flex;
+    cursor: default;
+    min-height: var(--ast-tree-node-height);
+    position: relative;
+    align-items: center;
+    min-width: min-content;
+}
+
+.tree-node span:last-child {
+    flex: 1;
+}
+
+.tree-node:hover {
+    background-color: var(--ast-tree-color-hover);
+}
+
+.tree-node.dragging {
+    opacity: 0.5;
+    background-color: var(--ast-tree-color-focus);
+}
+
+.tree-node.drag-over {
+    background-color: var(--ast-tree-color-hover);
+    border: 1px dashed var(--ast-tree-color-border);
+}
+
+.tree-node[draggable="true"] {
+    cursor: grab;
+}
+
+.tree-node[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.tree-node.bold {
+    font-weight: var(--ast-tree-font-weight-bold);
+}
+
+.tree-node-indent {
+    flex-shrink: 0;
+    position: relative;
+}
+
+.tree-node-control {
+    width: var(--ast-tree-icon-size);
+    height: var(--ast-tree-icon-size);
+    text-align: center;
+}
+
+.tree-node-control__slot {
+    width: var(--ast-tree-control-indent);
+    display: inline-block;
+}
+
+.tree-node-content {
+    display: flex;
+}
+
+.tree-node-icon {
+    width: var(--ast-tree-icon-size);
+    height: var(--ast-tree-icon-size);
+    text-align: center;
+}
+
+.tree-node-content__main {
+    display: flex;
+}
+
+.tree-node-content__main.selected {
+    background-color: var(--ast-tree-color-active);
+}
+
+.tree-node-content__main.focused {
+    background-color: var(--ast-tree-color-focus);
+}
+
+.tree-node-text {
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-node-text.selected {
+    background-color: var(--ast-tree-color-active);
+}
+
+.tree-node-text.focused {
+    background-color: var(--ast-tree-color-focus);
+}
+
+.tree-node-content__slot {
+    width: 20px;
+    display: inline-block;
+}
+
+.tree-node-edit {
+    font-size: var(--ast-tree-font-size);
+    border: 1px solid var(--ast-tree-color-border);
+    border-radius: 3px;
+    padding: 0 4px;
+}
+
+/* 拖拽覆盖（中心放置高亮，由 JS 添加） */
+.drag-over-center {
+    background-color: var(--ast-tree-color-focus);
+    outline: 1px dashed var(--ast-tree-color-active);
+}
+
+.drag-preview-container {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99;
+    pointer-events: none;
+    transition: none;
+}
+
+.drag-preview-count {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    background-color: #f6f8fa;
+    color: #58607c;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
