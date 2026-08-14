@@ -4,11 +4,11 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | Draft，待审阅 |
+| 状态 | Complete（整改完成） |
 | 适用范围 | `src/Astrea/Components/Tree/`、`src/Astrea/wwwroot/astrea-tree.*`、Tree 测试、Demo、README 与 SRS 中的 Tree 契约 |
 | 目标框架 | .NET 6.0，兼容 Blazor Server 与 Blazor WebAssembly |
-| 当前基线 | `dotnet build Astrea.sln` 0 警告 0 错误；`dotnet test Astrea.sln --no-build` 94/94 通过 |
-| 本文性质 | 修改方案与实施顺序，不包含代码修改，不代表公共 API 已冻结 |
+| 当前基线 | `dotnet build Astrea.sln` 0 警告 0 错误；`dotnet test Astrea.sln --no-build` 174/174 通过；JS 单测 2/2 通过 |
+| 本文性质 | Tree 整改合同、实施顺序与验收基线；Phase 0 的可观察行为和公共 API 迁移方向已冻结 |
 
 ## 2. 目标
 
@@ -42,7 +42,7 @@
 | 2 | `TreeNode.cs:177-240` 公开修改结构但不阻止自身或祖先挂接 | 树结构不变量不受保护 | 可能形成循环，导致 `Root`、`Level` 和遍历无限循环或栈溢出 |
 | 3 | `TreeController.cs:110-120` 对重复 ID 使用覆盖写入 | 稳定身份冲突被静默接受 | 查询、状态恢复、拖拽目标和 DOM 身份可能指向错误节点 |
 | 4 | `TreeController.Selection` 和多种可写方法均公开 | 外部可绕过节点归属、禁用状态和单选模式校验 | 选择/焦点状态可包含其他 Tree 的节点，所谓“唯一真相”不成立 |
-| 5 | `Tree.cs:82-99` 只在 DataSource 引用变化时重建 Controller | `Callbacks`、`HideRootNode` 等运行期变化不能完整生效 | 参数显示值与实际行为分离 |
+| 5 | `Tree.cs:82-99` 只在 DataSource 引用变化时重建 Controller | `Callbacks` 等运行期变化不能完整生效 | 参数显示值与实际行为分离 |
 | 6 | `Tree.cs:102-108` 仅在 `firstRender` 初始化拖拽 | `AllowDrag` 或 DataSource 后续启用时不注册；关闭时不注销 | 运行期参数变化无效，JS 生命周期不对称 |
 | 7 | `Tree.DragDrop.cs:55` 忽略 JS 传回的源 ID，改用 `_dragNodes` | JS 与 C# 各自持有一份拖拽源状态 | 陈旧事件、选择变化或伪造消息可能造成源集合不一致 |
 | 8 | `DragNodesArgs.cs:28-34` 将未知位置解释为 Bottom | 协议错误被降级为合法操作 | 损坏消息可能产生错误重排 |
@@ -51,7 +51,7 @@
 | 11 | `Tree.Render.cs:58-61` 使用 `10 + i` 作为循环 sequence | 把运行时索引当作源码位置 | 插入、删除和重排时可能产生不稳定或低效的 Blazor diff |
 | 12 | `TreeSettings.EnableVirtualization` 默认 true，同时允许任意模板 | 固定 `ItemSize` 与可变行高模板冲突 | 测量、滚动、焦点和编辑行为可能失真 |
 | 13 | 禁用节点点击后 `Tree.cs:154-155` 仍无条件发出选择结果和点击通知 | 命令没有返回“是否改变”结果，组件无法准确决定通知 | 空通知、重复通知或禁用节点语义不清 |
-| 14 | `TreeController.cs:69-101` 只检查根节点的 `IsVisible` | 属性名称与实际作用范围不一致；隐藏根还依赖不可见节点预先展开 | 消费方必须知道隐式前置条件 |
+| 14 | `TreeController.cs:69-101` 只检查根节点的 `IsVisible` | 属性名称与实际作用范围不一致 | 消费方必须知道隐式前置条件 |
 | 15 | 节点 DOM `id` 直接使用业务 `TreeNode.Id`，JS 又调用 `document.getElementById` | 两个 Tree 使用相同逻辑 ID 时发生全局 DOM 冲突 | 拖拽、ARIA 引用和元素查询可能跨组件串线 |
 | 16 | Tree 未提供 `AdditionalAttributes` | Tree 不能完整满足 REQ-F-001 的通用组件契约 | 使用方无法可靠提供 `aria-label`、测试属性或宿主 HTML 属性 |
 | 17 | SRS 文件头仍标记 0.3.0，而变更记录已经出现 0.4.0 Tree 扩充 | 需求基线元数据不一致 | 实施和验收无法明确引用同一版本基线 |
@@ -105,6 +105,8 @@
 
 - 参数为 `null`：非受控模式，由组件内部 `TreeState` 持有状态，并通过 Changed 事件通知应用。
 - 参数非 `null`：受控模式，参数是显示状态的权威来源；用户操作只提出变化并触发 Changed，下一次渲染以应用回传参数为准。
+- 受控模式下，组件在 Changed 没有订阅者、应用拒绝候选集合或延迟回传时都不得先行改变显示状态。
+- 应用更换受控集合属于外部同步，不作为用户操作重复触发业务事件。
 - 禁止再从 `TreeNode.IsSelected`、`IsFocused`、`IsEditing` 同步状态。
 - `TreeNode.IsExpanded` 若为兼容迁移保留，只能作为首次绑定的初始值；稳定版前应由 `ExpandedIds` 完全替代，避免长期双写。
 
@@ -120,22 +122,18 @@
 - Controller 的 `Bind/Refresh` 对整棵树执行完整校验：重复 ID、循环、重复节点引用、Parent/Index 不一致均产生确定性异常，不允许静默修复。
 - 结构变更优先通过 Controller 的 `AddNode`、`RemoveNode`、`MoveNodes` 等入口；外部直接修改后仍可调用 `Refresh`，但 `Refresh` 必须重新验证并递增 revision。
 
-### 5.5 公共 Controller 边界
+### 5.5 公共查询视图边界
 
-`Tree.Controller` 不再暴露可写的 `TreeSelection`。对外只提供只读查询和经过校验的命令：
+`Tree.Controller` 不再作为公共入口。新的 `Tree.View` 只提供只读查询，不暴露可写的 `TreeSelection` 或实际可向下转换的内部可变集合。所有修改类命令通过 Tree 门面进入同一校验与提交边界：
 
 ```csharp
 public IReadOnlyList<TreeNode> VisibleNodes { get; }
 public IReadOnlyCollection<string> SelectedIds { get; }
 public string? FocusedId { get; }
 public TreeNode? FindById(string id);
-public TreeOperationResult Select(string id, TreeSelectionIntent intent);
-public TreeOperationResult SetFocus(string id);
-public TreeOperationResult Expand(string id);
-public TreeOperationResult Collapse(string id);
 ```
 
-不接受任意 `TreeNode` 作为跨边界身份；公共命令优先接受稳定 ID。若为迁移保留 Node 重载，必须先验证该实例就是当前 Controller 索引中的实例。
+不接受任意 `TreeNode` 作为跨边界身份；公共命令优先接受稳定 ID。若为迁移保留 Node 重载，必须先验证该实例就是当前查询索引中的实例。查询面不提供选择、展开、编辑或结构修改方法。
 
 ### 5.6 焦点与键盘模型
 
@@ -182,6 +180,7 @@ public TreeOperationResult Collapse(string id);
 - guard 运行期间不提交状态。
 - guard 返回后必须重新检查 revision 和目标身份，避免等待期间数据源已变化。
 - guard 抛出异常时操作保持未提交，异常按 Blazor 事件异常路径上抛，不静默接受。
+- guard 返回后若组件已释放、节点已被替换/移除或操作会话已失效，该结果只能被拒绝或视为 no-op，不得改变新状态。
 - `BeforeRemove` 当前没有生产调用点；除非 SRS 增加 Tree 内部移除操作，否则删除该死 API。
 
 ### 5.9 拖拽协议
@@ -210,6 +209,7 @@ relation = before | inside | after
 7. 指针反馈由 JS 层维护，不再为每次 dragover 调用 C# `StateHasChanged`；C# 只处理开始、提交、取消等语义边界。
 8. JS 查询限制在当前 Tree 容器内，不调用全局 `document.getElementById(nodeId)` 查找业务节点。
 9. destroy 时移除全部监听、插入线、预览、requestAnimationFrame 和对象引用。
+10. 拖拽会话是一次性令牌；接受、拒绝、取消、`AllowDrag=false` 或释放组件都必须使其失效，后续重放不得再触发 `OnDrop`。
 
 ### 5.10 JS 生命周期
 
@@ -265,16 +265,11 @@ Blazor Server 释放阶段允许捕获并忽略仅表示连接已断开的 `JSDi
 - 虚拟化模式必须验证展开/折叠后索引、Home/End、跨视口方向键、编辑焦点、拖拽目标、DataSource 替换和空数据。
 - 5 万节点 Demo 只是性能探针，不代替可访问性和交互正确性测试。
 
-### 5.13 可见性与隐藏根
+### 5.13 可见性与合成根范围
 
 推荐删除通用 `TreeNode.IsVisible`；应用通过 DataSource 是否包含节点决定显示。如果确需保留过滤能力，必须对所有层级定义一致语义，而不能只过滤根节点。
 
-`HideRootNode` 改为明确的“隐藏单一合成根”模式：
-
-- 只允许 DataSource 含一个合成根。
-- 合成根始终视为展开，其直接子节点作为 Tree 的一级节点。
-- 合成根不参与选择、焦点、拖拽和 ARIA 集合。
-- 多根数据与隐藏根同时使用时返回确定性配置错误。
+本次整改不引入 `HideRootNode` 或“隐藏合成根”公共能力。当前 Active SRS 未要求该行为，当前公共实现也不提供该参数；应用应把希望显示为一级的节点直接作为 DataSource 根集合。若未来需要合成根，必须先增加独立 Active 需求和验收条件，不得以隐式兼容行为加入。
 
 ### 5.14 AdditionalAttributes 与宿主元素
 
@@ -295,7 +290,7 @@ public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
 ## 6. 推荐公共 API 轮廓
 
-以下是方向性 API，用于在实施前冻结契约；具体命名可在 API 审阅阶段微调：
+以下轮廓冻结公共能力与迁移方向；不影响语义的具体命名可在 API 审阅阶段微调：
 
 ```csharp
 public sealed partial class Tree : ComponentBase, IAsyncDisposable
@@ -321,7 +316,7 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
 }
 ```
 
-程序化操作通过 Tree 门面或只读 Controller 完成：
+程序化修改只通过 Tree 门面完成；`Tree.View` 仅提供只读查询：
 
 ```csharp
 Task<TreeOperationResult> SelectAsync(string id, TreeSelectionIntent intent = TreeSelectionIntent.Replace);
@@ -346,6 +341,8 @@ Task<TreeOperationResult> RefreshAsync();
 | `OnInputEnter` | `OnEditCommitted` | EventArgs 替代元组 |
 | `OnContextMenu` 元组 | `TreeContextMenuEventArgs` | EventArgs 替代元组 |
 | `Controller.Selection` 可写对象 | 只读状态 + 校验命令 | 直接移除可写入口；编译错误优于静默不一致 |
+| `Tree.Controller` 及其公开修改方法 | `Tree.View` 只读查询 + Tree 异步命令门面 | 查询迁移到 `View`，写入迁移到使用稳定 ID 的 Tree 命令 |
+| 可向下转换的选择/展开集合 | 不可变快照或真正只读视图 | 移除对内部集合的引用泄漏 |
 | `TreeNode.IsSelected/IsFocused/IsEditing` | `TreeState` | 先标记 Obsolete 且停止作为权威状态，稳定版前删除 |
 | 字符串 `Icon` 系列 | `IconTemplate`/默认 SVG 适配器 | 保留默认适配器，模板成为主契约 |
 | `DragPosition` class | 受限 enum 或可拒绝解析的值类型 | 未知输入必须失败 |
@@ -361,14 +358,14 @@ Task<TreeOperationResult> RefreshAsync();
 
 **文档：**
 
-- 修改 `docs/SRS.md`：修正版本元数据；核对 REQ-F-061、062、063、064、066、077、086、087、088、089；明确受控状态、隐藏合成根、多根拖拽、祖先/后代同时选中拖拽、编辑否决反馈和禁用节点通知语义。
+- 修改 `docs/SRS.md`：修正版本元数据；核对 REQ-F-061、062、063、064、066、077、086、087、088、089；明确受控状态、多根范围/拖拽、禁用范围节点、祖先/后代同时选中拖拽、异步应用决策、编辑否决反馈和拖拽单次消费语义；记录隐藏合成根不属于本次范围。
 - 不把 `TreeState`、`aria-activedescendant`、具体类名等实现细节写入 SRS；这些只保留在设计文档。
 - 修改 `README.md`：在代码完成后同步最终 API，不提前宣传未实现能力。
 
 **验收：**
 
 - `python3 scripts/verify_srs_consistency.py` 输出 `ALL CHECKS PASSED`。
-- API 审阅确认受控/非受控模式、破坏性迁移范围、隐藏根和拖拽源归一化规则。
+- API 审阅确认受控/非受控模式、破坏性迁移范围、合成根范围决策和拖拽源归一化规则。
 
 ### Phase 1：结构不变量与 TreeState
 
@@ -398,7 +395,7 @@ Task<TreeOperationResult> RefreshAsync();
 - 新建 `TreeEventArgs.cs`、`TreeRequests.cs`。
 - 增加组件级参数生命周期测试。
 
-**RED 测试：** DataSource 同引用就地变化、DataSource 新引用同 ID、SelectedIds 外部替换不回报用户事件、AllowMultiSelect 关闭收敛、Callbacks/guard 替换、HideRoot 配置变化、禁用/no-op 不通知。
+**RED 测试：** DataSource 同引用就地变化、DataSource 新引用同 ID、SelectedIds 外部替换不回报用户事件、受控值未回传时显示不变、AllowMultiSelect 关闭收敛、Callbacks/guard 替换、禁用/no-op 不通知。
 
 **验收：** 每个用户操作至多产生一次对应通知；外部状态更新不伪装成用户操作。
 
@@ -519,17 +516,18 @@ python3 scripts/verify_srs_consistency.py
 
 ## 12. 审阅决策点
 
-实施前需要明确批准以下决策：
+本次整改已冻结以下决策：
 
-1. 是否允许在首次稳定发布前进行一次破坏性 API 收口；若不允许，需要确定兼容层保留周期。
-2. 是否接受容器焦点 + `aria-activedescendant` 作为唯一焦点模型。
-3. `SelectedIds`/`ExpandedIds` 为 null 时采用非受控模式，非 null 时采用受控模式，是否接受该语义。
-4. 是否删除 `TreeNode.IsSelected`、`IsFocused`、`IsEditing`，以及 `IsExpanded` 的最终归属。
-5. 同一 Tree 多个根之间是否允许范围选择和拖放；本方案推荐允许。
-6. 多选拖拽同时包含祖先与后代时是否采用“祖先覆盖后代”的源归一化规则；本方案推荐采用。
-7. 是否删除未使用的 `BeforeRemove`。
-8. 是否接受虚拟化默认关闭，并将固定行高作为启用前提。
-9. 是否建立独立真实浏览器测试项目，以及测试依赖的选型审批方式。
+1. 在首次稳定发布前进行一次 API 收口；旧同步 guard 如保留，只作为一个过渡版的 Obsolete 适配器，与新 API 同时配置时确定性报错。
+2. 容器焦点 + `aria-activedescendant` 是唯一焦点模型。
+3. `SelectedIds`/`ExpandedIds` 为 `null` 时是非受控模式，非 `null` 时是 proposal-only 受控模式。
+4. `TreeNode.IsSelected`、`IsFocused`、`IsEditing` 不再是可写权威状态；`IsExpanded` 如为迁移保留，只表达首次绑定的初始值。
+5. 同一 Tree 多根之间允许范围选择和拖放；范围端点禁用时整次拒绝，中间禁用节点跳过。
+6. 多选拖拽采用“祖先覆盖后代”的源归一化规则。
+7. 删除没有 Active SRS 行为和生产调用点的 `BeforeRemove`。
+8. 虚拟化默认关闭，固定行高是启用前提。
+9. 建立独立真实浏览器测试项目；新增依赖仍须按 `AGENTS.md` 审批。
+10. 本次整改不引入隐藏合成根能力。
 
 ## 13. 完成定义
 

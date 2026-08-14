@@ -4,8 +4,8 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 
 ## Tree Features
 
-- **Multi-select** — Ctrl toggles selection, Shift selects a range; disabling multi-select converges to the focused node.
-- **Drag & drop** — `before` / `inside` / `after` placement; `BeforeDrop` veto; built-in rejection of self-reference, cross-tree, and cycles.
+- **Multi-select** — Ctrl toggles selection; Shift ranges may cross root boundaries in the same Tree, reject disabled endpoints, and skip disabled intermediate nodes.
+- **Drag & drop** — `before` / `inside` / `after` placement; application veto; built-in rejection of self-reference, cross-tree, cycles, stale operations, and duplicate completion.
 - **Inline editing** — F2 to enter, Enter to commit, Esc to cancel; `BeforeRename` veto.
 - **Context menu notification** — the tree only notifies (node + position); the app renders the menu and it does not change selection or focus.
 - **ARIA keyboard navigation** — Arrow keys / Home / End / Space / Enter, single tab stop, `aria-activedescendant`.
@@ -30,7 +30,7 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 3. Minimal example:
 
 ```razor
-<Tree DataSource="_roots" />
+<Tree DataSource="_roots" aria-label="Project files" />
 
 @code {
     private readonly List<TreeNode> _roots = new()
@@ -46,10 +46,10 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 |---|---|---|---|
 | `DataSource` | `IReadOnlyList<TreeNode>?` | required | Root nodes |
 | `SelectionMode` | `TreeSelectionMode` | `Single` | `Single` or `Multiple` |
-| `SelectedIds` | `IReadOnlyCollection<string>?` | `null` | Controlled selection; non-`null` = controlled |
-| `SelectedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Fired when controlled selection changes |
-| `ExpandedIds` | `IReadOnlyCollection<string>?` | `null` | Controlled expansion; non-`null` = controlled |
-| `ExpandedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Fired when controlled expansion changes |
+| `SelectedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = uncontrolled; non-`null` is the authoritative controlled selection |
+| `SelectedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Proposes the next controlled selection; does not commit it before the app supplies it |
+| `ExpandedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = uncontrolled; non-`null` is the authoritative controlled expansion |
+| `ExpandedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Proposes the next controlled expansion; does not commit it before the app supplies it |
 | `AllowDrag` | `bool` | `false` | Enable drag & drop |
 | `EnableVirtualization` | `bool` | `false` | Fixed-row-height virtualization |
 | `ItemSize` | `float` | `32f` | Row height in px; must be > 0 when virtualizing |
@@ -66,6 +66,15 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 | `BeforeRename` | `Func<TreeNode, string, bool>?` | `null` | Veto a rename; `false` blocks |
 | `BeforeEditName` | `Func<TreeNode, bool>?` | `null` | Veto entering edit mode; `false` blocks |
 | `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | Extra HTML attributes merged onto the `role="tree"` container |
+
+### Controlled state contract
+
+- `SelectedIds="null"` and `ExpandedIds="null"` select uncontrolled mode. Tree owns that state and reports actual user changes.
+- A non-`null` collection selects controlled mode, including an empty collection. It remains the displayed source of truth.
+- In controlled mode, a user action proposes at most one next collection. The display does not change until the app supplies that collection, including when no changed callback is attached or the app rejects or delays the proposal.
+- Replacing a controlled collection is an application update and does not emit a second user-change event.
+- `DataSource="null"` and an empty data source both keep an empty, accessible Tree container. Tree does not fabricate a node.
+- The redesign does not add a hidden synthetic-root mode. Supply the nodes that should appear at the first visible level directly as `DataSource` roots.
 
 ## Tree Events
 
@@ -86,9 +95,10 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 
 | Member | Description |
 |---|---|
-| `Controller` | Read-only access to `TreeController` (query + operation API) |
-| `BeginEdit(TreeNode node)` | Enter edit mode for a node; returns `false` when vetoed |
-| `Refresh()` | Invalidate caches and re-render after in-place data changes |
+| `View` | Read-only Tree query view; returned collections are not mutable internal state |
+| `SelectAsync`, `FocusAsync`, `BeginEditAsync`, `RefreshAsync` | Validated Tree commands identified by stable node id |
+
+All state-changing public paths use the same ownership, disabled-node, selection-mode, revision, and session validation. A query object does not expose selection, expansion, editing, or structure mutation methods.
 
 ## Core Types
 
@@ -104,16 +114,13 @@ node.Add(new TreeNode("Child"));
 - **Structure change**: `Add`, `Remove`, `Insert`, `AddChildren`, `InsertChildren`, `RemoveChildren`. Cyclic attachment (self, or an ancestor below its descendant) throws.
 - **Style**: `SetCssClass(string)`, `CssClassResolver` (dynamic segment), `CssClass`.
 - **Icons**: `Icon`, `UnFoldIcon`, `ExpandedIcon`, `CollapsedIcon`, `ExpandIcon`, `FoldIcon`, `IsExpandIconDisable`, `IsFoldIconDisable`, `IsExpandDisable`.
-- **View state**: `IsExpanded` (writable), `IsSelected` and `IsFocused` (derived from the controller, read-only), `IsDisabled` (writable), `IsEditing` (maintained by the component).
-- **Facade methods** (delegate to the controller, no-op when unbound): `GetSelectedNodes()`, `SetFocus()`, `UnFocus()`, `UnSelectAll()`, `SelectAllExcludeSelf()`, `Toggle()`, `ExpandAll()`, `CollapseAll()`, `ExpandAllParents()`, `FindNode(id)`, `FindNode(bindData)`, `FindNodes(bindDatas)`.
+- **View state migration**: `IsSelected`, `IsFocused`, and `IsEditing` are never writable state authorities. `IsExpanded` is initial-bind compatibility only; subsequent expansion is owned by `ExpandedIds` or the uncontrolled Tree state. `IsDisabled` remains application data.
+- **Legacy node facade methods**: query helpers migrate to `Tree.View`; state-changing helpers migrate to validated Tree commands and are not an alternative state authority.
 
-### TreeController (via `Tree.Controller`)
+### Tree query view (via `Tree.View`)
 
-- **Query**: `SelectedIds`, `FocusedId`, `FocusedNode`, `Revision`, `Roots`, `FindById(id)`, `FindByBindData(bindData)`, `FindByText(text)`, `FindAll(predicate)`, `Flatten()`, `FlattenVisible()`, `GetSelectedNodes()`.
-- **Selection**: `Select(node)`, `AddToSelection(node)`, `ToggleSelection(node)`, `ReplaceSelection(nodes)`, `ClearSelection()`, `ConvergeToSingleSelection()`, `SelectRange(from, to)`, `ClearSelectionSubtree(root)`, `SelectAll(root, excludeSelf)`, `SetFocus(node)`, `ClearFocus()`.
-- **Expansion**: `Expand(node)`, `Collapse(node)`, `ExpandAll()`, `CollapseAll()`, `ExpandAllParents(node)`.
-- **Edit**: `BeginEdit(node)`, `TryRename(node, newValue)`, `EndEdit(node)`.
-- **Drag**: `CanDrop(sources, target)`.
+- **Query**: selected ids, focused id/node, revision, roots, stable-id lookup, and flattened visible nodes.
+- **Commands**: selection, focus, expansion, editing, and refresh go through the Tree command facade rather than this query view.
 
 ### Enums and Contexts
 
@@ -121,6 +128,22 @@ node.Add(new TreeNode("Child"));
 - `TreeDropRelation`: `Before`, `Inside`, `After`.
 - `TreeEditContext` (in `EditTemplate`): `Node`, `Value`, `SetValue(value)`, `CommitAsync()`, `Cancel()`, `ValidationMessage`.
 - `TreeIconContext` (in `IconTemplate`): `Node`, `IsExpanded`, `HasChildren`, `IsDisabled`.
+
+Each edit context belongs to exactly one edit session. Once another edit starts, its node is replaced or removed, or the component is disposed, calls from the older context cannot commit or cancel the current edit.
+
+### API migration contract
+
+| Legacy surface | Frozen direction |
+|---|---|
+| `Tree.Controller`, writable `Controller.Selection`, or mutable selected/expanded collections | Queries move to `Tree.View`; query results are immutable snapshots or true read-only views |
+| State-changing methods on `TreeController` | Move to validated asynchronous Tree commands that use stable node ids |
+| State-changing `TreeNode` facade methods | Move to the corresponding validated Tree command |
+| Writable `TreeNode.IsSelected`, `IsFocused`, or `IsEditing` | Removed as authoritative state; query-only compatibility members may be transitional |
+| `TreeNode.IsExpanded` as a second source of truth | Initial-bind compatibility only; `ExpandedIds`/Tree-owned expansion is authoritative afterward |
+| Synchronous veto delegates | At most one obsolete transition adapter; asynchronous application decisions are the final contract, and configuring old and new forms together is an error |
+| Tuple event payloads | Named EventArgs types |
+
+Application decisions may complete asynchronously. Tree does not commit while waiting, revalidates the node and operation before applying the result, leaves state unchanged when the result is stale, and does not silently swallow decision errors. A drag operation is consumed at most once after acceptance, rejection, cancellation, disablement, or disposal.
 
 ## Examples
 
@@ -167,8 +190,8 @@ node.Add(new TreeNode("Child"));
 
     private async Task OnKeyDown(KeyboardEventArgs args)
     {
-        if (args.Key == "F2" && _tree?.Controller?.FocusedNode is { } node)
-            _tree.BeginEdit(node);
+        if (args.Key == "F2" && _tree?.View?.FocusedId is { } nodeId)
+            await _tree.BeginEditAsync(nodeId);
     }
 
     private void OnEditCommitted(TreeEditEventArgs args) => args.Node.Text = args.Value;
