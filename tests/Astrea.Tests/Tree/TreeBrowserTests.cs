@@ -34,6 +34,12 @@ public sealed class TreeBrowserTests
         startInfo.ArgumentList.Add("--project");
         startInfo.ArgumentList.Add(Path.Combine(repositoryRoot, "src", "Astrea.Demo", "Astrea.Demo.csproj"));
         startInfo.ArgumentList.Add("--no-build");
+        // Match the demo's configuration to the test assembly's, so `dotnet run --no-build`
+        // serves the output the test runner actually built (Debug locally, Release in CI).
+        // Directory.GetParent mis-resolves trailing-separator paths; use DirectoryInfo instead.
+        var buildConfiguration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
+        startInfo.ArgumentList.Add("--configuration");
+        startInfo.ArgumentList.Add(buildConfiguration);
         startInfo.ArgumentList.Add("--urls");
         startInfo.ArgumentList.Add(_baseUrl);
 
