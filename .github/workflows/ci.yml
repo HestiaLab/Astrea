@@ -39,6 +39,9 @@ jobs:
       - name: Test
         run: dotnet test Astrea.sln --no-build --no-restore --configuration Release
 
+      - name: JS unit tests
+        run: node --test tests/Astrea.JsTests/astrea-tree.test.mjs
+
       - name: Audit NuGet vulnerabilities (fail on any)
         run: |
           dotnet list Astrea.sln package --vulnerable --include-transitive --format json > vulns.json
