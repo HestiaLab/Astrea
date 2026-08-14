@@ -56,7 +56,7 @@ public class TreeControllerFlattenTests
     [TestMethod]
     public void FlattenVisible_OnlyExpandedPaths()
     {
-        var root = new TreeNode("root") { IsVisible = true };
+        var root = new TreeNode("root");
         var a = new TreeNode("a");
         var b = new TreeNode("b");
         root.Add(a);
@@ -73,23 +73,6 @@ public class TreeControllerFlattenTests
         Assert.AreSame(a, visible[1]);
         Assert.AreSame(b, visible[2]);
     }
-
-    [TestMethod]
-    public void FlattenVisible_HideRootNode_SkipsRoot()
-    {
-        var root = new TreeNode("root") { IsVisible = true, IsExpanded = true };
-        var a = new TreeNode("a");
-        var b = new TreeNode("b");
-        root.Add(a);
-        root.Add(b);
-        var controller = new TreeController(new[] { root }, hideRootNode: true);
-
-        var visible = controller.FlattenVisible();
-
-        Assert.AreEqual(2, visible.Count);
-        Assert.AreSame(a, visible[0]);
-        Assert.AreSame(b, visible[1]);
-    }
 }
 
 [TestClass]
@@ -100,8 +83,7 @@ public class TreeControllerExpandTests
     {
         var root = new TreeNode("root");
         root.Add(new TreeNode("child"));
-        var callbacks = new TreeCallbacks { BeforeExpand = _ => false };
-        var controller = new TreeController(new[] { root }, callbacks);
+        var controller = new TreeController(new[] { root }) { BeforeExpand = _ => false };
 
         bool result = controller.Expand(root);
 
@@ -141,7 +123,7 @@ public class TreeControllerSelectionTests
     [TestMethod]
     public void GetSelectedNodes_IncludesCollapsedSubtreeSelection()
     {
-        var root = new TreeNode("root") { IsVisible = true, IsExpanded = true };
+        var root = new TreeNode("root") { IsExpanded = true };
         var a = new TreeNode("a");
         root.Add(a);
         var a1 = new TreeNode("a1");
@@ -173,7 +155,7 @@ public class TreeControllerSelectionTests
         controller.Select(a);
         controller.SelectRange(a, c);
 
-        Assert.AreEqual(3, controller.Selection.SelectedNodes.Count);
+        Assert.AreEqual(3, controller.GetSelectedNodes().Count);
         Assert.IsTrue(a.IsSelected);
         Assert.IsTrue(b.IsSelected);
         Assert.IsTrue(c.IsSelected);
@@ -204,7 +186,7 @@ public class TreeControllerSelectionTests
     [TestMethod]
     public void NodeFacade_SetFocus_DelegatesToController()
     {
-        var root = new TreeNode("root") { IsVisible = true };
+        var root = new TreeNode("root");
         var child = new TreeNode("child");
         root.Add(child);
         var controller = new TreeController(new[] { root });
@@ -212,13 +194,13 @@ public class TreeControllerSelectionTests
         child.SetFocus();
 
         Assert.IsTrue(child.IsFocused);
-        Assert.AreSame(child, controller.Selection.FocusedNode);
+        Assert.AreSame(child, controller.FocusedNode);
     }
 
     [TestMethod]
     public void NodeFacade_FindNode_DelegatesToController()
     {
-        var root = new TreeNode("root", id: "r1") { IsVisible = true };
+        var root = new TreeNode("root", id: "r1");
         var child = new TreeNode("child", id: "c1");
         root.Add(child);
         var controller = new TreeController(new[] { root });
@@ -240,11 +222,11 @@ public class TreeControllerDropTests
         root.Add(child);
         var controller = Build(root);
 
-        Assert.IsFalse(controller.CanDrop(new[] { child }, child, DragPosition.Center));
+        Assert.IsFalse(controller.CanDrop(new[] { child }, child));
     }
 
     [TestMethod]
-    public void CanDrop_RejectsCrossTree()
+    public void CanDrop_AllowsCrossRootWithinSameTree()
     {
         var r1 = new TreeNode("r1");
         var r2 = new TreeNode("r2");
@@ -254,7 +236,8 @@ public class TreeControllerDropTests
         r2.Add(c2);
         var controller = Build(r1, r2);
 
-        Assert.IsFalse(controller.CanDrop(new[] { c1 }, c2, DragPosition.Center));
+        // 同一 Tree 实例的多个根属于同一交互边界，允许跨根拖拽（REQ-F-087）
+        Assert.IsTrue(controller.CanDrop(new[] { c1 }, c2));
     }
 
     [TestMethod]
@@ -267,7 +250,7 @@ public class TreeControllerDropTests
         a.Add(b);
         var controller = Build(root);
 
-        Assert.IsFalse(controller.CanDrop(new[] { root }, b, DragPosition.Center));
+        Assert.IsFalse(controller.CanDrop(new[] { root }, b));
     }
 
     [TestMethod]
@@ -280,21 +263,7 @@ public class TreeControllerDropTests
         root.Add(b);
         var controller = Build(root);
 
-        Assert.IsTrue(controller.CanDrop(new[] { a }, b, DragPosition.Bottom));
-    }
-
-    [TestMethod]
-    public void CanDrop_BeforeDropVetoRejects()
-    {
-        var root = new TreeNode("root");
-        var a = new TreeNode("a");
-        root.Add(a);
-        var b = new TreeNode("b");
-        root.Add(b);
-        var callbacks = new TreeCallbacks { BeforeDrop = _ => false };
-        var controller = new TreeController(new[] { root }, callbacks);
-
-        Assert.IsFalse(controller.CanDrop(new[] { a }, b, DragPosition.Bottom));
+        Assert.IsTrue(controller.CanDrop(new[] { a }, b));
     }
 }
 

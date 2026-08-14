@@ -19,6 +19,12 @@
     user-select: none;
 }
 
+/* 虚拟化模式：容器即滚动视口（Virtualize 不生成根包装，spacer + 节点直接渲染进容器）。
+   宿主须通过 height / max-height 提供有界高度，否则无法滚动。 */
+.tree-container--virtualized {
+    overflow: auto;
+}
+
 /* 图标浮于连线之上 */
 .tree-container.show-link .tree-node-icon {
     position: relative;

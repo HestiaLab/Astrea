@@ -17,23 +17,50 @@
     <button @onclick="RebuildTree">重建树（保持状态）</button>
     <button @onclick="RemoveSelected">移除选中</button>
     <button @onclick="ClearTree">清空</button>
-    <button id="btn-load-50k" @onclick="BuildLargeTree">生成 5 万节点</button>
     <span class="demo-hint">选中节点后按 F2 重命名；拖到「资源」会被否决；「已禁用页面」可导航但不可选。</span>
 </div>
 
 <div class="demo-panel">
     <Tree DataSource="_dataSource"
-          Settings="_settings"
-          Callbacks="_callbacks"
-          OnSelect="HandleSelect"
-          OnClick="HandleClick"
-          OnDblClick="HandleDblClick"
+          SelectionMode="_selectionMode"
+          AllowDrag="true"
+          BeforeDrop="BeforeDrop"
+          BeforeRename="BeforeRename"
+          OnSelectionChanged="HandleSelectionChanged"
+          OnNodeClicked="HandleNodeClicked"
+          OnNodeInvoked="HandleNodeInvoked"
           OnContextMenu="HandleContextMenu"
           OnDrop="HandleDrop"
-          OnInputEnter="HandleInputEnter"
+          OnEditCommitted="HandleEditCommitted"
+          OnEditRejected="HandleEditRejected"
           OnKeyDown="HandleKeyDown"
-          OnTiming="HandleTiming"
+          aria-label="演示树"
+          class="demo-tree-custom"
+          data-testid="demo-tree"
           @ref="_tree" />
+</div>
+
+<div class="demo-panel">
+    <h3>第二个 Tree（相同逻辑 ID，验证组件实例隔离）</h3>
+    <Tree DataSource="_secondDataSource" AllowDrag="true" aria-label="第二棵树" />
+</div>
+
+<div class="demo-panel">
+    <h3>虚拟化（固定行高 32px，5 万节点性能探针）</h3>
+    <button id="btn-load-50k" @onclick="BuildLargeTree">生成 5 万节点</button>
+    <button id="btn-clear-virtual" @onclick="ClearVirtualTree">清空虚拟化树</button>
+    <button id="btn-rebuild-virtual" @onclick="BuildLargeTree">重建虚拟化树（保持状态）</button>
+    <span class="demo-hint">键盘导航 / Home / End 会滚动视口并保持焦点正确；F2 重命名。</span>
+    <div class="demo-tree-virtual">
+        <Tree DataSource="_largeDataSource"
+              EnableVirtualization="true"
+              ItemSize="32"
+              OnEditCommitted="HandleEditCommitted"
+              OnEditRejected="HandleEditRejected"
+              OnKeyDown="HandleVirtualKeyDown"
+              aria-label="虚拟化树"
+              @ref="_virtualTree" />
+    </div>
 </div>
 
 <div class="demo-panel">
@@ -49,25 +76,26 @@
 
 @code {
     private List<TreeNode> _dataSource = new();
-    private TreeSettings _settings = new() { AllowDrag = true, AllowMultiSelect = true };
-    private readonly TreeCallbacks _callbacks = new();
+    private List<TreeNode> _secondDataSource = new();
+    private List<TreeNode> _largeDataSource = new();
+    private TreeSelectionMode _selectionMode = TreeSelectionMode.Multiple;
     private Tree? _tree;
+    private Tree? _virtualTree;
     private List<string> _selectedNames = new();
     private readonly List<string> _log = new();
     private bool _allowMultiSelect = true;
 
     protected override void OnInitialized()
     {
-        _callbacks.BeforeDrop = BeforeDrop;
-        // 演示否决：拒绝空值重命名（REQ-F-088 AC2）
-        _callbacks.BeforeRename = (node, value) => !string.IsNullOrWhiteSpace(value);
         _dataSource = BuildTree();
+        // 第二棵树使用相同逻辑 ID 但独立节点对象，验证组件实例隔离
+        _secondDataSource = BuildTree();
     }
 
     /// <summary>用稳定 Id 构建树；重建树（新对象、同 Id）时验证状态保持。</summary>
     private static List<TreeNode> BuildTree()
     {
-        var root = new TreeNode("我的项目", id: "project") { IsVisible = true, IsExpanded = true };
+        var root = new TreeNode("我的项目", id: "project") { IsExpanded = true };
 
         var specs = new TreeNode("页面", id: "specs") { IsExpanded = true };
         specs.Add(new TreeNode("页面 1", id: "df-1"));
@@ -127,9 +155,8 @@
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        var root = new TreeNode("根节点", id: "perf-root") { IsExpanded = true, IsVisible = true };
+        var root = new TreeNode("根节点", id: "perf-root") { IsExpanded = true };
 
-        // BFS 逐层扩展：前 6 层快速铺开，后 9 层稳定延伸，收敛到 5 万节点 / 15 层
         var currentLayer = new List<TreeNode> { root };
         int count = 1;
 
@@ -151,7 +178,7 @@
             currentLayer = nextLayer;
         }
 
-        _dataSource = new List<TreeNode> { root };
+        _largeDataSource = new List<TreeNode> { root };
         _selectedNames.Clear();
         sw.Stop();
         Log($"生成 {count} 节点（嵌套 15 层）：构建 {sw.ElapsedMilliseconds} ms");
@@ -171,52 +198,74 @@
         };
     }
 
+    private void ClearVirtualTree()
+    {
+        _largeDataSource = new List<TreeNode>();
+        Log("已清空虚拟化树");
+    }
+
+    private async Task HandleVirtualKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "F2")
+        {
+            var focused = _virtualTree?.Controller?.FocusedNode;
+            if (focused is not null && _virtualTree!.BeginEdit(focused))
+            {
+                Log($"虚拟化树进入编辑：{focused.Text}");
+            }
+        }
+    }
+
     private void ToggleMultiSelect(ChangeEventArgs e)
     {
         _allowMultiSelect = (bool)(e.Value ?? false);
-        // 重建 Settings 以确保参数变化被检测；关闭多选触发选择收敛（REQ-F-086 AC4）
-        _settings = new TreeSettings { AllowDrag = true, AllowMultiSelect = _allowMultiSelect };
+        // 关闭多选触发选择收敛（REQ-F-086 AC4）
+        _selectionMode = _allowMultiSelect ? TreeSelectionMode.Multiple : TreeSelectionMode.Single;
         Log(_allowMultiSelect ? "已开启多选" : "已关闭多选（选择应收敛）");
     }
 
-    private bool BeforeDrop(DragNodesArgs args)
+    private bool BeforeDrop(TreeDropEventArgs args)
     {
-        if (args.Target.Text == "资源")
+        if (args.TargetNode.Text == "资源")
         {
-            Log($"否决拖放 → {args.Target.Text}");
+            Log($"否决拖放 → {args.TargetNode.Text}");
             return false;
         }
 
         return true;
     }
 
-    private void HandleSelect(IReadOnlyCollection<TreeNode> nodes)
-        => _selectedNames = nodes.Select(n => n.Text).ToList();
+    private bool BeforeRename(TreeNode node, string value) => !string.IsNullOrWhiteSpace(value);
 
-    private void HandleClick(TreeNode node) => Log($"单击：{node.Text}");
+    private void HandleSelectionChanged(TreeSelectionChangedEventArgs args)
+        => _selectedNames = args.SelectedIds.Select(id => _tree?.Controller?.FindById(id)?.Text ?? id).ToList();
 
-    private void HandleDblClick(TreeNode node) => Log($"双击：{node.Text}");
+    private void HandleNodeClicked(TreeNodeEventArgs args) => Log($"单击：{args.Node.Text}");
 
-    private void HandleContextMenu((MouseEventArgs, TreeNode) args) => Log($"右键：{args.Item2.Text}");
+    private void HandleNodeInvoked(TreeNodeEventArgs args) => Log($"双击：{args.Node.Text}");
 
-    private void HandleDrop(DragNodesArgs args)
+    private void HandleContextMenu(TreeContextMenuEventArgs args) => Log($"右键：{args.Node.Text}");
+
+    private void HandleDrop(TreeDropEventArgs args)
     {
-        var names = string.Join("、", args.Sources.Select(n => n.Text));
-        Log($"拖放：{names} → {args.Target.Text}（{PositionName(args.Position)}）");
+        var names = string.Join("、", args.SourceNodes.Select(n => n.Text));
+        Log($"拖放：{names} → {args.TargetNode.Text}（{PositionName(args.Relation)}）");
     }
 
-    private void HandleInputEnter((TreeNode, string) args)
+    private void HandleEditCommitted(TreeEditEventArgs args)
     {
-        var (node, value) = args;
-        Log($"重命名：{node.Text} → {value}");
-        node.Text = value;
+        Log($"重命名：{args.Node.Text} → {args.Value}");
+        args.Node.Text = args.Value;
     }
+
+    private void HandleEditRejected(TreeEditRejectedEventArgs args)
+        => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
 
     private async Task HandleKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "F2")
         {
-            var focused = _tree?.Controller?.Selection.FocusedNode;
+            var focused = _tree?.Controller?.FocusedNode;
             if (focused is not null && _tree!.BeginEdit(focused))
             {
                 Log($"进入编辑：{focused.Text}");
@@ -224,19 +273,8 @@
         }
     }
 
-    private void HandleTiming((string Operation, double ElapsedMs) timing)
-        => Log($"{OperationName(timing.Operation)}耗时：{timing.ElapsedMs:F2} ms");
-
-    private static string OperationName(string op) => op switch
-    {
-        "click" => "单击",
-        "dblclick" => "双击",
-        "drop" => "拖放",
-        _ => op,
-    };
-
-    private static string PositionName(DragPosition p) =>
-        p.IsTop ? "之前" : p.IsCenter ? "之内" : "之后";
+    private static string PositionName(TreeDropRelation r) =>
+        r == TreeDropRelation.Before ? "之前" : r == TreeDropRelation.Inside ? "之内" : "之后";
 
     private void Log(string message)
     {

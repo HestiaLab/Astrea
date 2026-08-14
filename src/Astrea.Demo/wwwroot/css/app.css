@@ -91,3 +91,16 @@ h1 {
     margin-bottom: 0.5rem;
     color: #0969da;
 }
+
+/* 虚拟化树：有界高度容器，内部由 Virtualize 滚动 */
+.demo-tree-virtual {
+    height: 320px;
+    overflow: hidden;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    margin-top: 0.75rem;
+}
+
+.demo-tree-virtual .tree-container {
+    height: 100%;
+}

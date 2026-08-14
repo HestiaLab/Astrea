@@ -7,6 +7,23 @@ namespace Astrea.Components.Tree;
 
 public sealed partial class Tree
 {
+    private readonly Dictionary<string, int> _nodeTokens = new();
+    private int _nodeTokenCounter;
+
+    private string NodeDomId(string nodeId)
+    {
+        if (!_nodeTokens.TryGetValue(nodeId, out var token))
+        {
+            token = _nodeTokenCounter++;
+            _nodeTokens[nodeId] = token;
+        }
+
+        return $"ast-tree-{_id}-node-{token}";
+    }
+
+    private static bool IsContainerGuaranteedAttribute(string key)
+        => key is "id" or "role" or "tabindex" or "aria-activedescendant" or "aria-multiselectable";
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (DataSource is null)
@@ -15,49 +32,97 @@ public sealed partial class Tree
         }
 
         var flat = _controller?.FlattenVisible() ?? (IReadOnlyList<TreeNode>)Array.Empty<TreeNode>();
-        var cssClass = "tree-container";
-        if (S.UseInternalKeyboard)
+
+        // 组件 class 段
+        var componentClass = "tree-container";
+        if (UseInternalKeyboard)
         {
-            cssClass += " disabled-hotKey";
+            componentClass += " disabled-hotKey";
         }
 
-        if (S.ShowLink)
+        if (ShowLink)
         {
-            cssClass += " show-link";
+            componentClass += " show-link";
         }
+
+        if (EnableVirtualization)
+        {
+            componentClass += " tree-container--virtualized";
+        }
+
+        // 附加属性合并（REQ-F-001 冲突规则）：class 两者保留；保证属性以组件为准；其余用应用值
+        var mergedClass = componentClass;
+        var extraAttributes = new List<KeyValuePair<string, object>>();
+        if (AdditionalAttributes is not null)
+        {
+            foreach (var attr in AdditionalAttributes)
+            {
+                if (attr.Key == "class")
+                {
+                    if (attr.Value?.ToString() is { Length: > 0 } appClass)
+                    {
+                        mergedClass = $"{componentClass} {appClass}";
+                    }
+                }
+                else if (!IsContainerGuaranteedAttribute(attr.Key))
+                {
+                    extraAttributes.Add(attr);
+                }
+            }
+        }
+
+        var focusedId = _controller?.FocusedId;
+        // 虚拟化下 aria-activedescendant 只引用已渲染节点（由 SyncVirtualizationFocusAsync 维护）
+        var ariaFocusId = EnableVirtualization ? _ariaFocusId : focusedId;
+        var activeDescendant = ariaFocusId is null ? null : NodeDomId(ariaFocusId);
 
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "id", $"tree-container-{_id}");
-        builder.AddAttribute(2, "class", cssClass);
+        builder.AddAttribute(2, "class", mergedClass);
         builder.AddAttribute(3, "role", "tree");
         builder.AddAttribute(4, "tabindex", "0");
-
-        if (S.UseInternalKeyboard && _editingNode is null)
+        if (activeDescendant is not null)
         {
-            builder.AddAttribute(5, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
-            builder.AddEventStopPropagationAttribute(6, "onkeydown", true);
-            builder.AddEventPreventDefaultAttribute(7, "onkeydown", true);
+            builder.AddAttribute(5, "aria-activedescendant", activeDescendant);
+        }
+
+        if (SelectionMode == TreeSelectionMode.Multiple)
+        {
+            builder.AddAttribute(6, "aria-multiselectable", "true");
+        }
+
+        if (extraAttributes.Count > 0)
+        {
+            builder.AddMultipleAttributes(7, extraAttributes);
+        }
+
+        if (UseInternalKeyboard && _editingContext is null)
+        {
+            builder.AddAttribute(8, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+            builder.AddEventStopPropagationAttribute(9, "onkeydown", true);
+            // 不无条件 preventDefault：Tab/Shift+Tab 必须能离开；已处理按键的 preventDefault 由 JS 层负责（Phase 4）
         }
 
         if (isPreview)
         {
-            builder.AddContent(8, RenderPreview(previewCount, PreviewX, PreviewY));
+            builder.AddContent(10, RenderPreview(previewCount, PreviewX, PreviewY));
         }
 
-        if (S.EnableVirtualization)
+        if (EnableVirtualization)
         {
-            builder.OpenComponent<Virtualize<TreeNode>>(10);
-            builder.AddAttribute(11, "Items", flat);
-            builder.AddAttribute(12, "ItemSize", S.ItemSize);
-            builder.AddAttribute(13, "ItemContent", (RenderFragment<TreeNode>)(node => b2 => b2.AddContent(0, RenderLeafNode(node))));
-            builder.AddAttribute(15, "Placeholder", (RenderFragment<PlaceholderContext>)(_ => b2 => b2.AddContent(0, RenderEmptyPlaceHolder())));
+            builder.OpenComponent<Virtualize<TreeNode>>(20);
+            builder.AddAttribute(21, "Items", flat);
+            builder.AddAttribute(22, "ItemSize", ItemSize);
+            builder.AddAttribute(23, "ItemContent", (RenderFragment<TreeNode>)(node => b2 => b2.AddContent(0, RenderLeafNode(node))));
+            builder.AddAttribute(24, "Placeholder", (RenderFragment<PlaceholderContext>)(_ => b2 => b2.AddContent(0, RenderEmptyPlaceHolder())));
             builder.CloseComponent();
         }
         else
         {
-            for (int i = 0; i < flat.Count; i++)
+            // 动态集合：每轮固定源码 sequence，身份由 SetKey 表达
+            foreach (var node in flat)
             {
-                builder.AddContent(10 + i, RenderLeafNode(flat[i]));
+                builder.AddContent(30, RenderLeafNode(node));
             }
         }
 
@@ -68,7 +133,7 @@ public sealed partial class Tree
     {
         return builder =>
         {
-            int nodeLevel = S.HideRootNode ? node.Level - 1 : node.Level;
+            int nodeLevel = node.Level;
 
             var nodeCssClass = new List<string> { "tree-node" };
             if (!string.IsNullOrWhiteSpace(node.CssClass))
@@ -81,32 +146,31 @@ public sealed partial class Tree
                 nodeCssClass.Add("selected");
             }
 
-            int indent = nodeLevel <= 1 ? 0 : (nodeLevel - 1) * S.Indent;
+            int indent = nodeLevel <= 1 ? 0 : (nodeLevel - 1) * Indent;
 
             builder.OpenElement(0, "div");
             builder.SetKey(node.Id);
             builder.AddAttribute(1, "class", string.Join(" ", nodeCssClass));
             builder.AddAttribute(2, "style", $"--indent: {indent}px");
-            builder.AddAttribute(3, "id", node.Id);
-            builder.AddAttribute(4, "role", "treeitem");
-            builder.AddAttribute(5, "aria-level", nodeLevel + 1);
-            builder.AddAttribute(6, "aria-selected", node.IsSelected ? "true" : "false");
-            builder.AddAttribute(7, "tabindex", node.IsFocused ? "0" : "-1");
+            builder.AddAttribute(3, "id", NodeDomId(node.Id));
+            builder.AddAttribute(4, "data-node-id", node.Id);
+            builder.AddAttribute(5, "role", "treeitem");
+            builder.AddAttribute(6, "aria-level", nodeLevel + 1);
+            builder.AddAttribute(7, "aria-selected", node.IsSelected ? "true" : "false");
+            builder.AddAttribute(8, "tabindex", "-1");
             if (node.HasChildren)
             {
-                builder.AddAttribute(8, "aria-expanded", node.IsExpanded ? "true" : "false");
+                builder.AddAttribute(9, "aria-expanded", node.IsExpanded ? "true" : "false");
             }
 
             if (node.IsDisabled)
             {
-                builder.AddAttribute(9, "aria-disabled", "true");
+                builder.AddAttribute(10, "aria-disabled", "true");
             }
 
-            if (S.AllowDrag)
+            if (AllowDrag)
             {
-                builder.AddAttribute(10, "draggable", "true");
-                builder.AddAttribute(11, "ondragstart", EventCallback.Factory.Create<DragEventArgs>(this, async _ => await HandleDragStart()));
-                builder.AddAttribute(12, "ondragend", EventCallback.Factory.Create<DragEventArgs>(this, async _ => await HandleDragEnd()));
+                builder.AddAttribute(11, "draggable", "true");
             }
 
             builder.OpenElement(20, "span");
@@ -174,26 +238,19 @@ public sealed partial class Tree
             highLightCss.Add("focused");
         }
 
-        string mainCss = S.OnlyHighlightText ? "" : string.Join(" ", highLightCss);
-        string textCss = S.OnlyHighlightText ? string.Join(" ", highLightCss) : "";
+        string mainCss = OnlyHighlightText ? "" : string.Join(" ", highLightCss);
+        string textCss = OnlyHighlightText ? string.Join(" ", highLightCss) : "";
 
         builder.OpenElement(70, "div");
         builder.AddAttribute(71, "class", $"tree-node-content__main {mainCss}");
 
-        builder.OpenElement(72, "span");
-        builder.OpenElement(73, "svg");
-        builder.AddAttribute(74, "class", "tree-node-icon");
-        builder.OpenElement(75, "use");
-        builder.AddAttribute(76, "href", node.FoldIcon);
-        builder.CloseElement();
-        builder.CloseElement();
-        builder.CloseElement();
+        RenderNodeIcon(builder, node);
 
         builder.OpenElement(77, "span");
         builder.AddAttribute(78, "class", $"tree-node-text {textCss}");
-        if (S.NodeTemplate is not null)
+        if (NodeTemplate is not null)
         {
-            builder.AddContent(79, S.NodeTemplate(node));
+            builder.AddContent(79, NodeTemplate(node));
         }
         else
         {
@@ -209,76 +266,76 @@ public sealed partial class Tree
         builder.CloseElement();
     }
 
+    /// <summary>
+    /// 渲染节点图标（技术中立）：优先 IconTemplate，其次默认 SVG symbol 适配（字符串图标），
+    /// 无图标时不渲染图标容器（REQ-F-064 AC2）；装饰图标 aria-hidden（REQ-F-064 AC3）。
+    /// </summary>
+    private void RenderNodeIcon(RenderTreeBuilder builder, TreeNode node)
+    {
+        if (IconTemplate is not null)
+        {
+            var iconContext = new TreeIconContext(node, node.IsExpanded, node.HasChildren, node.IsDisabled);
+            builder.OpenElement(72, "span");
+            builder.AddAttribute(73, "class", "tree-node-icon");
+            builder.AddAttribute(74, "aria-hidden", "true");
+            builder.AddContent(75, IconTemplate(iconContext));
+            builder.CloseElement();
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(node.FoldIcon))
+        {
+            builder.OpenElement(72, "span");
+            builder.AddAttribute(73, "class", "tree-node-icon");
+            builder.AddAttribute(74, "aria-hidden", "true");
+            builder.OpenElement(75, "svg");
+            builder.OpenElement(76, "use");
+            builder.AddAttribute(77, "href", node.FoldIcon);
+            builder.CloseElement();
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+    }
+
     private void RenderEditContent(RenderTreeBuilder builder, TreeNode node)
     {
-        if (S.EditTemplate is not null)
+        var context = _editingContext;
+        if (context is null)
         {
-            builder.AddContent(60, S.EditTemplate(node));
+            return;
+        }
+
+        if (EditTemplate is not null)
+        {
+            builder.AddContent(60, EditTemplate(context));
         }
         else
         {
             builder.OpenElement(61, "input");
             builder.AddAttribute(62, "class", "tree-node-edit");
-            builder.AddAttribute(63, "value", _editingValue ?? node.Text);
+            builder.AddAttribute(63, "value", context.Value);
             builder.AddAttribute(64, "autofocus", true);
-            builder.AddAttribute(65, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => _editingValue = e.Value?.ToString()));
-            builder.AddAttribute(66, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, _ => CommitEdit(node, _editingValue ?? node.Text)));
-            builder.AddAttribute(67, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => HandleEditKeyDown(node, e)));
+            builder.AddAttribute(65, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => context.SetValue(e.Value?.ToString() ?? string.Empty)));
+            builder.AddAttribute(66, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, _ => context.CommitAsync()));
+            builder.AddAttribute(67, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => HandleEditKeyDown(context, e)));
             builder.AddElementReferenceCapture(68, r => _editInputRef = r);
             builder.CloseElement();
         }
     }
 
-    private async Task HandleEditKeyDown(TreeNode node, KeyboardEventArgs e)
+    private async Task HandleEditKeyDown(TreeEditContext context, KeyboardEventArgs e)
     {
         if (e.Key == "Escape")
         {
             // 取消编辑：退出编辑态，不发送结果通知（REQ-F-088 AC4）
-            CancelEdit(node);
+            context.Cancel();
             return;
         }
 
         if (e.Key == "Enter")
         {
-            await CommitEdit(node, _editingValue ?? node.Text);
+            await context.CommitAsync();
         }
-    }
-
-    private void CancelEdit(TreeNode node)
-    {
-        if (_editingNode is null || !ReferenceEquals(_editingNode, node))
-        {
-            return;
-        }
-
-        _editingNode = null;
-        node.IsEditing = false;
-        StateHasChanged();
-    }
-
-    private async Task CommitEdit(TreeNode node, string newValue)
-    {
-        // 重入守卫：已提交/已取消后忽略后续 blur 事件
-        if (_editingNode is null || !ReferenceEquals(_editingNode, node))
-        {
-            return;
-        }
-
-        if (_controller is null)
-        {
-            return;
-        }
-
-        // BeforeRename 否决：不接受结果，保持编辑态（REQ-F-088 AC2）
-        if (!_controller.TryRename(node, newValue))
-        {
-            return;
-        }
-
-        _editingNode = null;
-        node.IsEditing = false;
-        StateHasChanged();
-        await OnInputEnter.InvokeAsync((node, newValue));
     }
 
     private static RenderFragment RenderPreview(int count, double x, double y)

@@ -1,190 +1,244 @@
 # Astrea
 
-企业级 Blazor UI 组件库（.NET 6），强调正确性、可访问性、可测试性。首个组件：**Tree**（全功能树）。
+Enterprise-grade Blazor UI component library targeting .NET 6, built around correctness, accessibility, and testability. The first component is **Tree**, a full-featured tree with multi-select, drag & drop, inline editing, and ARIA keyboard navigation.
 
-## Tree 特性
+## Tree Features
 
-- **多选** — Ctrl 切换选择、Shift 范围选择；关闭多选自动收敛为焦点节点
-- **拖拽重排** — 上/中/下放置位置；`BeforeDrop` 应用否决；内置拒绝自引用/跨树/循环
-- **内联编辑** — F2 进入、Enter 提交、Esc 取消；`BeforeRename` 应用否决
-- **右键通知** — 树只发通知（含节点与位置），菜单由应用自行渲染
-- **ARIA 键盘导航** — 方向键 / Home / End / Space / Enter，roving tabindex
-- **稳健性** — 禁用节点、空状态、焦点恢复、DataSource 替换后按稳定 Id 保持状态
+- **Multi-select** — Ctrl toggles selection, Shift selects a range; disabling multi-select converges to the focused node.
+- **Drag & drop** — `before` / `inside` / `after` placement; `BeforeDrop` veto; built-in rejection of self-reference, cross-tree, and cycles.
+- **Inline editing** — F2 to enter, Enter to commit, Esc to cancel; `BeforeRename` veto.
+- **Context menu notification** — the tree only notifies (node + position); the app renders the menu and it does not change selection or focus.
+- **ARIA keyboard navigation** — Arrow keys / Home / End / Space / Enter, single tab stop, `aria-activedescendant`.
+- **Controlled or uncontrolled** — `SelectedIds` / `ExpandedIds` `null` = uncontrolled, non-`null` = controlled.
+- **Optional virtualization** — fixed row height only; `EnableVirtualization` defaults to `false`.
+- **Robustness** — disabled nodes, empty state, focus recovery, state preserved across `DataSource` replacement by stable id.
 
-## 快速开始
+## Quick Start
 
-1. 引用 `Astrea` 项目，在 `_Imports.razor` 添加：
+1. Reference the `Astrea` project and add the namespace to `_Imports.razor`:
 
 ```razor
 @using Astrea.Components.Tree
 ```
 
-2. 在 `wwwroot/index.html` 引入样式：
+2. Link the stylesheet in `wwwroot/index.html`:
 
 ```html
 <link href="_content/Astrea/astrea-tree.css" rel="stylesheet" />
 ```
 
-3. 最小示例：
+3. Minimal example:
 
 ```razor
-<Tree DataSource="_roots" OnSelect="OnSelect" />
+<Tree DataSource="_roots" />
 
 @code {
     private readonly List<TreeNode> _roots = new()
     {
-        new TreeNode("根节点") { IsExpanded = true }
+        new TreeNode("Root") { IsExpanded = true }
     };
-
-    private void OnSelect(IReadOnlyCollection<TreeNode> nodes) { }
 }
 ```
 
-## Tree 参数与事件
+## Tree Parameters
 
-### 参数
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `DataSource` | `IReadOnlyList<TreeNode>?` | required | Root nodes |
+| `SelectionMode` | `TreeSelectionMode` | `Single` | `Single` or `Multiple` |
+| `SelectedIds` | `IReadOnlyCollection<string>?` | `null` | Controlled selection; non-`null` = controlled |
+| `SelectedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Fired when controlled selection changes |
+| `ExpandedIds` | `IReadOnlyCollection<string>?` | `null` | Controlled expansion; non-`null` = controlled |
+| `ExpandedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Fired when controlled expansion changes |
+| `AllowDrag` | `bool` | `false` | Enable drag & drop |
+| `EnableVirtualization` | `bool` | `false` | Fixed-row-height virtualization |
+| `ItemSize` | `float` | `32f` | Row height in px; must be > 0 when virtualizing |
+| `UseInternalKeyboard` | `bool` | `true` | Built-in ARIA keyboard navigation |
+| `ShowLink` | `bool` | `true` | Show parent–child connector lines |
+| `Indent` | `int` | `20` | Indent per level in px |
+| `OnlyHighlightText` | `bool` | `true` | Highlight only the label on selection |
+| `NodeTemplate` | `RenderFragment<TreeNode>?` | `null` | Custom node content (incompatible with virtualization) |
+| `IconTemplate` | `RenderFragment<TreeIconContext>?` | `null` | Custom node icon |
+| `EditTemplate` | `RenderFragment<TreeEditContext>?` | `null` | Custom edit UI (incompatible with virtualization) |
+| `BeforeExpand` | `Func<TreeNode, bool>?` | `null` | Veto expansion; `false` blocks |
+| `BeforeCollapse` | `Func<TreeNode, bool>?` | `null` | Veto collapse; `false` blocks |
+| `BeforeDrop` | `Func<TreeDropEventArgs, bool>?` | `null` | Veto a drop; `false` blocks |
+| `BeforeRename` | `Func<TreeNode, string, bool>?` | `null` | Veto a rename; `false` blocks |
+| `BeforeEditName` | `Func<TreeNode, bool>?` | `null` | Veto entering edit mode; `false` blocks |
+| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | Extra HTML attributes merged onto the `role="tree"` container |
 
-| 参数 | 类型 | 说明 |
+## Tree Events
+
+| Event | EventArgs | Description |
 |---|---|---|
-| `DataSource` | `IReadOnlyList<TreeNode>?` | 树数据源（根节点集合） |
-| `Settings` | `TreeSettings?` | 行为配置（多选/拖拽/虚拟化等） |
-| `Callbacks` | `TreeCallbacks?` | 操作前否决回调 |
+| `OnSelectionChanged` | `TreeSelectionChangedEventArgs` | Fired once when the selection actually changes (`OldSelectedIds`, `SelectedIds`) |
+| `OnExpandedChanged` | `TreeExpandedChangedEventArgs` | Fired when expansion changes (`Node`, `IsExpanded`) |
+| `OnNodeClicked` | `TreeNodeEventArgs` | Fired on click of a non-disabled node |
+| `OnNodeInvoked` | `TreeNodeEventArgs` | Fired on double-click activation |
+| `OnContextMenu` | `TreeContextMenuEventArgs` | Right-click notification (`Node`, `MouseArgs`); tree does not render a menu |
+| `OnDrop` | `TreeDropEventArgs` | Fired once after protocol, structure, and guard checks pass (`SourceNodes`, `TargetNode`, `Relation`) |
+| `OnEditCommitted` | `TreeEditEventArgs` | Fired when an edit is committed (`Node`, `Value`) |
+| `OnEditCancelled` | `TreeNodeEventArgs` | Fired when an edit is cancelled |
+| `OnEditRejected` | `TreeEditRejectedEventArgs` | Fired when a rename is vetoed (`Node`, `Value`, `Reason`) |
+| `OnKeyDown` | `KeyboardEventArgs` | Fired before internal keyboard navigation |
 
-### 事件
+## Public Methods
 
-| 事件 | 签名 | 说明 |
-|---|---|---|
-| `OnSelect` | `IReadOnlyCollection<TreeNode>` | 用户选择变化（外部 `ReplaceSelection` 不触发） |
-| `OnClick` / `OnDblClick` | `TreeNode` | 单击 / 双击 |
-| `OnContextMenu` | `(MouseEventArgs, TreeNode)` | 右键触发 |
-| `OnDrop` | `DragNodesArgs` | 拖放（应用据此更新结构） |
-| `OnInputEnter` | `(TreeNode, string)` | 编辑提交（节点 + 新值） |
-| `OnExpand` / `OnCollapse` | `TreeNode` | 展开 / 折叠 |
-| `OnKeyDown` | `KeyboardEventArgs` | 键盘事件（先于内部导航触发） |
-
-### 公共方法
-
-| 方法 | 说明 |
+| Member | Description |
 |---|---|
-| `Controller` | 获取控制器（选择/焦点/查询 API） |
-| `ReplaceSelection(nodes)` | 程序化替换选中（不触发 `OnSelect`） |
-| `BeginEdit(node)` | 进入编辑态（供 F2 等触发） |
-| `Refresh()` | 就地变更后失效缓存并重渲染 |
+| `Controller` | Read-only access to `TreeController` (query + operation API) |
+| `BeginEdit(TreeNode node)` | Enter edit mode for a node; returns `false` when vetoed |
+| `Refresh()` | Invalidate caches and re-render after in-place data changes |
 
-## 核心类型
+## Core Types
 
 ### TreeNode
 
 ```csharp
-var node = new TreeNode("标签", icon: null, bindData: null, id: "stable-id");
-node.Add(new TreeNode("子节点"));
+var node = new TreeNode("Label", icon: null, bindData: null, id: "stable-id");
+node.Add(new TreeNode("Child"));
 ```
 
-- **身份**：`Id`（应用提供则跨重建保持）、`Text`、`BindData`、`PlaceHolder`
-- **结构**：`Parent` / `Children` / `Index` / `Level` / `IsRoot` / `HasChildren` / `IsLeaf` / `Root`；`Add` / `Remove` / `Insert` / `AddChildren` / `RemoveChildren`
-- **状态**：`IsExpanded` / `IsVisible` / `IsSelected` / `IsFocused` / `IsEditing` / `IsDisabled`
-- **图标**：`Icon` / `UnFoldIcon` / `ExpandedIcon` / `CollapsedIcon`
-- **样式**：`SetCssClass(基础段)` + `CssClassResolver`（动态段）
+- **Identity**: `Id` (app-provided ids survive rebuilds; auto-assigned otherwise), `Text` (rejects null/empty), `BindData`, `PlaceHolder`.
+- **Structure**: `Parent`, `Children`, `Index`, `Level`, `IsRoot`, `HasChildren`, `IsLeaf`, `Root`, `Count`, `Siblings()`, `GetPathToRoot()`, `IsDescendantOf(node)`, `IsAncestorOf(node)`.
+- **Structure change**: `Add`, `Remove`, `Insert`, `AddChildren`, `InsertChildren`, `RemoveChildren`. Cyclic attachment (self, or an ancestor below its descendant) throws.
+- **Style**: `SetCssClass(string)`, `CssClassResolver` (dynamic segment), `CssClass`.
+- **Icons**: `Icon`, `UnFoldIcon`, `ExpandedIcon`, `CollapsedIcon`, `ExpandIcon`, `FoldIcon`, `IsExpandIconDisable`, `IsFoldIconDisable`, `IsExpandDisable`.
+- **View state**: `IsExpanded` (writable), `IsSelected` and `IsFocused` (derived from the controller, read-only), `IsDisabled` (writable), `IsEditing` (maintained by the component).
+- **Facade methods** (delegate to the controller, no-op when unbound): `GetSelectedNodes()`, `SetFocus()`, `UnFocus()`, `UnSelectAll()`, `SelectAllExcludeSelf()`, `Toggle()`, `ExpandAll()`, `CollapseAll()`, `ExpandAllParents()`, `FindNode(id)`, `FindNode(bindData)`, `FindNodes(bindDatas)`.
 
-### TreeSettings
+### TreeController (via `Tree.Controller`)
 
-| 属性 | 默认 | 说明 |
-|---|---|---|
-| `AllowDrag` | `false` | 允许拖拽 |
-| `AllowMultiSelect` | `false` | 允许多选（Ctrl/Shift） |
-| `UseInternalKeyboard` | `true` | 内部键盘导航 |
-| `EnableVirtualization` | `true` | 虚拟化渲染 |
-| `ShowLink` | `true` | 显示父子连接线 |
-| `HideRootNode` | `false` | 隐藏根节点 |
-| `Indent` / `ItemSize` | `20` / `32f` | 缩进像素 / 虚拟化单项高度 |
-| `OnlyHighlightText` | `true` | 选中仅高亮文字 |
-| `NodeTemplate` / `EditTemplate` | — | 自定义节点 / 编辑模板 |
+- **Query**: `SelectedIds`, `FocusedId`, `FocusedNode`, `Revision`, `Roots`, `FindById(id)`, `FindByBindData(bindData)`, `FindByText(text)`, `FindAll(predicate)`, `Flatten()`, `FlattenVisible()`, `GetSelectedNodes()`.
+- **Selection**: `Select(node)`, `AddToSelection(node)`, `ToggleSelection(node)`, `ReplaceSelection(nodes)`, `ClearSelection()`, `ConvergeToSingleSelection()`, `SelectRange(from, to)`, `ClearSelectionSubtree(root)`, `SelectAll(root, excludeSelf)`, `SetFocus(node)`, `ClearFocus()`.
+- **Expansion**: `Expand(node)`, `Collapse(node)`, `ExpandAll()`, `CollapseAll()`, `ExpandAllParents(node)`.
+- **Edit**: `BeginEdit(node)`, `TryRename(node, newValue)`, `EndEdit(node)`.
+- **Drag**: `CanDrop(sources, target)`.
 
-### TreeCallbacks
+### Enums and Contexts
 
-| 回调 | 签名 | 返回 `false` 时 |
-|---|---|---|
-| `BeforeExpand` / `BeforeCollapse` | `TreeNode → bool` | 否决展开 / 折叠 |
-| `BeforeDrop` | `DragNodesArgs → bool` | 否决拖放 |
-| `BeforeRename` | `(TreeNode, string) → bool` | 否决编辑新值 |
-| `BeforeEditName` | `TreeNode → bool` | 否决进入编辑 |
-| `BeforeRemove` | `TreeNode → bool` | 否决移除 |
+- `TreeSelectionMode`: `Single`, `Multiple`.
+- `TreeDropRelation`: `Before`, `Inside`, `After`.
+- `TreeEditContext` (in `EditTemplate`): `Node`, `Value`, `SetValue(value)`, `CommitAsync()`, `Cancel()`, `ValidationMessage`.
+- `TreeIconContext` (in `IconTemplate`): `Node`, `IsExpanded`, `HasChildren`, `IsDisabled`.
 
-## 功能示例
+## Examples
 
-### 多选
+### Multi-select
 
 ```razor
-<Tree DataSource="_roots" Settings="_settings" OnSelect="OnSelect" />
+<Tree DataSource="_roots" SelectionMode="TreeSelectionMode.Multiple"
+      OnSelectionChanged="OnSelectionChanged" />
 
 @code {
-    private readonly TreeSettings _settings = new() { AllowMultiSelect = true };
+    private void OnSelectionChanged(TreeSelectionChangedEventArgs args)
+        => Console.WriteLine($"selection: {args.SelectedIds.Count} node(s)");
 }
 ```
 
-### 拖拽（含否决）
+### Drag & drop with veto
 
 ```razor
-<Tree DataSource="_roots" Settings="_settings" Callbacks="_callbacks" OnDrop="OnDrop" />
+<Tree DataSource="_roots" AllowDrag="true"
+      BeforeDrop="BeforeDrop" OnDrop="OnDrop" />
 
 @code {
-    private readonly TreeSettings _settings = new() { AllowDrag = true };
-    private readonly TreeCallbacks _callbacks = new();
+    private bool BeforeDrop(TreeDropEventArgs args)
+        => args.TargetNode.Text != "Resources"; // forbid dropping into "Resources"
 
-    protected override void OnInitialized()
-        => _callbacks.BeforeDrop = args => args.Target.Text != "资源"; // 禁止拖入"资源"
-
-    private void OnDrop(DragNodesArgs args)
+    private void OnDrop(TreeDropEventArgs args)
     {
-        // 应用根据 args.Sources / args.Target / args.Position 更新树结构（如纳入撤销/重做）
+        // args.SourceNodes / args.TargetNode / args.Relation (Before | Inside | After)
+        // The app decides the final structure and updates its data source.
     }
 }
 ```
 
-### 内联编辑
+### Inline editing
 
 ```razor
-<Tree DataSource="_roots" Callbacks="_callbacks" OnInputEnter="OnInputEnter" OnKeyDown="OnKeyDown" @ref="_tree" />
+<Tree DataSource="_roots" BeforeRename="BeforeRename"
+      OnEditCommitted="OnEditCommitted" OnKeyDown="OnKeyDown" @ref="_tree" />
 
 @code {
     private Tree? _tree;
-    private readonly TreeCallbacks _callbacks = new();
 
-    protected override void OnInitialized()
-        => _callbacks.BeforeRename = (node, value) => !string.IsNullOrWhiteSpace(value); // 否决空值
+    private bool BeforeRename(TreeNode node, string value) => !string.IsNullOrWhiteSpace(value);
 
     private async Task OnKeyDown(KeyboardEventArgs args)
     {
-        if (args.Key == "F2" && _tree?.Controller?.Selection.FocusedNode is { } node)
+        if (args.Key == "F2" && _tree?.Controller?.FocusedNode is { } node)
             _tree.BeginEdit(node);
     }
 
-    private void OnInputEnter((TreeNode, string) args) => args.Item1.Text = args.Item2;
+    private void OnEditCommitted(TreeEditEventArgs args) => args.Node.Text = args.Value;
 }
 ```
 
-### 右键通知
+### Context menu notification
 
 ```razor
 <Tree DataSource="_roots" OnContextMenu="OnContextMenu" />
 
 @code {
-    private void OnContextMenu((MouseEventArgs, TreeNode) args)
+    private void OnContextMenu(TreeContextMenuEventArgs args)
     {
-        // 树只通知，菜单由应用渲染（args.Item1 为鼠标位置，args.Item2 为节点）
+        // args.Node / args.MouseArgs — the tree only notifies; render your own menu.
     }
 }
 ```
 
-## 可访问性（WAI-ARIA）
+### Fixed-row-height virtualization
 
-Tree 遵循 [WAI-ARIA Tree View Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/)：单一 tab 入口、roving tabindex、方向键移动焦点、`role=tree` / `role=treeitem` / `aria-level` / `aria-selected` / `aria-expanded` / `aria-disabled`。禁用节点可被导航识别，但不可选择/展开/激活。
+```razor
+<div style="height: 320px;">
+    <Tree DataSource="_largeDataSource" EnableVirtualization="true" ItemSize="32" />
+</div>
+```
 
-## 开发与贡献
+Virtualization requires a bounded-height scroll container and a fixed row height. `ItemSize` must match the node height, and `NodeTemplate` / `EditTemplate` cannot be combined with virtualization.
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md)。需求可追溯到 [docs/SRS.md](docs/SRS.md)（REQ-F-xxx）。
+### Custom icon and edit templates
 
-验证命令（改动后必须全绿）：
+```razor
+<Tree DataSource="_roots">
+    <IconTemplate Context="icon">
+        <span class="@(icon.IsExpanded ? "folder-open" : "folder")"></span>
+    </IconTemplate>
+    <EditTemplate Context="edit">
+        <input value="@edit.Value"
+               @oninput="e => edit.SetValue(e.Value?.ToString() ?? "")"
+               @onkeydown="e => OnEditKey(e, edit)" />
+    </EditTemplate>
+</Tree>
+
+@code {
+    private Task OnEditKey(KeyboardEventArgs e, TreeEditContext edit)
+    {
+        if (e.Key == "Enter")
+        {
+            return edit.CommitAsync();
+        }
+
+        if (e.Key == "Escape")
+        {
+            edit.Cancel();
+        }
+
+        return Task.CompletedTask;
+    }
+}
+```
+
+## Accessibility (WAI-ARIA)
+
+Tree follows the [WAI-ARIA Tree View Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): a single tab stop on the container (`role="tree"` with `tabindex="0"`), `role="treeitem"` nodes with `tabindex="-1"`, and focus tracked through `aria-activedescendant`. `aria-level`, `aria-selected`, `aria-expanded`, and `aria-disabled` are emitted. Disabled nodes are navigable but not selectable, expandable, or activatable.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Requirements are traceable to [docs/SRS.md](docs/SRS.md) (REQ-F-xxx / REQ-NF-xxx).
+
+Verification commands (all must pass after any change):
 
 ```sh
 dotnet build Astrea.sln

@@ -18,7 +18,7 @@ public static class TreeKeyboardNavigation
         /// <summary>因 ArrowLeft 折叠的节点（组件需触发 OnCollapse）。</summary>
         public TreeNode? Collapsed { get; set; }
 
-        /// <summary>因 Space/Enter 触发的选择（组件需触发 OnSelect）。</summary>
+        /// <summary>因 Space/Enter 触发的选择（组件需触发 OnSelectionChanged）。</summary>
         public bool SelectionChanged { get; set; }
     }
 
@@ -32,7 +32,7 @@ public static class TreeKeyboardNavigation
             return result;
         }
 
-        var focused = controller.Selection.FocusedNode;
+        var focused = controller.FocusedNode;
         int idx = IndexOf(visible, focused);
 
         switch (key)
@@ -110,9 +110,9 @@ public static class TreeKeyboardNavigation
             case "Enter":
                 if (focused is not null && !focused.IsDisabled)
                 {
-                    controller.Select(focused);
-                    result.SelectionChanged = true;
-                    result.Changed = true;
+                    var selectResult = controller.Select(focused);
+                    result.SelectionChanged = selectResult.Changed;
+                    result.Changed = selectResult.Changed;
                 }
                 break;
         }

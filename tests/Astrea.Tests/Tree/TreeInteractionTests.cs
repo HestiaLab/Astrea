@@ -69,31 +69,3 @@ public class TreeInteractionSelectionActionTests
             TreeInteraction.ResolveSelectionAction(true, shiftKey: true, ctrlKey: false, hasAnchor: false));
     }
 }
-
-[TestClass]
-public class DragPositionParseTests
-{
-    [TestMethod]
-    public void Parse_Top_ReturnsTop()
-    {
-        Assert.AreEqual(DragPosition.Top, DragPosition.Parse("top"));
-    }
-
-    [TestMethod]
-    public void Parse_Center_ReturnsCenter()
-    {
-        Assert.AreEqual(DragPosition.Center, DragPosition.Parse("center"));
-    }
-
-    [TestMethod]
-    public void Parse_Bottom_ReturnsBottom()
-    {
-        Assert.AreEqual(DragPosition.Bottom, DragPosition.Parse("bottom"));
-    }
-
-    [TestMethod]
-    public void Parse_Unknown_DefaultsToBottom()
-    {
-        Assert.AreEqual(DragPosition.Bottom, DragPosition.Parse("garbage"));
-    }
-}

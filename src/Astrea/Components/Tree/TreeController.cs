@@ -2,31 +2,54 @@ namespace Astrea.Components.Tree;
 
 /// <summary>
 /// 树控制器：持有根集合，维护 O(1) 节点索引、扁平化缓存、选择与展开操作、拖拽校验。
-/// 纯 C#，不依赖 Blazor 渲染，可独立单测。选择状态的唯一变更者。
+/// 纯 C#，不依赖 Blazor 渲染，可独立单测。交互状态的唯一写入口（写前校验节点归属与禁用状态）。
 /// </summary>
 public sealed class TreeController
 {
-    private readonly TreeCallbacks _callbacks;
+    private readonly TreeState _state = new();
+    private IReadOnlyList<TreeNode> _roots;
     private Dictionary<string, TreeNode>? _index;
     private List<TreeNode>? _flatten;
     private List<TreeNode>? _flattenVisible;
 
-    public TreeController(IReadOnlyList<TreeNode> roots, TreeCallbacks? callbacks = null, bool hideRootNode = false)
+    public TreeController(IReadOnlyList<TreeNode> roots)
     {
-        Roots = roots;
-        _callbacks = callbacks ?? new TreeCallbacks();
-        HideRootNode = hideRootNode;
+        _roots = roots ?? throw new ArgumentNullException(nameof(roots));
         Refresh();
     }
 
     /// <summary>根节点集合。</summary>
-    public IReadOnlyList<TreeNode> Roots { get; }
+    public IReadOnlyList<TreeNode> Roots => _roots;
 
-    /// <summary>是否隐藏根节点。</summary>
-    public bool HideRootNode { get; }
+    /// <summary>否决展开（返回 false 阻止）。</summary>
+    public Func<TreeNode, bool>? BeforeExpand { get; set; }
 
-    /// <summary>选择/焦点唯一真相。</summary>
-    public TreeSelection Selection { get; } = new();
+    /// <summary>否决折叠（返回 false 阻止）。</summary>
+    public Func<TreeNode, bool>? BeforeCollapse { get; set; }
+
+    /// <summary>否决重命名（参数：节点、新值）。</summary>
+    public Func<TreeNode, string, bool>? BeforeRename { get; set; }
+
+    /// <summary>否决进入编辑态。</summary>
+    public Func<TreeNode, bool>? BeforeEditName { get; set; }
+
+    /// <summary>选中节点的稳定 ID 集合（只读快照）。</summary>
+    public IReadOnlyCollection<string> SelectedIds => _state.SelectedIds;
+
+    /// <summary>当前焦点节点稳定 ID。</summary>
+    public string? FocusedId => _state.FocusedId;
+
+    /// <summary>当前焦点节点（可能为 null）。</summary>
+    public TreeNode? FocusedNode => FocusedId is null ? null : FindById(FocusedId);
+
+    /// <summary>结构 revision（每次 Refresh 递增，用于拒绝陈旧拖拽会话）。</summary>
+    public long Revision => _state.Revision;
+
+    /// <summary>供 <see cref="TreeNode"/> 派生的选中状态读取（非权威入口）。</summary>
+    internal bool IsSelected(string id) => _state.IsSelected(id);
+
+    /// <summary>供 <see cref="TreeNode"/> 派生的焦点状态读取（非权威入口）。</summary>
+    internal bool IsFocused(string id) => _state.IsFocused(id);
 
     #region 索引与查询
 
@@ -60,135 +83,55 @@ public sealed class TreeController
     {
         if (_flatten is null)
         {
-            _flatten = Roots.SelectMany(EnumerateSubtree).ToList();
+            _flatten = _roots.SelectMany(EnumerateSubtree).ToList();
         }
 
         return _flatten;
     }
 
-    /// <summary>可见节点（根按 IsVisible 过滤，子节点仅沿展开路径）。</summary>
+    /// <summary>可见节点（沿展开路径的 DFS 序列，包含全部根节点）。</summary>
     public IReadOnlyList<TreeNode> FlattenVisible()
     {
         if (_flattenVisible is null)
         {
-            var list = new List<TreeNode>();
-            foreach (var root in Roots)
-            {
-                if (!root.IsVisible)
-                {
-                    continue;
-                }
-
-                if (HideRootNode)
-                {
-                    if (root.HasChildren && root.IsExpanded)
-                    {
-                        foreach (var child in root.Children)
-                        {
-                            list.AddRange(EnumerateVisibleSubtree(child));
-                        }
-                    }
-                }
-                else
-                {
-                    list.AddRange(EnumerateVisibleSubtree(root));
-                }
-            }
-
-            _flattenVisible = list;
+            _flattenVisible = _roots.SelectMany(EnumerateVisibleSubtree).ToList();
         }
 
         return _flattenVisible;
     }
 
-    /// <summary>重建索引与缓存，并重新挂接节点后向引用；清理悬空选择并恢复丢失的焦点。</summary>
+    /// <summary>重建索引与缓存，整树校验后原子提交；清理悬空选择并恢复丢失的焦点。</summary>
     public void Refresh()
     {
-        var previousFocus = Selection.FocusedNode;
-        var previousSelected = Selection.SelectedNodes.ToList();
+        var previousFocusedNode = FocusedNode;
+        var previousFocusedId = _state.FocusedId;
 
-        _index = new Dictionary<string, TreeNode>();
-        _flatten = null;
+        // 整树校验 + 构建新索引（任何不变量违规都在这里抛出，不产生部分提交）
+        var (index, flatten) = BuildIndexAndValidate(_roots);
+
+        _index = index;
+        _flatten = flatten;
         _flattenVisible = null;
 
-        foreach (var root in Roots)
+        foreach (var node in flatten)
         {
-            foreach (var node in EnumerateSubtree(root))
-            {
-                node.Controller = this;
-                _index[node.Id] = node; // 重复 id 时后者覆盖（应用应保证 id 唯一）
-            }
+            node.Controller = this;
         }
 
-        // 清理悬空选择（被移除的选中节点）；应用结构变更，不视为用户选择，故不通知
-        foreach (var node in previousSelected)
-        {
-            if (!_index.ContainsKey(node.Id))
-            {
-                Selection.RemoveFromSelection(node);
-            }
-        }
+        // 悬空选择按稳定 ID 与当前索引求交集（不视为用户操作）
+        _state.RetainSelected(index.Keys);
 
-        // 焦点恢复（REQ-F-077 AC1/AC2）
-        if (previousFocus is not null)
+        // 焦点恢复（REQ-F-077）：焦点节点已移除或不再可见时，恢复到最近可见目标
+        if (previousFocusedId is not null)
         {
             var visible = FlattenVisible();
-            if (!visible.Contains(previousFocus))
+            if (previousFocusedNode is null || !visible.Contains(previousFocusedNode))
             {
-                RestoreFocus(previousFocus, visible);
-            }
-        }
-    }
-
-    /// <summary>焦点节点脱离可见树后，恢复到最近可见目标。</summary>
-    private void RestoreFocus(TreeNode lost, IReadOnlyList<TreeNode> visible)
-    {
-        // 锚点：脱离时的父节点（仍在树内）
-        var anchor = lost.DetachedParent;
-        if (anchor is not null && _index!.ContainsKey(anchor.Id))
-        {
-            if (visible.Contains(anchor))
-            {
-                var children = anchor.Children;
-                int idx = lost.DetachedIndex;
-                TreeNode? target;
-                if (idx >= 0 && idx < children.Count)
-                {
-                    target = children[idx]; // 下一个可见同级
-                }
-                else if (idx - 1 >= 0 && idx - 1 < children.Count)
-                {
-                    target = children[idx - 1]; // 上一个可见同级
-                }
-                else
-                {
-                    target = anchor;
-                }
-
-                Selection.SetFocus(target);
-                return;
-            }
-
-            // 锚点不可见（被折叠）→ 最近可见祖先
-            for (var p = anchor.Parent; p is not null; p = p.Parent)
-            {
-                if (visible.Contains(p))
-                {
-                    Selection.SetFocus(p);
-                    return;
-                }
+                RestoreFocus(previousFocusedNode, visible);
             }
         }
 
-        // 兜底：第一个可见节点；无可见节点则清空焦点
-        if (visible.Count > 0)
-        {
-            Selection.SetFocus(visible[0]);
-        }
-        else
-        {
-            Selection.ClearFocus();
-        }
+        _state.IncrementRevision();
     }
 
     /// <summary>按稳定 Id 恢复展开、选中、焦点状态（DataSource 替换后由组件调用，REQ-F-061 AC2）。</summary>
@@ -211,24 +154,125 @@ public sealed class TreeController
         if (selectedIds is not null)
         {
             var selected = selectedIds as ICollection<string> ?? selectedIds.ToHashSet();
-            var nodes = Flatten().Where(n => selected.Contains(n.Id)).ToList();
-            if (nodes.Count > 0)
-            {
-                ReplaceSelection(nodes);
-            }
+            var existing = Flatten().Where(n => selected.Contains(n.Id)).Select(n => n.Id);
+            _state.ReplaceSelection(existing);
         }
 
         if (focusId is not null)
         {
-            var focusNode = FindById(focusId);
-            if (focusNode is not null)
+            if (_index is not null && _index.ContainsKey(focusId))
             {
-                SetFocus(focusNode);
+                _state.SetFocus(focusId);
+            }
+            else
+            {
+                _state.ClearFocus();
             }
         }
     }
 
-    private void InvalidateVisible() => _flattenVisible = null;
+    /// <summary>失效可见节点缓存（外部直接修改展开态后调用）。</summary>
+    public void InvalidateVisible() => _flattenVisible = null;
+
+    /// <summary>整树校验：重复 Id、重复节点实例/循环、Parent/Index 不一致均抛确定性异常。</summary>
+    private static (Dictionary<string, TreeNode> Index, List<TreeNode> Flatten) BuildIndexAndValidate(IReadOnlyList<TreeNode> roots)
+    {
+        var index = new Dictionary<string, TreeNode>();
+        var flatten = new List<TreeNode>();
+        var visited = new HashSet<TreeNode>();
+
+        void Walk(TreeNode node)
+        {
+            if (!visited.Add(node))
+            {
+                throw new TreeStructureException($"Tree node '{node.Text}' appears more than once (duplicate instance or cycle).");
+            }
+
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                var child = node.Children[i];
+                if (!ReferenceEquals(child.Parent, node))
+                {
+                    throw new TreeStructureException($"Tree node '{child.Text}' has an inconsistent Parent reference.");
+                }
+
+                if (child.Index != i)
+                {
+                    throw new TreeStructureException($"Tree node '{child.Text}' has an inconsistent Index ({child.Index} != {i}).");
+                }
+            }
+
+            if (!index.TryAdd(node.Id, node))
+            {
+                throw new TreeStructureException($"Duplicate node Id '{node.Id}' detected.");
+            }
+
+            flatten.Add(node);
+
+            foreach (var child in node.Children)
+            {
+                Walk(child);
+            }
+        }
+
+        foreach (var root in roots)
+        {
+            Walk(root);
+        }
+
+        return (index, flatten);
+    }
+
+    /// <summary>焦点节点脱离可见树后，恢复到最近可见目标。</summary>
+    private void RestoreFocus(TreeNode? lost, IReadOnlyList<TreeNode> visible)
+    {
+        // 锚点：脱离时的父节点（仍在树内）
+        var anchor = lost?.DetachedParent;
+        if (anchor is not null && _index is not null && _index.ContainsKey(anchor.Id))
+        {
+            if (visible.Contains(anchor))
+            {
+                var children = anchor.Children;
+                int idx = lost!.DetachedIndex;
+                TreeNode? target;
+                if (idx >= 0 && idx < children.Count)
+                {
+                    target = children[idx]; // 下一个可见同级
+                }
+                else if (idx - 1 >= 0 && idx - 1 < children.Count)
+                {
+                    target = children[idx - 1]; // 上一个可见同级
+                }
+                else
+                {
+                    target = anchor;
+                }
+
+                _state.SetFocus(target.Id);
+                return;
+            }
+
+            // 锚点不可见（被折叠）→ 最近可见祖先
+            for (var p = anchor.Parent; p is not null; p = p.Parent)
+            {
+                if (visible.Contains(p))
+                {
+                    _state.SetFocus(p.Id);
+                    return;
+                }
+            }
+        }
+
+        // 兜底：第一个可见节点；无可见节点则清空焦点
+        if (visible.Count > 0)
+        {
+            _state.SetFocus(visible[0].Id);
+        }
+        else
+        {
+            _state.ClearFocus();
+        }
+    }
 
     #endregion
 
@@ -237,12 +281,12 @@ public sealed class TreeController
     /// <summary>展开节点（受 BeforeExpand 否决）。</summary>
     public bool Expand(TreeNode node)
     {
-        if (node.IsLeaf || node.IsDisabled)
+        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled)
         {
             return false;
         }
 
-        if (_callbacks.BeforeExpand?.Invoke(node) == false)
+        if (BeforeExpand?.Invoke(node) == false)
         {
             return false;
         }
@@ -255,24 +299,24 @@ public sealed class TreeController
     /// <summary>折叠节点（受 BeforeCollapse 否决；焦点在被折叠分支内时移到折叠节点）。</summary>
     public bool Collapse(TreeNode node)
     {
-        if (node.IsLeaf || node.IsDisabled)
+        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled)
         {
             return false;
         }
 
-        if (_callbacks.BeforeCollapse?.Invoke(node) == false)
+        if (BeforeCollapse?.Invoke(node) == false)
         {
             return false;
         }
 
-        var focused = Selection.FocusedNode;
+        var focused = FocusedNode;
         node.IsExpanded = false;
         InvalidateVisible();
 
         // 焦点恢复：焦点位于被折叠分支内时，移到折叠节点（REQ-F-077 AC4）
         if (focused is not null && focused != node && focused.IsDescendantOf(node))
         {
-            Selection.SetFocus(node);
+            _state.SetFocus(node.Id);
         }
 
         return true;
@@ -321,84 +365,121 @@ public sealed class TreeController
 
     #region 选择
 
-    public void Select(TreeNode node)
+    /// <summary>单选：替换选中（禁用节点或外部节点被拒绝）。</summary>
+    public TreeOperationResult Select(TreeNode node)
     {
-        if (node.IsDisabled)
+        if (!IsOwnedNode(node) || node.IsDisabled)
         {
-            return;
+            return TreeOperationResult.RejectedResult;
         }
 
-        Selection.Select(node);
+        return TreeOperationResult.From(_state.Select(node.Id));
     }
 
-    public void AddToSelection(TreeNode node)
+    /// <summary>追加选中（禁用节点或外部节点被拒绝）。</summary>
+    public TreeOperationResult AddToSelection(TreeNode node)
     {
-        if (node.IsDisabled)
+        if (!IsOwnedNode(node) || node.IsDisabled)
         {
-            return;
+            return TreeOperationResult.RejectedResult;
         }
 
-        Selection.AddToSelection(node);
+        return TreeOperationResult.From(_state.AddToSelection(node.Id));
     }
 
-    public void ToggleSelection(TreeNode node)
+    /// <summary>切换选中（禁用节点或外部节点被拒绝）。</summary>
+    public TreeOperationResult ToggleSelection(TreeNode node)
     {
-        if (node.IsDisabled)
+        if (!IsOwnedNode(node) || node.IsDisabled)
         {
-            return;
+            return TreeOperationResult.RejectedResult;
         }
 
-        Selection.ToggleSelection(node);
+        return TreeOperationResult.From(_state.ToggleSelection(node.Id));
     }
 
-    public void ReplaceSelection(IEnumerable<TreeNode> nodes) => Selection.ReplaceSelection(nodes);
+    /// <summary>替换整个选中集合（任一节点归属无效或禁用时整体拒绝，原子提交）。</summary>
+    public TreeOperationResult ReplaceSelection(IEnumerable<TreeNode> nodes)
+    {
+        var list = nodes?.ToList() ?? throw new ArgumentNullException(nameof(nodes));
+        foreach (var node in list)
+        {
+            if (!IsOwnedNode(node) || node.IsDisabled)
+            {
+                return TreeOperationResult.RejectedResult;
+            }
+        }
 
-    public void ClearSelection() => Selection.ClearSelection();
+        return TreeOperationResult.From(_state.ReplaceSelection(list.Select(n => n.Id)));
+    }
+
+    public TreeOperationResult ClearSelection() => TreeOperationResult.From(_state.ClearSelection());
 
     /// <summary>收敛选择集合为单节点（关闭多选时调用）：焦点节点若已选中则保留，否则清空。</summary>
-    public void ConvergeToSingleSelection()
+    public TreeOperationResult ConvergeToSingleSelection()
     {
         var selected = GetSelectedNodes();
         if (selected.Count <= 1)
         {
-            return;
+            return TreeOperationResult.NoOpResult;
         }
 
-        var focused = Selection.FocusedNode;
-        if (focused is not null && focused.IsSelected)
+        var focused = FocusedNode;
+        if (focused is not null && _state.IsSelected(focused.Id))
         {
-            Selection.ReplaceSelection(new[] { focused });
+            _state.ReplaceSelection(new[] { focused.Id });
         }
         else
         {
-            Selection.ClearSelection();
+            _state.ClearSelection();
         }
+
+        return TreeOperationResult.ChangedResult;
     }
 
     /// <summary>Shift 区间选择。</summary>
-    public void SelectRange(TreeNode from, TreeNode to)
+    public TreeOperationResult SelectRange(TreeNode from, TreeNode to)
     {
-        if (GetNodesBetween(from, to, out var range))
+        if (!IsOwnedNode(from) || !IsOwnedNode(to))
         {
-            Selection.ReplaceSelection(range);
+            return TreeOperationResult.RejectedResult;
         }
+
+        if (!GetNodesBetween(from, to, out var range))
+        {
+            return TreeOperationResult.RejectedResult;
+        }
+
+        return TreeOperationResult.From(_state.ReplaceSelection(range.Select(n => n.Id)));
     }
 
     /// <summary>清除指定子树内的选中节点。</summary>
-    public void ClearSelectionSubtree(TreeNode root)
+    public TreeOperationResult ClearSelectionSubtree(TreeNode root)
     {
-        foreach (var node in Selection.SelectedNodes.ToList())
+        if (!IsOwnedNode(root))
         {
-            if (node == root || node.IsDescendantOf(root))
-            {
-                Selection.RemoveFromSelection(node);
-            }
+            return TreeOperationResult.RejectedResult;
         }
+
+        var toRemove = GetSelectedNodes().Where(n => n == root || n.IsDescendantOf(root)).Select(n => n.Id).ToList();
+        var changed = false;
+        foreach (var id in toRemove)
+        {
+            changed |= _state.RemoveFromSelection(id);
+        }
+
+        return TreeOperationResult.From(changed);
     }
 
     /// <summary>选中指定子树的可见节点（可选排除自身）。</summary>
-    public void SelectAll(TreeNode root, bool excludeSelf)
+    public TreeOperationResult SelectAll(TreeNode root, bool excludeSelf)
     {
+        if (!IsOwnedNode(root))
+        {
+            return TreeOperationResult.RejectedResult;
+        }
+
+        var changed = false;
         foreach (var node in EnumerateVisibleSubtree(root))
         {
             if (excludeSelf && node == root)
@@ -406,20 +487,34 @@ public sealed class TreeController
                 continue;
             }
 
-            Selection.AddToSelection(node);
+            if (!node.IsDisabled)
+            {
+                changed |= _state.AddToSelection(node.Id);
+            }
         }
+
+        return TreeOperationResult.From(changed);
     }
 
-    /// <summary>按树顺序返回全部选中节点（含折叠子树内的选中，修复旧版漏选）。</summary>
-    public IReadOnlyCollection<TreeNode> GetSelectedNodes() => Flatten().Where(n => n.IsSelected).ToList();
+    /// <summary>按树顺序返回全部选中节点（含折叠子树内的选中）。</summary>
+    public IReadOnlyCollection<TreeNode> GetSelectedNodes() => Flatten().Where(n => _state.IsSelected(n.Id)).ToList();
 
     /// <summary>按树顺序返回指定子树内的选中节点。</summary>
     public IReadOnlyCollection<TreeNode> GetSelectedNodes(TreeNode? subtreeRoot)
-        => (subtreeRoot is null ? Flatten() : EnumerateSubtree(subtreeRoot)).Where(n => n.IsSelected).ToList();
+        => (subtreeRoot is null ? Flatten() : EnumerateSubtree(subtreeRoot)).Where(n => _state.IsSelected(n.Id)).ToList();
 
-    public void SetFocus(TreeNode node) => Selection.SetFocus(node);
+    /// <summary>设置焦点（外部节点被拒绝；禁用节点可聚焦）。</summary>
+    public TreeOperationResult SetFocus(TreeNode node)
+    {
+        if (!IsOwnedNode(node))
+        {
+            return TreeOperationResult.RejectedResult;
+        }
 
-    public void ClearFocus() => Selection.ClearFocus();
+        return TreeOperationResult.From(_state.SetFocus(node.Id));
+    }
+
+    public TreeOperationResult ClearFocus() => TreeOperationResult.From(_state.ClearFocus());
 
     #endregion
 
@@ -428,7 +523,12 @@ public sealed class TreeController
     /// <summary>进入编辑态（受 BeforeEditName 否决）。</summary>
     public bool BeginEdit(TreeNode node)
     {
-        if (_callbacks.BeforeEditName?.Invoke(node) == false)
+        if (!IsOwnedNode(node))
+        {
+            return false;
+        }
+
+        if (BeforeEditName?.Invoke(node) == false)
         {
             return false;
         }
@@ -439,9 +539,15 @@ public sealed class TreeController
 
     /// <summary>提交重命名（受 BeforeRename 否决）。返回 false 表示被否决，应用不应接受该新值。</summary>
     public bool TryRename(TreeNode node, string newValue)
-        => _callbacks.BeforeRename?.Invoke(node, newValue) != false;
+        => IsOwnedNode(node) && BeforeRename?.Invoke(node, newValue) != false;
 
-    public void EndEdit(TreeNode node) => node.IsEditing = false;
+    public void EndEdit(TreeNode node)
+    {
+        if (IsOwnedNode(node))
+        {
+            node.IsEditing = false;
+        }
+    }
 
     #endregion
 
@@ -484,32 +590,23 @@ public sealed class TreeController
         return true;
     }
 
-    /// <summary>校验拖放是否允许（内置规则 + BeforeDrop 否决），不执行移动。</summary>
-    public bool CanDrop(IReadOnlyList<TreeNode> sources, TreeNode target, DragPosition position)
-    {
-        if (!DefaultDropRule(sources, target))
-        {
-            return false;
-        }
-
-        var args = new DragNodesArgs(sources, target, position);
-        return _callbacks.BeforeDrop?.Invoke(args) != false;
-    }
-
-    /// <summary>内置拖拽规则：拒绝自引用、跨树、循环引用（覆盖全部源节点）。</summary>
-    private static bool DefaultDropRule(IReadOnlyList<TreeNode> sources, TreeNode target)
+    /// <summary>
+    /// 内置拖拽结构规则：拒绝自引用与循环引用（目标为源的祖先）。同一 Tree 内跨根拖拽允许。
+    /// 不校验消息协议、revision、relation 或 guard——这些由 <see cref="DragProtocol.Validate"/> 处理。
+    /// </summary>
+    public bool CanDrop(IReadOnlyList<TreeNode> sources, TreeNode target)
     {
         if (sources is null || sources.Count == 0)
         {
             return false;
         }
 
-        if (sources.Any(s => s == target))
+        if (sources.Any(s => !IsOwnedNode(s)) || !IsOwnedNode(target))
         {
             return false;
         }
 
-        if (sources.Any(s => !ReferenceEquals(s.Root, target.Root)))
+        if (sources.Any(s => s == target))
         {
             return false;
         }
@@ -566,7 +663,14 @@ public sealed class TreeController
     }
 
     private IEnumerable<TreeNode> EnumerateNodes(TreeNode? root)
-        => root is null ? Roots.SelectMany(EnumerateSubtree) : EnumerateSubtree(root);
+        => root is null ? _roots.SelectMany(EnumerateSubtree) : EnumerateSubtree(root);
+
+    /// <summary>节点是否属于当前 Controller（索引中按 Id 命中且为同一实例）。</summary>
+    private bool IsOwnedNode(TreeNode? node)
+        => node is not null
+           && _index is not null
+           && _index.TryGetValue(node.Id, out var owned)
+           && ReferenceEquals(owned, node);
 
     #endregion
 }
