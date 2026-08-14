@@ -46,6 +46,7 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
     let lastDragOverElement = null;
     let rafId = 0;
     let isDestroyed = false;
+    let isDropPending = false;
     // 活动拖拽会话（同树 drop 时携带 C# 返回的 revision 与归一化源）
     let activeDrag = null;
 
@@ -85,7 +86,11 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
         }
         rafId = requestAnimationFrame(() => {
             const rect = treeElement.getBoundingClientRect();
-            dotNetObjectRef.invokeMethodAsync('UpdatePreviewPos', clientX - rect.left, clientY - rect.top);
+            const preview = treeElement.querySelector('.drag-preview-container');
+            if (preview instanceof HTMLElement) {
+                preview.style.left = `${clientX - rect.left + 20}px`;
+                preview.style.top = `${clientY - rect.top}px`;
+            }
             rafId = 0;
         });
     };
@@ -99,7 +104,15 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
     const onDragEnd = () => {
         resetDragStyles();
         clearSourceHighlight();
-        dotNetObjectRef.invokeMethodAsync('ClearDrag');
+        // 浏览器不会等待 async drop listener；dragend 可能在 HandleDrop Promise 完成前触发。
+        // 此时不能提前清除 C# session，否则合法 drop 会被当成陈旧消息拒绝。
+        if (isDropPending) {
+            return;
+        }
+        const sessionId = activeDrag ? activeDrag.sessionId : null;
+        if (!isDestroyed && sessionId) {
+            void dotNetObjectRef.invokeMethodAsync('CancelDrag', sessionId).catch(() => {});
+        }
         dropPos = null;
         activeDrag = null;
     };
@@ -140,7 +153,8 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
             e.dataTransfer.effectAllowed = 'move';
         }
 
-        activeDrag = { ...syncMessage, sourceRevision: null };
+        const dragState = { ...syncMessage, sourceRevision: null, beginPromise: null };
+        activeDrag = dragState;
 
         // 高亮源节点
         sourceNodeIds.forEach((id) => {
@@ -151,24 +165,50 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
             }
         });
 
-        // 异步：C# 归一化源 + 记录 revision
-        try {
-            const beginResult = await dotNetObjectRef.invokeMethodAsync('BeginDrag', sessionId, JSON.stringify(sourceNodeIds));
-            if (beginResult && typeof beginResult === 'string') {
+        // 异步：C# 归一化源 + 冻结 revision。drop 必须等待该 Promise，不能用尚未规范化的同步数据提交。
+        dragState.beginPromise = (async () => {
+            try {
+                const beginResult = await dotNetObjectRef.invokeMethodAsync('BeginDrag', sessionId, JSON.stringify(sourceNodeIds));
+                if (!beginResult || typeof beginResult !== 'string') {
+                    return false;
+                }
+
                 const parsed = JSON.parse(beginResult);
-                activeDrag.sourceRevision = parsed.sourceRevision;
-                activeDrag.sourceNodeIds = parsed.sourceNodeIds || sourceNodeIds;
+                if (
+                    isDestroyed ||
+                    activeDrag !== dragState ||
+                    !Number.isInteger(parsed.sourceRevision) ||
+                    !Array.isArray(parsed.sourceNodeIds) ||
+                    parsed.sourceNodeIds.length === 0
+                ) {
+                    // BeginDrag 可能晚于 dragend/下一次 dragstart 返回；只取消自己的会话。
+                    await dotNetObjectRef.invokeMethodAsync('CancelDrag', sessionId).catch(() => {});
+                    return false;
+                }
+
+                dragState.sourceRevision = parsed.sourceRevision;
+                dragState.sourceNodeIds = parsed.sourceNodeIds;
                 const rect = treeElement.getBoundingClientRect();
-                dotNetObjectRef.invokeMethodAsync(
+                await dotNetObjectRef.invokeMethodAsync(
                     'ShowPreview',
-                    (parsed.sourceNodeIds || sourceNodeIds).length,
+                    parsed.sourceNodeIds.length,
                     e.clientX - rect.left,
                     e.clientY - rect.top,
                 );
+                if (!isDestroyed && activeDrag === dragState) {
+                    updatePreviewPosition(e.clientX, e.clientY);
+                    return true;
+                }
+                await dotNetObjectRef.invokeMethodAsync('CancelDrag', sessionId).catch(() => {});
+                return false;
+            } catch (error) {
+                // BeginDrag 失败：拖拽会话无效，后续 drop 不得提交。
+                await dotNetObjectRef.invokeMethodAsync('CancelDrag', sessionId).catch(() => {});
+                return false;
             }
-        } catch (error) {
-            // BeginDrag 失败：拖拽会话无效，后续 drop 将被 C# 拒绝
-        }
+        })();
+
+        await dragState.beginPromise;
     };
 
     const onDragOver = (e) => {
@@ -239,36 +279,47 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
 
     const onDrop = async (e) => {
         e.preventDefault();
-        const targetNode = getTargetNode(e);
-        const targetId = getNodeId(targetNode);
-        resetDragStyles();
-
-        let source = null;
+        isDropPending = true;
         try {
-            source = JSON.parse(e.dataTransfer.getData('application/json'));
-        } catch (error) {
-            source = null;
-        }
+            const targetNode = getTargetNode(e);
+            const targetId = getNodeId(targetNode);
+            resetDragStyles();
 
-        if (!targetId || !source || !Array.isArray(source.sourceNodeIds) || source.sourceNodeIds.length === 0 || !dropPos) {
+            let source = null;
+            try {
+                source = JSON.parse(e.dataTransfer ? e.dataTransfer.getData('application/json') : '');
+            } catch (error) {
+                source = null;
+            }
+
+            if (!targetId || !source || !Array.isArray(source.sourceNodeIds) || source.sourceNodeIds.length === 0 || !dropPos) {
+                return;
+            }
+
+            // 同树会话只使用 C# 返回并归一化后的源列表，dataTransfer 不再成为第二事实源。
+            const localDrag = activeDrag && activeDrag.sessionId === source.sessionId ? activeDrag : null;
+            if (localDrag) {
+                const isReady = localDrag.beginPromise ? await localDrag.beginPromise : false;
+                if (!isReady || isDestroyed || activeDrag !== localDrag) {
+                    return;
+                }
+            }
+            const message = {
+                protocolVersion: 1,
+                sessionId: source.sessionId,
+                sourceTreeId: source.sourceTreeId,
+                sourceNodeIds: localDrag ? localDrag.sourceNodeIds : source.sourceNodeIds,
+                sourceRevision: localDrag ? localDrag.sourceRevision : null,
+                targetTreeId: treeId,
+                targetNodeId: targetId,
+                relation: dropPos,
+            };
+
+            await dotNetObjectRef.invokeMethodAsync('HandleDrop', JSON.stringify(message));
+        } finally {
+            isDropPending = false;
             onDragEnd();
-            return;
         }
-
-        // 完整协议消息：同树用 activeDrag（含 C# 返回的 revision），跨树用 dataTransfer 的最小消息
-        const message = {
-            protocolVersion: 1,
-            sessionId: source.sessionId,
-            sourceTreeId: source.sourceTreeId,
-            sourceNodeIds: source.sourceNodeIds,
-            sourceRevision: activeDrag && activeDrag.sessionId === source.sessionId ? activeDrag.sourceRevision : null,
-            targetTreeId: treeId,
-            targetNodeId: targetId,
-            relation: dropPos,
-        };
-
-        await dotNetObjectRef.invokeMethodAsync('HandleDrop', JSON.stringify(message));
-        onDragEnd();
     };
 
     treeElement.addEventListener('dragstart', onDragStart);
@@ -286,11 +337,16 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
         treeElement.removeEventListener('dragover', onDragOver);
         treeElement.removeEventListener('dragleave', onDragLeave);
         treeElement.removeEventListener('drop', onDrop);
+        resetDragStyles();
         insertLine.remove();
         if (rafId) {
             cancelAnimationFrame(rafId);
+            rafId = 0;
         }
         clearSourceHighlight();
+        isDropPending = false;
+        dropPos = null;
+        activeDrag = null;
         isDestroyed = true;
     };
 
@@ -302,6 +358,85 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
     };
 
     return { destroy, updateConfig };
+}
+
+/**
+ * Installs the keyboard-default filter for one Tree container. Blazor owns the
+ * state transition; this synchronous listener only suppresses browser defaults
+ * when the current DOM state shows that the key has a Tree action.
+ */
+export function initializeKeyboard(containerId) {
+    const treeElement = document.getElementById(containerId);
+    if (!treeElement) {
+        return null;
+    }
+
+    let isDestroyed = false;
+    const items = () => Array.from(treeElement.querySelectorAll('[role="treeitem"]'));
+    const activeItem = () => {
+        const id = treeElement.getAttribute('aria-activedescendant');
+        return id ? treeElement.querySelector(`#${CSS.escape(id)}`) : null;
+    };
+    const isEditableTarget = (target) =>
+        target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+
+    const shouldHandle = (event) => {
+        if (isEditableTarget(event.target) || event.altKey || event.metaKey) {
+            return false;
+        }
+
+        const visibleItems = items();
+        const active = activeItem();
+        const index = active ? visibleItems.indexOf(active) : -1;
+        switch (event.key) {
+            case 'ArrowDown':
+                return visibleItems.length > 0 && (index < 0 || index + 1 < visibleItems.length);
+            case 'ArrowUp':
+                return visibleItems.length > 0 && (index < 0 || index > 0);
+            case 'Home':
+                return visibleItems.length > 0 && active !== visibleItems[0];
+            case 'End':
+                return visibleItems.length > 0 && active !== visibleItems[visibleItems.length - 1];
+            case 'ArrowRight':
+                if (!active) {
+                    return false;
+                }
+                if (active.getAttribute('aria-expanded') === 'false') {
+                    return true;
+                }
+                return active.getAttribute('aria-expanded') === 'true' &&
+                    index >= 0 &&
+                    index + 1 < visibleItems.length &&
+                    Number(visibleItems[index + 1].getAttribute('aria-level')) > Number(active.getAttribute('aria-level'));
+            case 'ArrowLeft':
+                return !!active &&
+                    (active.getAttribute('aria-expanded') === 'true' || Number(active.getAttribute('aria-level')) > 1);
+            case ' ':
+            case 'Spacebar':
+            case 'Enter':
+                return !!active && active.getAttribute('aria-disabled') !== 'true';
+            default:
+                return false;
+        }
+    };
+
+    const onKeyDown = (event) => {
+        if (!isDestroyed && shouldHandle(event)) {
+            event.preventDefault();
+        }
+    };
+
+    treeElement.addEventListener('keydown', onKeyDown, true);
+    return {
+        destroy() {
+            if (isDestroyed) {
+                return;
+            }
+            isDestroyed = true;
+            treeElement.removeEventListener('keydown', onKeyDown, true);
+        },
+    };
 }
 
 /**

@@ -12,7 +12,13 @@
 
 <div class="demo-toolbar">
     <label class="demo-check">
-        <input type="checkbox" checked="@_allowMultiSelect" @onchange="ToggleMultiSelect" /> 多选
+        <input id="toggle-multi" type="checkbox" checked="@_allowMultiSelect" @onchange="ToggleMultiSelect" /> 多选
+    </label>
+    <label class="demo-check">
+        <input id="toggle-drag" type="checkbox" checked="@_allowDrag" @onchange="ToggleAllowDrag" /> 拖拽
+    </label>
+    <label class="demo-check">
+        <input id="toggle-selection-acceptance" type="checkbox" checked="@_acceptSelectionProposal" @onchange="ToggleSelectionAcceptance" /> 接受受控选择提案
     </label>
     <button @onclick="RebuildTree">重建树（保持状态）</button>
     <button @onclick="RemoveSelected">移除选中</button>
@@ -23,10 +29,11 @@
 <div class="demo-panel">
     <Tree DataSource="_dataSource"
           SelectionMode="_selectionMode"
-          AllowDrag="true"
-          BeforeDrop="BeforeDrop"
-          BeforeRename="BeforeRename"
-          OnSelectionChanged="HandleSelectionChanged"
+          SelectedIds="_controlledSelectedIds"
+          SelectedIdsChanged="HandleSelectedIdsChanged"
+          AllowDrag="_allowDrag"
+          BeforeDropAsync="BeforeDropAsync"
+          BeforeRenameAsync="BeforeRenameAsync"
           OnNodeClicked="HandleNodeClicked"
           OnNodeInvoked="HandleNodeInvoked"
           OnContextMenu="HandleContextMenu"
@@ -42,7 +49,23 @@
 
 <div class="demo-panel">
     <h3>第二个 Tree（相同逻辑 ID，验证组件实例隔离）</h3>
-    <Tree DataSource="_secondDataSource" AllowDrag="true" aria-label="第二棵树" />
+    <Tree DataSource="_secondDataSource" AllowDrag="true" aria-label="第二棵树">
+        <IconTemplate Context="icon">
+            <span class="demo-custom-icon">@(icon.HasChildren ? "◆" : "◇")</span>
+        </IconTemplate>
+    </Tree>
+</div>
+
+<div class="demo-panel">
+    <h3>自定义编辑模板</h3>
+    <button id="btn-custom-edit" @onclick="BeginCustomEdit">编辑自定义节点</button>
+    <Tree DataSource="_customDataSource"
+          EditTemplate="CustomEditTemplate"
+          OnEditCommitted="HandleEditCommitted"
+          OnEditCancelled="HandleEditCancelled"
+          OnEditRejected="HandleEditRejected"
+          aria-label="自定义编辑树"
+          @ref="_customTree" />
 </div>
 
 <div class="demo-panel">
@@ -78,18 +101,24 @@
     private List<TreeNode> _dataSource = new();
     private List<TreeNode> _secondDataSource = new();
     private List<TreeNode> _largeDataSource = new();
+    private List<TreeNode> _customDataSource = new();
     private TreeSelectionMode _selectionMode = TreeSelectionMode.Multiple;
     private Tree? _tree;
     private Tree? _virtualTree;
+    private Tree? _customTree;
     private List<string> _selectedNames = new();
+    private IReadOnlyCollection<string> _controlledSelectedIds = Array.Empty<string>();
     private readonly List<string> _log = new();
     private bool _allowMultiSelect = true;
+    private bool _allowDrag = true;
+    private bool _acceptSelectionProposal = true;
 
     protected override void OnInitialized()
     {
         _dataSource = BuildTree();
         // 第二棵树使用相同逻辑 ID 但独立节点对象，验证组件实例隔离
         _secondDataSource = BuildTree();
+        _customDataSource = new List<TreeNode> { new("可自定义编辑", id: "custom-edit") };
     }
 
     /// <summary>用稳定 Id 构建树；重建树（新对象、同 Id）时验证状态保持。</summary>
@@ -125,9 +154,9 @@
     }
 
     // 移除选中节点：验证焦点恢复 + 悬空选择清理（REQ-F-077）
-    private void RemoveSelected()
+    private async Task RemoveSelected()
     {
-        var selected = _tree?.Controller?.GetSelectedNodes().ToList();
+        var selected = _tree?.View?.GetSelectedNodes().ToList();
         if (selected is null || selected.Count == 0)
         {
             Log("无选中节点可移除");
@@ -139,7 +168,11 @@
             node.Parent?.Remove(node);
         }
 
-        _tree?.Refresh();
+        _controlledSelectedIds = _controlledSelectedIds.Except(selected.Select(node => node.Id)).ToArray();
+        if (_tree is not null)
+        {
+            await _tree.RefreshAsync();
+        }
         Log($"移除 {selected.Count} 个节点（焦点应恢复）");
     }
 
@@ -208,8 +241,8 @@
     {
         if (args.Key == "F2")
         {
-            var focused = _virtualTree?.Controller?.FocusedNode;
-            if (focused is not null && _virtualTree!.BeginEdit(focused))
+            var focused = _virtualTree?.View?.FocusedNode;
+            if (focused is not null && await _virtualTree!.BeginEditAsync(focused.Id))
             {
                 Log($"虚拟化树进入编辑：{focused.Text}");
             }
@@ -224,25 +257,47 @@
         Log(_allowMultiSelect ? "已开启多选" : "已关闭多选（选择应收敛）");
     }
 
-    private bool BeforeDrop(TreeDropEventArgs args)
+    private void ToggleAllowDrag(ChangeEventArgs e)
+    {
+        _allowDrag = (bool)(e.Value ?? false);
+        Log(_allowDrag ? "已开启拖拽" : "已关闭拖拽（活动会话立即失效）");
+    }
+
+    private void ToggleSelectionAcceptance(ChangeEventArgs e)
+    {
+        _acceptSelectionProposal = (bool)(e.Value ?? false);
+        Log(_acceptSelectionProposal ? "应用将接受受控选择提案" : "应用将拒绝受控选择提案");
+    }
+
+    private ValueTask<bool> BeforeDropAsync(TreeDropEventArgs args)
     {
         if (args.TargetNode.Text == "资源")
         {
             Log($"否决拖放 → {args.TargetNode.Text}");
-            return false;
+            return ValueTask.FromResult(false);
         }
 
-        return true;
+        return ValueTask.FromResult(true);
     }
 
-    private bool BeforeRename(TreeNode node, string value) => !string.IsNullOrWhiteSpace(value);
+    private static ValueTask<bool> BeforeRenameAsync(TreeNode node, string value)
+        => ValueTask.FromResult(!string.IsNullOrWhiteSpace(value));
 
-    private void HandleSelectionChanged(TreeSelectionChangedEventArgs args)
-        => _selectedNames = args.SelectedIds.Select(id => _tree?.Controller?.FindById(id)?.Text ?? id).ToList();
+    private void HandleSelectedIdsChanged(IReadOnlyCollection<string> proposedIds)
+    {
+        Log($"受控选择提案：{string.Join("、", proposedIds)}");
+        if (!_acceptSelectionProposal)
+        {
+            return;
+        }
+
+        _controlledSelectedIds = proposedIds.ToArray();
+        _selectedNames = proposedIds.Select(id => _tree?.View?.FindById(id)?.Text ?? id).ToList();
+    }
 
     private void HandleNodeClicked(TreeNodeEventArgs args) => Log($"单击：{args.Node.Text}");
 
-    private void HandleNodeInvoked(TreeNodeEventArgs args) => Log($"双击：{args.Node.Text}");
+    private void HandleNodeInvoked(TreeNodeEventArgs args) => Log($"激活：{args.Node.Text}");
 
     private void HandleContextMenu(TreeContextMenuEventArgs args) => Log($"右键：{args.Node.Text}");
 
@@ -261,17 +316,50 @@
     private void HandleEditRejected(TreeEditRejectedEventArgs args)
         => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
 
+    private void HandleEditCancelled(TreeNodeEventArgs args) => Log($"取消编辑：{args.Node.Text}");
+
     private async Task HandleKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "F2")
         {
-            var focused = _tree?.Controller?.FocusedNode;
-            if (focused is not null && _tree!.BeginEdit(focused))
+            var focused = _tree?.View?.FocusedNode;
+            if (focused is not null && await _tree!.BeginEditAsync(focused.Id))
             {
                 Log($"进入编辑：{focused.Text}");
             }
         }
     }
+
+    private async Task BeginCustomEdit()
+    {
+        if (_customTree is not null && await _customTree.BeginEditAsync("custom-edit"))
+        {
+            Log("自定义编辑模板已进入编辑并注册焦点目标");
+        }
+    }
+
+    private RenderFragment<TreeEditContext> CustomEditTemplate => context => builder =>
+    {
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "class", "tree-node-edit demo-custom-editor");
+        builder.AddAttribute(2, "value", context.Value);
+        builder.AddAttribute(3, "aria-label", "自定义节点名称");
+        builder.AddAttribute(4, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this,
+            args => context.SetValue(args.Value?.ToString() ?? string.Empty)));
+        builder.AddAttribute(5, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, async args =>
+        {
+            if (args.Key == "Enter")
+            {
+                await context.CommitAsync();
+            }
+            else if (args.Key == "Escape")
+            {
+                await context.CancelAsync();
+            }
+        }));
+        builder.AddElementReferenceCapture(6, context.RegisterFocusTarget);
+        builder.CloseElement();
+    };
 
     private static string PositionName(TreeDropRelation r) =>
         r == TreeDropRelation.Before ? "之前" : r == TreeDropRelation.Inside ? "之内" : "之后";

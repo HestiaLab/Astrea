@@ -26,11 +26,6 @@ public sealed partial class Tree
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        if (DataSource is null)
-        {
-            return;
-        }
-
         var flat = _controller?.FlattenVisible() ?? (IReadOnlyList<TreeNode>)Array.Empty<TreeNode>();
 
         // 组件 class 段
@@ -107,6 +102,9 @@ public sealed partial class Tree
         {
             builder.AddContent(10, RenderPreview(previewCount, PreviewX, PreviewY));
         }
+
+        // 容器聚焦时若无焦点节点，聚焦首个可见节点（WAI-ARIA Tree View Pattern：树接收焦点时建立 active descendant）
+        builder.AddAttribute(11, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, _ => HandleContainerFocus()));
 
         if (EnableVirtualization)
         {
@@ -316,7 +314,7 @@ public sealed partial class Tree
             builder.AddAttribute(63, "value", context.Value);
             builder.AddAttribute(64, "autofocus", true);
             builder.AddAttribute(65, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => context.SetValue(e.Value?.ToString() ?? string.Empty)));
-            builder.AddAttribute(66, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, _ => context.CommitAsync()));
+            builder.AddAttribute(66, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, _ => HandleEditBlur(context)));
             builder.AddAttribute(67, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => HandleEditKeyDown(context, e)));
             builder.AddElementReferenceCapture(68, r => _editInputRef = r);
             builder.CloseElement();
@@ -328,14 +326,31 @@ public sealed partial class Tree
         if (e.Key == "Escape")
         {
             // 取消编辑：退出编辑态，不发送结果通知（REQ-F-088 AC4）
-            context.Cancel();
+            await context.CancelAsync();
             return;
         }
 
         if (e.Key == "Enter")
         {
+            // Enter 提交后，容器可能在同一按键派发中重新挂载 onkeydown 并再次处理该 Enter；
+            // 标记抑制，避免提交后立即触发一次 OnNodeInvoked。
+            _suppressNodeInvoke = true;
+            _suppressBlurCommit = (context.SessionId, context.ValueVersion);
             await context.CommitAsync();
         }
+    }
+
+    private async Task HandleEditBlur(TreeEditContext context)
+    {
+        if (_suppressBlurCommit is { } suppressed &&
+            suppressed.SessionId == context.SessionId &&
+            suppressed.ValueVersion == context.ValueVersion)
+        {
+            _suppressBlurCommit = null;
+            return;
+        }
+
+        await context.CommitAsync();
     }
 
     private static RenderFragment RenderPreview(int count, double x, double y)

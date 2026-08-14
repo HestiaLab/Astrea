@@ -23,7 +23,11 @@ public static class TreeKeyboardNavigation
     }
 
     /// <summary>执行一次键盘导航。</summary>
-    public static Result Navigate(TreeController controller, string key)
+    public static Result Navigate(
+        TreeController controller,
+        string key,
+        bool allowExpand = true,
+        bool allowCollapse = true)
     {
         var result = new Result();
         var visible = controller.FlattenVisible();
@@ -76,13 +80,13 @@ public static class TreeKeyboardNavigation
             case "ArrowRight":
                 if (focused is not null && focused.HasChildren && !focused.IsExpanded)
                 {
-                    if (controller.Expand(focused))
+                    if (allowExpand && controller.Expand(focused))
                     {
                         result.Expanded = focused;
                         result.Changed = true;
                     }
                 }
-                else if (focused is not null && focused.HasChildren)
+                else if (focused is not null && focused.HasChildren && focused.IsExpanded)
                 {
                     controller.SetFocus(focused.Children[0]);
                     result.Changed = true;
@@ -92,7 +96,7 @@ public static class TreeKeyboardNavigation
             case "ArrowLeft":
                 if (focused is not null && focused.IsExpanded)
                 {
-                    if (controller.Collapse(focused))
+                    if (allowCollapse && controller.Collapse(focused))
                     {
                         result.Collapsed = focused;
                         result.Changed = true;
@@ -107,7 +111,6 @@ public static class TreeKeyboardNavigation
 
             case " ":
             case "Spacebar":
-            case "Enter":
                 if (focused is not null && !focused.IsDisabled)
                 {
                     var selectResult = controller.Select(focused);

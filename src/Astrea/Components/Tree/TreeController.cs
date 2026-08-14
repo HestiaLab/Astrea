@@ -11,12 +11,18 @@ public sealed class TreeController
     private Dictionary<string, TreeNode>? _index;
     private List<TreeNode>? _flatten;
     private List<TreeNode>? _flattenVisible;
+    private TreeSelectionMode _selectionMode;
 
-    public TreeController(IReadOnlyList<TreeNode> roots)
+    public TreeController(
+        IReadOnlyList<TreeNode> roots,
+        TreeSelectionMode selectionMode = TreeSelectionMode.Multiple)
     {
         _roots = roots ?? throw new ArgumentNullException(nameof(roots));
+        _selectionMode = selectionMode;
         Refresh();
     }
+
+    internal void SetSelectionMode(TreeSelectionMode selectionMode) => _selectionMode = selectionMode;
 
     /// <summary>根节点集合。</summary>
     public IReadOnlyList<TreeNode> Roots => _roots;
@@ -217,6 +223,11 @@ public sealed class TreeController
 
         foreach (var root in roots)
         {
+            if (root.Parent is not null)
+            {
+                throw new TreeStructureException($"Tree root '{root.Text}' has a non-null Parent reference.");
+            }
+
             Walk(root);
         }
 
@@ -384,7 +395,9 @@ public sealed class TreeController
             return TreeOperationResult.RejectedResult;
         }
 
-        return TreeOperationResult.From(_state.AddToSelection(node.Id));
+        return _selectionMode == TreeSelectionMode.Single
+            ? TreeOperationResult.From(_state.Select(node.Id))
+            : TreeOperationResult.From(_state.AddToSelection(node.Id));
     }
 
     /// <summary>切换选中（禁用节点或外部节点被拒绝）。</summary>
@@ -393,6 +406,13 @@ public sealed class TreeController
         if (!IsOwnedNode(node) || node.IsDisabled)
         {
             return TreeOperationResult.RejectedResult;
+        }
+
+        if (_selectionMode == TreeSelectionMode.Single)
+        {
+            return _state.IsSelected(node.Id)
+                ? TreeOperationResult.From(_state.ClearSelection())
+                : TreeOperationResult.From(_state.Select(node.Id));
         }
 
         return TreeOperationResult.From(_state.ToggleSelection(node.Id));
@@ -408,6 +428,11 @@ public sealed class TreeController
             {
                 return TreeOperationResult.RejectedResult;
             }
+        }
+
+        if (_selectionMode == TreeSelectionMode.Single && list.Select(node => node.Id).Distinct().Skip(1).Any())
+        {
+            return TreeOperationResult.RejectedResult;
         }
 
         return TreeOperationResult.From(_state.ReplaceSelection(list.Select(n => n.Id)));
@@ -440,17 +465,33 @@ public sealed class TreeController
     /// <summary>Shift 区间选择。</summary>
     public TreeOperationResult SelectRange(TreeNode from, TreeNode to)
     {
-        if (!IsOwnedNode(from) || !IsOwnedNode(to))
+        if (_selectionMode == TreeSelectionMode.Single)
+        {
+            return ReferenceEquals(from, to) ? Select(to) : TreeOperationResult.RejectedResult;
+        }
+
+        if (!IsOwnedNode(from) || !IsOwnedNode(to) || from.IsDisabled || to.IsDisabled)
         {
             return TreeOperationResult.RejectedResult;
         }
 
-        if (!GetNodesBetween(from, to, out var range))
+        var visible = FlattenVisible();
+        var fromIndex = IndexOfReference(visible, from);
+        var toIndex = IndexOfReference(visible, to);
+        if (fromIndex < 0 || toIndex < 0)
         {
             return TreeOperationResult.RejectedResult;
         }
 
-        return TreeOperationResult.From(_state.ReplaceSelection(range.Select(n => n.Id)));
+        var start = Math.Min(fromIndex, toIndex);
+        var end = Math.Max(fromIndex, toIndex);
+        var ids = visible
+            .Skip(start)
+            .Take(end - start + 1)
+            .Where(node => !node.IsDisabled)
+            .Select(node => node.Id);
+
+        return TreeOperationResult.From(_state.ReplaceSelection(ids));
     }
 
     /// <summary>清除指定子树内的选中节点。</summary>
@@ -479,18 +520,20 @@ public sealed class TreeController
             return TreeOperationResult.RejectedResult;
         }
 
-        var changed = false;
-        foreach (var node in EnumerateVisibleSubtree(root))
+        var candidates = EnumerateVisibleSubtree(root)
+            .Where(node => !(excludeSelf && node == root) && !node.IsDisabled)
+            .ToArray();
+        if (_selectionMode == TreeSelectionMode.Single && candidates.Length > 1)
         {
-            if (excludeSelf && node == root)
-            {
-                continue;
-            }
+            return TreeOperationResult.RejectedResult;
+        }
 
-            if (!node.IsDisabled)
-            {
-                changed |= _state.AddToSelection(node.Id);
-            }
+        var changed = false;
+        foreach (var node in candidates)
+        {
+            changed |= _selectionMode == TreeSelectionMode.Single
+                ? _state.Select(node.Id)
+                : _state.AddToSelection(node.Id);
         }
 
         return TreeOperationResult.From(changed);
@@ -567,9 +610,9 @@ public sealed class TreeController
             return false;
         }
 
-        var nodeList = EnumerateSubtree(node1.Root).ToList();
-        int index1 = nodeList.IndexOf(node1);
-        int index2 = nodeList.IndexOf(node2);
+        var nodeList = EnumerateVisibleSubtree(node1.Root).ToList();
+        int index1 = IndexOfReference(nodeList, node1);
+        int index2 = IndexOfReference(nodeList, node2);
         if (index1 == -1 || index2 == -1)
         {
             return false;
@@ -577,15 +620,7 @@ public sealed class TreeController
 
         int start = Math.Min(index1, index2);
         int end = Math.Max(index1, index2);
-        for (int i = start; i <= end; i++)
-        {
-            if (nodeList[i].Parent?.IsExpanded == false)
-            {
-                continue;
-            }
-
-            result.Add(nodeList[i]);
-        }
+        result.AddRange(nodeList.Skip(start).Take(end - start + 1));
 
         return true;
     }
@@ -664,6 +699,19 @@ public sealed class TreeController
 
     private IEnumerable<TreeNode> EnumerateNodes(TreeNode? root)
         => root is null ? _roots.SelectMany(EnumerateSubtree) : EnumerateSubtree(root);
+
+    private static int IndexOfReference(IReadOnlyList<TreeNode> nodes, TreeNode target)
+    {
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            if (ReferenceEquals(nodes[i], target))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     /// <summary>节点是否属于当前 Controller（索引中按 Id 命中且为同一实例）。</summary>
     private bool IsOwnedNode(TreeNode? node)

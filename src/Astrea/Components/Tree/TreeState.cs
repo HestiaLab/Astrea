@@ -12,7 +12,7 @@ public sealed class TreeState
     private long _revision;
 
     /// <summary>选中节点的稳定 ID 集合。</summary>
-    public IReadOnlySet<string> SelectedIds => _selectedIds;
+    public IReadOnlySet<string> SelectedIds => new HashSet<string>(_selectedIds);
 
     /// <summary>当前焦点节点稳定 ID（全树唯一，可能为 null）。</summary>
     public string? FocusedId => _focusedId;
