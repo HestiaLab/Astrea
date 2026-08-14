@@ -28,7 +28,7 @@ Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数
 | Basic | Button、Divider、Label |
 | Form | Input、Select |
 | Feedback | Alert、Modal（对话框） |
-| Data Display | Table、Tree、Progress |
+| Data Display | Table、Tree、Progress、ResourceTable |
 
 ### 1.2.2 范围外
 
@@ -80,7 +80,7 @@ Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数
 - **REQ**: Requirement（需求）
 - **F**: Functional（功能需求）
 - **NF**: Non-Functional（非功能需求）
-- **XXX**: 三位数字顺序号（F: 001~089；NF: 001~012）。新增需求沿用末尾编号并归入对应组件章节，因此正文中的物理顺序不要求与编号顺序一致
+- **XXX**: 三位数字顺序号（F: 001~097；NF: 001~012）。新增需求沿用末尾编号并归入对应组件章节，因此正文中的物理顺序不要求与编号顺序一致
 
 ### 1.4.2 优先级定义
 
@@ -3348,6 +3348,246 @@ Then 应用只收到行操作通知且选择状态不因该操作改变
 
 ---
 
+## 3.12 ResourceTable（资源表）
+
+> ResourceTable 是与 Table（§3.11）并行存在的资源表组件：以列定义 + 应用模板表体为核心，提供列宽拖拽、工具栏操作与撤销重做按钮。列宽拖拽是 ResourceTable 的专属能力，不属于 Table 的延期范围。
+
+```
+REQ-F-090 🔴 [Actor: Application Developer]
+
+Title
+ResourceTable 列定义与表体模板
+
+Description
+应用开发者必须能够为 ResourceTable 提供列定义与表体模板。每列可声明标题、宽度、稳定标识、最小拖拽宽度与是否允许拖拽；表体内容由应用提供的模板渲染。ResourceTable 必须按列定义顺序渲染表头。
+
+Source
+ResourceTable 展示需求（源自 UA_Modeler ResourceTableBase 组件经验）
+
+Acceptance Criteria
+
+AC1：列定义渲染
+
+Given 应用提供多列定义
+When ResourceTable 显示
+Then 表头按定义顺序显示对应标题
+
+AC2：表体模板
+
+Given 应用提供表体模板
+When ResourceTable 显示
+Then 表体区域按应用模板渲染且不修改模板内容
+
+AC3：列级配置
+
+Given 应用为列声明宽度、稳定标识、最小拖拽宽度或禁用拖拽
+When ResourceTable 显示
+Then 列宽与拖拽行为与声明一致且拖拽结束通知携带该列稳定标识
+```
+
+```
+REQ-F-091 🟡 [Actor: End User]
+
+Title
+ResourceTable 列宽拖拽
+
+Description
+应用启用列宽拖拽后，终端用户必须能够拖动列边界调整列宽。调整过程中相邻列宽度同步变化且总宽度守恒；每列宽度不得小于其最小拖拽宽度。最后一列不提供拖拽手柄。
+
+Source
+ResourceTable 列宽调整需求（源自 UA_Modeler ResourceTable.ts 经验）
+
+Acceptance Criteria
+
+AC1：拖拽调整
+
+Given ResourceTable 已启用列宽拖拽且列具有拖拽手柄
+When 终端用户拖动列边界
+Then 该列与相邻列宽度随拖动变化且表头与数据列保持对齐
+
+AC2：最小宽度约束
+
+Given 某列声明了最小拖拽宽度
+When 终端用户将列宽拖至低于该值
+Then 该列宽度停在最小拖拽宽度且相邻列不再继续变窄
+
+AC3：总宽守恒
+
+Given 终端用户正在拖动列边界
+When 拖动结束
+Then 拖动列与相邻列宽度之和与拖动前一致
+
+AC4：末列无手柄
+
+Given ResourceTable 显示多列
+When 终端用户观察最后一列
+Then 最后一列没有拖拽手柄且不能通过拖拽改变其宽度
+```
+
+```
+REQ-F-092 🟡 [Actor: Application Developer]
+
+Title
+ResourceTable 列宽拖拽结束通知
+
+Description
+应用启用列宽拖拽并订阅通知后，终端用户完成一次列宽拖拽时应用必须收到一次通知，通知携带列索引、列稳定标识与最终宽度。未订阅时组件行为不受影响。
+
+Source
+ResourceTable 列宽持久化需求（源自 UA_Modeler OnColumnResized 设计）
+
+Acceptance Criteria
+
+AC1：拖拽结束通知
+
+Given 应用订阅列宽拖拽结束通知且终端用户完成一次拖拽
+When 拖拽结束
+Then 应用收到一次通知且携带该列索引、稳定标识与最终宽度
+
+AC2：无订阅者
+
+Given 应用未订阅列宽拖拽结束通知
+When 终端用户完成一次拖拽
+Then 组件不产生错误且列宽仍正确更新
+```
+
+```
+REQ-F-093 🟡 [Actor: Application Developer]
+
+Title
+ResourceTable 工具栏操作
+
+Description
+应用可以启用 ResourceTable 工具栏的添加、删除、上移与下移按钮，并为每个按钮绑定操作通知。按钮被触发时应用必须收到对应通知；应用可以隐藏整个工具栏按钮组。
+
+Source
+ResourceTable 行操作需求（源自 UA_Modeler ResourceTableBase 工具栏）
+
+Acceptance Criteria
+
+AC1：按钮通知
+
+Given 应用启用工具栏并绑定操作通知
+When 终端用户点击添加、删除、上移或下移按钮
+Then 应用收到与按钮对应的一次通知
+
+AC2：隐藏按钮组
+
+Given 应用隐藏工具栏按钮组
+When ResourceTable 显示
+Then 不渲染添加、删除、上移与下移按钮
+```
+
+```
+REQ-F-094 🟡 [Actor: Application Developer]
+
+Title
+ResourceTable 撤销重做按钮
+
+Description
+应用可以启用 ResourceTable 工具栏的撤销与重做按钮，并通过状态标志控制按钮禁用态。按钮被触发时应用必须收到对应通知；未启用时按钮不渲染。
+
+Source
+ResourceTable 撤销重做需求（源自 UA_Modeler ShowRedoButton 设计）
+
+Acceptance Criteria
+
+AC1：按钮通知与禁用态
+
+Given 应用启用撤销重做按钮并提供禁用标志
+When ResourceTable 显示且终端用户点击按钮
+Then 按钮禁用态与应用提供标志一致，可点击时应用收到对应通知
+
+AC2：未启用
+
+Given 应用未启用撤销重做按钮
+When ResourceTable 显示
+Then 不渲染撤销与重做按钮
+```
+
+```
+REQ-F-095 🟡 [Actor: Keyboard User]
+
+Title
+ResourceTable 键盘操作
+
+Description
+ResourceTable 必须允许应用接收容器上的键盘事件，使应用可以实现方向键导航等键盘操作。组件不得吞掉已绑定到应用的键盘事件。
+
+Source
+ResourceTable 键盘导航需求（源自 UA_Modeler ResourceTableBase 键盘支持）
+
+Acceptance Criteria
+
+AC1：键盘事件转发
+
+Given 应用为 ResourceTable 绑定键盘事件回调
+When 终端用户在组件容器内按下按键
+Then 应用收到对应的键盘事件
+
+AC2：未绑定
+
+Given 应用未绑定键盘事件回调
+When 终端用户在组件容器内按下按键
+Then 组件不产生错误
+```
+
+```
+REQ-F-096 🔴 [Actor: Application Developer]
+
+Title
+ResourceTable 空列集合
+
+Description
+应用向 ResourceTable 提供空列集合或未提供列定义时，组件必须正常渲染，不产生未处理错误，且不渲染误导性的表头列。
+
+Source
+ResourceTable 边界行为需求（源自 UA_Modeler Columns 空集合修复）
+
+Acceptance Criteria
+
+AC1：空列集合
+
+Given 应用提供空列集合
+When ResourceTable 显示
+Then 组件正常渲染且不产生未处理错误
+
+AC2：表体仍渲染
+
+Given 应用提供空列集合与表体模板
+When ResourceTable 显示
+Then 表体模板仍按应用提供内容渲染
+```
+
+```
+REQ-F-097 🟢 [Actor: Application Developer]
+
+Title
+ResourceTable 图标定制
+
+Description
+应用可以覆盖 ResourceTable 工具栏按钮的默认图标。未提供自定义图标时组件必须显示内置图标且不依赖任何外部图标库。
+
+Source
+ResourceTable 图标定制需求（源自 UA_Modeler 自包含 SVG 图标设计）
+
+Acceptance Criteria
+
+AC1：默认图标
+
+Given 应用未提供自定义图标
+When ResourceTable 显示工具栏
+Then 按钮显示内置图标且不依赖外部图标库资源
+
+AC2：自定义图标
+
+Given 应用为某按钮提供自定义图标内容
+When ResourceTable 显示工具栏
+Then 该按钮显示应用提供的图标内容
+```
+
+---
+
 # 4 非功能需求
 
 ```
@@ -3754,10 +3994,10 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 
 | 优先级 | 数量 |
 |:---:|:---:|
-| 🔴 P0 | 54 |
-| 🟡 P1 | 34 |
-| 🟢 P2 | 13 |
-| 合计 | 101 |
+| 🔴 P0 | 56 |
+| 🟡 P1 | 39 |
+| 🟢 P2 | 14 |
+| 合计 | 109 |
 
 ## 5.2 按章节
 
@@ -3774,8 +4014,9 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | §3.9 Select | REQ-F-053 ~ 060、075、083 | 10 |
 | §3.10 Tree | REQ-F-061 ~ 066、077、086 ~ 089 | 11 |
 | §3.11 Table | REQ-F-067 ~ 074、078、079、082、084、085 | 13 |
+| §3.12 ResourceTable | REQ-F-090 ~ 097 | 8 |
 | §4 NFR | REQ-NF-001 ~ 012 | 12 |
-| 合计 | | 101 |
+| 合计 | | 109 |
 
 ---
 
@@ -3925,6 +4166,19 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | REQ-F-084 | 🟢 | Application Developer | Table 筛选 |
 | REQ-F-085 | 🟢 | End User | Table 行选择 |
 
+### §3.12 ResourceTable（资源表）
+
+| 编号 | 优先级 | Actor | 标题 |
+| --- |:---:| --- | --- |
+| REQ-F-090 | 🔴 | Application Developer | ResourceTable 列定义与表体模板 |
+| REQ-F-091 | 🟡 | End User | ResourceTable 列宽拖拽 |
+| REQ-F-092 | 🟡 | Application Developer | ResourceTable 列宽拖拽结束通知 |
+| REQ-F-093 | 🟡 | Application Developer | ResourceTable 工具栏操作 |
+| REQ-F-094 | 🟡 | Application Developer | ResourceTable 撤销重做按钮 |
+| REQ-F-095 | 🟡 | Keyboard User | ResourceTable 键盘操作 |
+| REQ-F-096 | 🔴 | Application Developer | ResourceTable 空列集合 |
+| REQ-F-097 | 🟢 | Application Developer | ResourceTable 图标定制 |
+
 ### §4 非功能需求
 
 | 编号 | 优先级 | Actor | 标题 |
@@ -3971,6 +4225,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | 2026-08-03 | **v0.2.0 基线修订**: 目标框架改为 .NET 6.0；明确 SRS 仅规范用户可观察行为与非功能需求；修正状态、表单、键盘、可访问性、边界和延期范围；新增托管兼容、安全、可靠性与公共行为兼容要求 | Ada |
 | 2026-08-03 | **v0.3.0 组件边界补充**: 补充 Alert 动态更新、Divider 装饰语义、Input 清空与输入路径、Select 选项值唯一性与单项禁用、Progress 不确定状态、Tree 动态焦点恢复、Table 数据状态与宽内容访问；将 Button、Modal、Table 排序、筛选和行选择分别定义为延期需求 | Ada |
 | 2026-08-13 | **v0.4.0 Tree 全功能扩充**: Tree 新增多选（REQ-F-086）、拖拽重排（REQ-F-087）、节点编辑（REQ-F-088）、右键通知（REQ-F-089），Tree 定位为全功能树 | Ada |
+| 2026-08-14 | **v0.5.0 ResourceTable 新增**: 新增 ResourceTable 组件（REQ-F-090 ~ 097），提供列定义与表体模板、列宽拖拽、拖拽结束通知、工具栏操作、撤销重做按钮、键盘操作、空列集合与图标定制；编号范围扩展为 F: 001~097 | Ada |
 
 ---
 
