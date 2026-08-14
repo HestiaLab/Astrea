@@ -5,12 +5,46 @@ namespace Astrea.Components.Tree.Tests;
 [TestClass]
 public class TreeControllerCommandTests
 {
+    [TestMethod]
+    public void SingleMode_AllPublicSelectionCommandsPreserveAtMostOneSelection()
+    {
+        var root = new TreeNode("root", id: "root");
+        var first = new TreeNode("first", id: "first");
+        var second = new TreeNode("second", id: "second");
+        root.AddChildren(new[] { first, second });
+        root.IsExpanded = true;
+        var controller = new TreeController(new[] { root }, TreeSelectionMode.Single);
+
+        Assert.IsTrue(controller.AddToSelection(first).Changed);
+        Assert.IsTrue(controller.AddToSelection(second).Changed);
+        CollectionAssert.AreEqual(new[] { second.Id }, controller.SelectedIds.ToArray());
+        Assert.IsTrue(controller.ReplaceSelection(new[] { first, second }).Rejected);
+        Assert.IsTrue(controller.SelectRange(first, second).Rejected);
+        Assert.IsTrue(controller.SelectAll(root, excludeSelf: true).Rejected);
+        Assert.AreEqual(1, controller.SelectedIds.Count);
+    }
+
     private static (TreeController Controller, TreeNode Owned, TreeNode External) Build()
     {
         var owned = new TreeNode("owned", id: "owned");
         var external = new TreeNode("external", id: "external");
         var controller = new TreeController(new[] { owned });
         return (controller, owned, external);
+    }
+
+    [TestMethod]
+    public void SelectedIds_MutableCastCannotBypassControllerValidation()
+    {
+        var (controller, owned, _) = Build();
+        controller.Select(owned);
+
+        if (controller.SelectedIds is ISet<string> mutable)
+        {
+            mutable.Add("injected");
+        }
+
+        Assert.IsFalse(controller.SelectedIds.Contains("injected"));
+        CollectionAssert.AreEqual(new[] { "owned" }, controller.SelectedIds.ToArray());
     }
 
     [TestMethod]

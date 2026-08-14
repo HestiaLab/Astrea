@@ -184,17 +184,9 @@ public class TreeControllerSelectionTests
     }
 
     [TestMethod]
-    public void NodeFacade_SetFocus_DelegatesToController()
+    public void NodeFacade_SetFocus_IsNotPublicMutationPath()
     {
-        var root = new TreeNode("root");
-        var child = new TreeNode("child");
-        root.Add(child);
-        var controller = new TreeController(new[] { root });
-
-        child.SetFocus();
-
-        Assert.IsTrue(child.IsFocused);
-        Assert.AreSame(child, controller.FocusedNode);
+        Assert.IsNull(typeof(TreeNode).GetMethod("SetFocus", Type.EmptyTypes));
     }
 
     [TestMethod]
@@ -270,6 +262,58 @@ public class TreeControllerDropTests
 [TestClass]
 public class TreeControllerRangeTests
 {
+    [TestMethod]
+    public void SelectRange_AcrossRoots_UsesControllerVisibleOrder()
+    {
+        var firstRoot = new TreeNode("first-root", id: "r1") { IsExpanded = true };
+        var firstChild = new TreeNode("first-child", id: "a");
+        firstRoot.Add(firstChild);
+        var secondRoot = new TreeNode("second-root", id: "r2") { IsExpanded = true };
+        var secondChild = new TreeNode("second-child", id: "b");
+        secondRoot.Add(secondChild);
+        var controller = new TreeController(new[] { firstRoot, secondRoot });
+
+        var result = controller.SelectRange(firstChild, secondChild);
+
+        Assert.AreEqual(TreeOperationStatus.Changed, result.Status);
+        CollectionAssert.AreEqual(
+            new[] { firstChild, secondRoot, secondChild },
+            controller.GetSelectedNodes().ToArray());
+    }
+
+    [TestMethod]
+    public void SelectRange_DisabledEndpoint_RejectsAtomically()
+    {
+        var root = new TreeNode("root") { IsExpanded = true };
+        var a = new TreeNode("a");
+        var b = new TreeNode("b") { IsDisabled = true };
+        root.AddChildren(new[] { a, b });
+        var controller = new TreeController(new[] { root });
+        controller.Select(a);
+
+        var result = controller.SelectRange(a, b);
+
+        Assert.AreEqual(TreeOperationStatus.Rejected, result.Status);
+        CollectionAssert.AreEqual(new[] { a }, controller.GetSelectedNodes().ToArray());
+    }
+
+    [TestMethod]
+    public void SelectRange_DisabledIntermediateNode_SkipsDisabledNode()
+    {
+        var root = new TreeNode("root") { IsExpanded = true };
+        var a = new TreeNode("a");
+        var disabled = new TreeNode("disabled") { IsDisabled = true };
+        var c = new TreeNode("c");
+        root.AddChildren(new[] { a, disabled, c });
+        var controller = new TreeController(new[] { root });
+
+        var result = controller.SelectRange(a, c);
+
+        Assert.AreEqual(TreeOperationStatus.Changed, result.Status);
+        CollectionAssert.AreEqual(new[] { a, c }, controller.GetSelectedNodes().ToArray());
+        Assert.IsFalse(disabled.IsSelected);
+    }
+
     [TestMethod]
     public void GetNodesBetween_ReturnsRangeInOrder()
     {

@@ -6,6 +6,21 @@ namespace Astrea.Components.Tree.Tests;
 public class TreeStateTests
 {
     [TestMethod]
+    public void SelectedIds_MutableCastCannotChangeInternalState()
+    {
+        var state = new TreeState();
+        state.Select("a");
+
+        if (state.SelectedIds is ISet<string> mutable)
+        {
+            mutable.Add("injected");
+        }
+
+        Assert.IsFalse(state.IsSelected("injected"));
+        CollectionAssert.AreEquivalent(new[] { "a" }, state.SelectedIds.ToArray());
+    }
+
+    [TestMethod]
     public void Select_SetsSingleIdSelected()
     {
         var state = new TreeState();

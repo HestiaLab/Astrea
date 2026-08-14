@@ -23,6 +23,16 @@ public class TreeControllerValidationTests
     }
 
     [TestMethod]
+    public void Constructor_NodeWithExternalParentPassedAsRoot_Throws()
+    {
+        var externalParent = new TreeNode("external");
+        var proposedRoot = new TreeNode("proposed-root");
+        externalParent.Add(proposedRoot);
+
+        Assert.ThrowsException<TreeStructureException>(() => new TreeController(new[] { proposedRoot }));
+    }
+
+    [TestMethod]
     public void Refresh_ValidationFailure_LeavesPreviousStateIntact()
     {
         var root = new TreeNode("root", id: "root") { IsExpanded = true };
