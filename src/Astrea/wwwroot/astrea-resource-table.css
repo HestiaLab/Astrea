@@ -1,0 +1,191 @@
+/* ============ Astrea ResourceTable 样式 ============ */
+/* 类名前缀 ast-rt-，避免与其他组件/宿主样式冲突（REQ-F-005 样式影响范围）。 */
+
+/* ------------ 容器 ------------ */
+.ast-resource-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding-left: 5px;
+}
+
+/* ------------ 工具栏 ------------ */
+.ast-rt-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+    white-space: nowrap;
+    width: 100%;
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+
+.ast-rt-btn-group {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 1;
+    flex-basis: auto;
+    align-items: center;
+    min-width: fit-content;
+}
+
+.ast-rt-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff !important;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    color: #333;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.ast-rt-btn:hover {
+    background-color: #e0eef9;
+    border-color: #268cda;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.ast-rt-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.ast-rt-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.ast-rt-divider {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 0;
+    background-color: #ddd;
+}
+
+/* 内联 SVG 图标（stroke=currentColor，跟随按钮颜色） */
+.ast-rt-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+    pointer-events: none;
+}
+
+/* ------------ 表格滚动区 ------------ */
+.ast-rt-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border: 1px solid #989ca4;
+    background-color: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* 禁止表格中文本选中 */
+.ast-rt-no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* ------------ 固定表头表格 ------------ */
+.ast-rt-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.ast-rt-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #f5f5f5;
+    z-index: 1;
+    box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
+}
+
+.ast-rt-table thead tr {
+    height: 28px;
+    line-height: 28px;
+}
+
+.ast-rt-table th,
+.ast-rt-table td {
+    border: 1px solid #ddd;
+    text-align: center;
+    font-family: sans-serif;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.ast-rt-table th {
+    font-weight: 600;
+    color: #333;
+    border-top: none !important;
+    position: relative;
+}
+
+.ast-rt-table tbody td {
+    position: relative;
+    height: 20px;
+    line-height: 20px;
+}
+
+/* 应用在行上添加的选中样式 */
+.ast-rt-table .ast-rt-row-selected {
+    background-color: #c3c3ff !important;
+}
+
+/* ------------ 可调整列宽 ------------ */
+.ast-rt-th {
+    position: relative;
+    min-width: 50px;
+}
+
+.ast-rt-th-content {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 16px;
+}
+
+.ast-rt-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 2;
+    transform: translateX(50%);
+}
+
+.ast-rt-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    right: 1px;
+    width: 2px;
+}
+
+/* 拖动时的视觉反馈 */
+.ast-rt-th.ast-rt-resizing {
+    background-color: #f8f9fa;
+}

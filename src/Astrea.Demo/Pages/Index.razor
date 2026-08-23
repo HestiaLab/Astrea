@@ -1,6 +1,7 @@
 @page "/"
 @using Microsoft.AspNetCore.Components
 @using Astrea.Components.Tree
+@using Astrea.Components.ResourceTable
 
 <PageTitle>Astrea 组件库演示</PageTitle>
 
@@ -244,6 +245,226 @@
         if (_log.Count > 20)
         {
             _log.RemoveAt(_log.Count - 1);
+        }
+    }
+}
+
+<hr />
+
+<h2>Astrea ResourceTable 演示</h2>
+<p>
+    点击行选中（高亮），工具栏 + − ↑ ↓ 增删移选中行，撤销/重做真实生效（快照栈），
+    键盘 ↑/↓ 移动选中，拖动列边界调整列宽（相邻列补偿、最小宽度约束）。
+</p>
+
+<div class="demo-panel" style="height: 360px;">
+    <ResourceTable Columns="_rtColumns"
+                   TableBody="@RenderRows"
+                   ShowRedoButton="true"
+                   CanUndo="_rtUndoStack.Count > 0"
+                   CanRedo="_rtRedoStack.Count > 0"
+                   OnAddClicked="AddRow"
+                   OnRemoveClicked="RemoveRow"
+                   OnMoveUpClicked="MoveUp"
+                   OnMoveDownClicked="MoveDown"
+                   OnUndoClicked="Undo"
+                   OnRedoClicked="Redo"
+                   OnColumnResized="HandleColumnResized"
+                   OnKeyDown="HandleRtKeyDown">
+    </ResourceTable>
+</div>
+
+<div class="demo-panel">
+    <h3>ResourceTable 事件日志</h3>
+    <div class="demo-log">
+        @foreach (var line in _rtLog)
+        {
+            <div>@line</div>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly List<TableColumn> _rtColumns = new()
+    {
+        new("ID") { Key = "id", Width = "60px", MinWidth = 40 },
+        new("名称") { Key = "name", Width = "160px", MinWidth = 60 },
+        new("类型") { Key = "type", Width = "100px" },
+        new("备注") { Key = "note" },
+    };
+
+    private readonly List<ResourceRow> _rtRows = new()
+    {
+        new(1, "颜色表", "ColorTable", "资源颜色定义"),
+        new(2, "字体表", "FontTable", "资源字体定义"),
+        new(3, "图片表", "PictureTable", "资源图片定义"),
+    };
+
+    private readonly List<string> _rtLog = new();
+
+    private readonly Stack<ResourceSnapshot> _rtUndoStack = new();
+    private readonly Stack<ResourceSnapshot> _rtRedoStack = new();
+
+    private int? _rtSelectedIndex;
+    private int _rtNextId = 4;
+
+    private sealed record ResourceRow(int Id, string Name, string Type, string Note);
+    private sealed record ResourceSnapshot(List<ResourceRow> Rows, int? SelectedIndex);
+
+    private RenderFragment RenderRows => builder =>
+    {
+        for (var i = 0; i < _rtRows.Count; i++)
+        {
+            var row = _rtRows[i];
+            var index = i;
+
+            builder.OpenElement(0, "tr");
+            if (index == _rtSelectedIndex)
+            {
+                builder.AddAttribute(1, "class", "ast-rt-row-selected");
+            }
+
+            builder.AddAttribute(2, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => SelectRow(index)));
+
+            builder.OpenElement(3, "td");
+            builder.AddContent(4, row.Id);
+            builder.CloseElement();
+            builder.OpenElement(5, "td");
+            builder.AddContent(6, row.Name);
+            builder.CloseElement();
+            builder.OpenElement(7, "td");
+            builder.AddContent(8, row.Type);
+            builder.CloseElement();
+            builder.OpenElement(9, "td");
+            builder.AddContent(10, row.Note);
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+    };
+
+    private void SelectRow(int index)
+    {
+        _rtSelectedIndex = index;
+        RtLog($"选中：{_rtRows[index].Name}");
+    }
+
+    private void AddRow()
+    {
+        Snapshot();
+        var id = _rtNextId++;
+        var row = new ResourceRow(id, $"资源 {id}", "NewTable", "新建资源");
+        _rtRows.Add(row);
+        _rtSelectedIndex = _rtRows.Count - 1;
+        RtLog($"添加：{row.Name}（已选中）");
+    }
+
+    private void RemoveRow()
+    {
+        if (_rtSelectedIndex is not int index || index >= _rtRows.Count)
+        {
+            RtLog("未选中行，无法删除");
+            return;
+        }
+
+        Snapshot();
+        var removed = _rtRows[index];
+        _rtRows.RemoveAt(index);
+        _rtSelectedIndex = _rtRows.Count == 0 ? null : Math.Min(index, _rtRows.Count - 1);
+        RtLog($"删除：{removed.Name}");
+    }
+
+    private void MoveUp()
+    {
+        if (_rtSelectedIndex is not int index || index <= 0)
+        {
+            RtLog("无法上移（未选中或已在顶部）");
+            return;
+        }
+
+        Snapshot();
+        (_rtRows[index - 1], _rtRows[index]) = (_rtRows[index], _rtRows[index - 1]);
+        _rtSelectedIndex = index - 1;
+        RtLog($"上移：{_rtRows[index - 1].Name}");
+    }
+
+    private void MoveDown()
+    {
+        if (_rtSelectedIndex is not int index || index >= _rtRows.Count - 1)
+        {
+            RtLog("无法下移（未选中或已在底部）");
+            return;
+        }
+
+        Snapshot();
+        (_rtRows[index], _rtRows[index + 1]) = (_rtRows[index + 1], _rtRows[index]);
+        _rtSelectedIndex = index + 1;
+        RtLog($"下移：{_rtRows[index + 1].Name}");
+    }
+
+    private void Undo()
+    {
+        if (_rtUndoStack.Count == 0)
+        {
+            RtLog("无可撤销");
+            return;
+        }
+
+        _rtRedoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
+        Restore(_rtUndoStack.Pop());
+        RtLog("撤销");
+    }
+
+    private void Redo()
+    {
+        if (_rtRedoStack.Count == 0)
+        {
+            RtLog("无可重做");
+            return;
+        }
+
+        _rtUndoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
+        Restore(_rtRedoStack.Pop());
+        RtLog("重做");
+    }
+
+    private void Snapshot()
+    {
+        _rtUndoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
+        _rtRedoStack.Clear();
+    }
+
+    private void Restore(ResourceSnapshot snapshot)
+    {
+        _rtRows.Clear();
+        _rtRows.AddRange(snapshot.Rows);
+        _rtSelectedIndex = snapshot.SelectedIndex;
+    }
+
+    private void RtLog(string message)
+    {
+        _rtLog.Insert(0, message);
+        if (_rtLog.Count > 20)
+        {
+            _rtLog.RemoveAt(_rtLog.Count - 1);
+        }
+    }
+
+    private void HandleColumnResized(ColumnResizedEventArgs args)
+        => RtLog($"列宽调整：列 {args.ColumnIndex}（{(args.ColumnKey ?? "-")}）→ {args.NewWidth:F0}px");
+
+    private void HandleRtKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "ArrowUp")
+        {
+            MoveUp();
+        }
+        else if (args.Key == "ArrowDown")
+        {
+            MoveDown();
+        }
+        else
+        {
+            RtLog($"键盘：{args.Key}");
         }
     }
 }
