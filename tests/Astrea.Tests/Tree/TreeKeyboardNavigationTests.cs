@@ -7,7 +7,7 @@ public class TreeKeyboardNavigationTests
 {
     private static TreeController Build(out TreeNode root, out TreeNode a, out TreeNode b)
     {
-        root = new TreeNode("root") { IsVisible = true, IsExpanded = true };
+        root = new TreeNode("root") { IsExpanded = true };
         a = new TreeNode("a") { IsExpanded = true };
         b = new TreeNode("b");
         root.Add(a);
@@ -24,7 +24,7 @@ public class TreeKeyboardNavigationTests
         var result = TreeKeyboardNavigation.Navigate(controller, "ArrowDown");
 
         Assert.IsTrue(result.Changed);
-        Assert.AreSame(root, controller.Selection.FocusedNode);
+        Assert.AreSame(root, controller.FocusedNode);
     }
 
     [TestMethod]
@@ -36,7 +36,7 @@ public class TreeKeyboardNavigationTests
         var result = TreeKeyboardNavigation.Navigate(controller, "ArrowDown");
 
         Assert.IsTrue(result.Changed);
-        Assert.AreSame(a, controller.Selection.FocusedNode);
+        Assert.AreSame(a, controller.FocusedNode);
     }
 
     [TestMethod]
@@ -47,7 +47,7 @@ public class TreeKeyboardNavigationTests
 
         TreeKeyboardNavigation.Navigate(controller, "ArrowUp");
 
-        Assert.AreSame(root, controller.Selection.FocusedNode);
+        Assert.AreSame(root, controller.FocusedNode);
     }
 
     [TestMethod]
@@ -58,7 +58,7 @@ public class TreeKeyboardNavigationTests
 
         TreeKeyboardNavigation.Navigate(controller, "Home");
 
-        Assert.AreSame(root, controller.Selection.FocusedNode);
+        Assert.AreSame(root, controller.FocusedNode);
     }
 
     [TestMethod]
@@ -68,13 +68,13 @@ public class TreeKeyboardNavigationTests
 
         TreeKeyboardNavigation.Navigate(controller, "End");
 
-        Assert.AreSame(b, controller.Selection.FocusedNode);
+        Assert.AreSame(b, controller.FocusedNode);
     }
 
     [TestMethod]
     public void ArrowRight_ExpandsCollapsedNode()
     {
-        var root = new TreeNode("root") { IsVisible = true };
+        var root = new TreeNode("root");
         root.Add(new TreeNode("child"));
         var controller = new TreeController(new[] { root });
         controller.SetFocus(root);
@@ -93,7 +93,7 @@ public class TreeKeyboardNavigationTests
 
         TreeKeyboardNavigation.Navigate(controller, "ArrowRight");
 
-        Assert.AreSame(a.Children[0], controller.Selection.FocusedNode);
+        Assert.AreSame(a.Children[0], controller.FocusedNode);
     }
 
     [TestMethod]
@@ -117,7 +117,7 @@ public class TreeKeyboardNavigationTests
 
         TreeKeyboardNavigation.Navigate(controller, "ArrowLeft");
 
-        Assert.AreSame(a, controller.Selection.FocusedNode);
+        Assert.AreSame(a, controller.FocusedNode);
     }
 
     [TestMethod]
@@ -135,7 +135,7 @@ public class TreeKeyboardNavigationTests
     [TestMethod]
     public void Space_DisabledNode_NoSelection()
     {
-        var root = new TreeNode("root") { IsVisible = true, IsDisabled = true };
+        var root = new TreeNode("root") { IsDisabled = true };
         var controller = new TreeController(new[] { root });
         controller.SetFocus(root);
 

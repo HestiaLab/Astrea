@@ -36,8 +36,14 @@ jobs:
       - name: Build
         run: dotnet build Astrea.sln --no-restore --configuration Release
 
+      - name: Install Playwright browsers
+        run: pwsh tests/Astrea.Tests/bin/Release/net6.0/playwright.ps1 install --with-deps chromium
+
       - name: Test
         run: dotnet test Astrea.sln --no-build --no-restore --configuration Release
+
+      - name: JS unit tests
+        run: node --test tests/Astrea.JsTests/astrea-tree.test.mjs
 
       - name: Audit NuGet vulnerabilities (fail on any)
         run: |

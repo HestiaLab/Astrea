@@ -5,12 +5,13 @@ namespace Astrea.Components.Tree;
 /// <summary>
 /// 树节点：数据 + 视图状态载体 + 结构导航。
 /// 不包含树级算法、选择缓存或业务耦合；这些由 <see cref="TreeController"/> 与
-/// <see cref="TreeSelection"/> 负责。
+/// <see cref="TreeState"/> 负责。
 /// </summary>
 public class TreeNode : IEnumerable<TreeNode>
 {
     private readonly List<TreeNode> _children = new();
     private string _cssClass = string.Empty;
+    private string _text = string.Empty;
 
     public TreeNode(string text, string? icon = null, object? bindData = null, string? id = null)
     {
@@ -19,9 +20,13 @@ public class TreeNode : IEnumerable<TreeNode>
             throw new ArgumentException("TreeNode text cannot be null or empty.", nameof(text));
         }
 
-        // 稳定身份：应用提供 id 时沿用（跨重建保留）；否则分配进程内唯一 id。
-        Id = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id;
-        Text = text;
+        // 稳定身份：应用提供 id 时沿用（跨重建保留）；未提供（null）时分配进程内唯一 id；显式空白 id 拒绝。
+        Id = id is null
+            ? Guid.NewGuid().ToString("N")
+            : string.IsNullOrWhiteSpace(id)
+                ? throw new ArgumentException("TreeNode id cannot be empty or whitespace.", nameof(id))
+                : id;
+        _text = text;
         Icon = icon;
         BindData = bindData;
     }
@@ -31,8 +36,20 @@ public class TreeNode : IEnumerable<TreeNode>
     /// <summary>节点稳定标识（应用提供或自动分配）。</summary>
     public string Id { get; }
 
-    /// <summary>节点显示文本。</summary>
-    public string Text { get; set; }
+    /// <summary>节点显示文本（拒绝空或空白）。</summary>
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException("TreeNode text cannot be null or empty.", nameof(value));
+            }
+
+            _text = value;
+        }
+    }
 
     /// <summary>绑定数据（领域对象，由消费方提供）。</summary>
     public object? BindData { get; set; }
@@ -176,6 +193,13 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public void Add(TreeNode child)
     {
+        if (child is null)
+        {
+            throw new ArgumentNullException(nameof(child));
+        }
+
+        GuardAgainstCycle(child);
+
         if (child.Parent == this)
         {
             return;
@@ -210,10 +234,17 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public void Insert(TreeNode child, int index)
     {
+        if (child is null)
+        {
+            throw new ArgumentNullException(nameof(child));
+        }
+
         if (index < 0 || index > _children.Count)
         {
             throw new ArgumentOutOfRangeException(nameof(index), "Index is out of range.");
         }
+
+        GuardAgainstCycle(child);
 
         if (child.Parent == this)
         {
@@ -241,7 +272,13 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public void InsertChildren(IEnumerable<TreeNode> children, int index)
     {
-        foreach (var node in children)
+        if (index < 0 || index > _children.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index), "Index is out of range.");
+        }
+
+        var nodes = MaterializeAndValidateChildrenForAttach(children);
+        foreach (var node in nodes)
         {
             Insert(node, index);
             index++;
@@ -250,12 +287,11 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public void AddChildren(IEnumerable<TreeNode> children)
     {
-        if (children is null)
-        {
-            throw new ArgumentNullException(nameof(children));
-        }
-
-        foreach (var node in children)
+        // Materialize before mutating: callers may pass a live Children view whose
+        // backing list changes as nodes are reparented. Validate the complete batch
+        // first so a later cycle/null does not leave an earlier node moved.
+        var nodes = MaterializeAndValidateChildrenForAttach(children);
+        foreach (var node in nodes)
         {
             Add(node);
         }
@@ -268,13 +304,44 @@ public class TreeNode : IEnumerable<TreeNode>
             throw new ArgumentNullException(nameof(children));
         }
 
-        foreach (var node in children)
+        // Snapshot a live Children view before Remove mutates its backing list.
+        foreach (var node in children.ToList())
         {
             Remove(node);
         }
     }
 
     private int IndexOf(TreeNode child) => _children.IndexOf(child);
+
+    private List<TreeNode> MaterializeAndValidateChildrenForAttach(IEnumerable<TreeNode> children)
+    {
+        if (children is null)
+        {
+            throw new ArgumentNullException(nameof(children));
+        }
+
+        var nodes = children.ToList();
+        foreach (var node in nodes)
+        {
+            if (node is null)
+            {
+                throw new ArgumentException("Children cannot contain null nodes.", nameof(children));
+            }
+
+            GuardAgainstCycle(node);
+        }
+
+        return nodes;
+    }
+
+    /// <summary>阻止把节点挂到自身或其自身后代之下，避免形成循环。</summary>
+    private void GuardAgainstCycle(TreeNode child)
+    {
+        if (ReferenceEquals(child, this) || this.IsDescendantOf(child))
+        {
+            throw new InvalidOperationException("Cannot attach a node to itself or to one of its own descendants; this would create a cycle.");
+        }
+    }
 
     #endregion
 
@@ -332,11 +399,11 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public bool IsExpanded { get; set; }
 
-    public bool IsVisible { get; set; }
+    /// <summary>选中状态（派生自所属 Controller 的状态，非权威；未绑定时为 false）。</summary>
+    public bool IsSelected => Controller?.IsSelected(Id) ?? false;
 
-    public bool IsSelected { get; internal set; }
-
-    public bool IsFocused { get; internal set; }
+    /// <summary>焦点状态（派生自所属 Controller 的状态，非权威；未绑定时为 false）。</summary>
+    public bool IsFocused => Controller?.IsFocused(Id) ?? false;
 
     public bool IsEditing { get; internal set; }
 
@@ -368,9 +435,6 @@ public class TreeNode : IEnumerable<TreeNode>
             ExpandedIcon = node.ExpandedIcon,
             CollapsedIcon = node.CollapsedIcon,
             IsExpanded = node.IsExpanded,
-            IsVisible = node.IsVisible,
-            IsSelected = node.IsSelected,
-            IsFocused = node.IsFocused,
             IsEditing = node.IsEditing,
             IsDisabled = node.IsDisabled,
             IsExpandIconDisable = node.IsExpandIconDisable,
@@ -393,19 +457,19 @@ public class TreeNode : IEnumerable<TreeNode>
     public IEnumerable<TreeNode> GetSelectedNodes() => Controller?.GetSelectedNodes() ?? Enumerable.Empty<TreeNode>();
 
     /// <summary>设置当前节点为焦点。</summary>
-    public void SetFocus() => Controller?.SetFocus(this);
+    internal void SetFocus() => Controller?.SetFocus(this);
 
     /// <summary>清除焦点。</summary>
-    public void UnFocus() => Controller?.ClearFocus();
+    internal void UnFocus() => Controller?.ClearFocus();
 
     /// <summary>清除当前节点及其后代的选中状态。</summary>
-    public void UnSelectAll() => Controller?.ClearSelectionSubtree(this);
+    internal void UnSelectAll() => Controller?.ClearSelectionSubtree(this);
 
     /// <summary>选中当前节点可见后代（排除自身）。</summary>
-    public void SelectAllExcludeSelf() => Controller?.SelectAll(this, excludeSelf: true);
+    internal void SelectAllExcludeSelf() => Controller?.SelectAll(this, excludeSelf: true);
 
     /// <summary>切换展开/折叠状态。</summary>
-    public void Toggle()
+    internal void Toggle()
     {
         if (IsExpandDisable)
         {
@@ -429,11 +493,11 @@ public class TreeNode : IEnumerable<TreeNode>
         }
     }
 
-    public void ExpandAll() => Controller?.ExpandAll(this);
+    internal void ExpandAll() => Controller?.ExpandAll(this);
 
-    public void CollapseAll() => Controller?.CollapseAll(this);
+    internal void CollapseAll() => Controller?.CollapseAll(this);
 
-    public void ExpandAllParents() => Controller?.ExpandAllParents(this);
+    internal void ExpandAllParents() => Controller?.ExpandAllParents(this);
 
     /// <summary>按稳定身份查找。</summary>
     public TreeNode? FindNode(string id) => Controller?.FindById(id);

@@ -72,8 +72,7 @@ public class TreeControllerEditVetoTests
     public void TryRename_BeforeRenameVeto_ReturnsFalse()
     {
         var node = new TreeNode("n");
-        var callbacks = new TreeCallbacks { BeforeRename = (n, v) => false };
-        var controller = new TreeController(new[] { node }, callbacks);
+        var controller = new TreeController(new[] { node }) { BeforeRename = (n, v) => false };
 
         Assert.IsFalse(controller.TryRename(node, "new"));
     }
@@ -91,8 +90,7 @@ public class TreeControllerEditVetoTests
     public void BeginEdit_BeforeEditNameVeto_ReturnsFalse()
     {
         var node = new TreeNode("n");
-        var callbacks = new TreeCallbacks { BeforeEditName = _ => false };
-        var controller = new TreeController(new[] { node }, callbacks);
+        var controller = new TreeController(new[] { node }) { BeforeEditName = _ => false };
 
         Assert.IsFalse(controller.BeginEdit(node));
         Assert.IsFalse(node.IsEditing);
@@ -188,7 +186,7 @@ public class TreeControllerFocusRestoreTests
     [TestMethod]
     public void Collapse_FocusInDescendant_MovesFocusToCollapsedNode()
     {
-        var root = new TreeNode("root") { IsExpanded = true, IsVisible = true };
+        var root = new TreeNode("root") { IsExpanded = true };
         var a = new TreeNode("a") { IsExpanded = true };
         root.Add(a);
         var b = new TreeNode("b");
@@ -205,7 +203,7 @@ public class TreeControllerFocusRestoreTests
     [TestMethod]
     public void Refresh_RemovedFocusNode_RestoresToNextSibling()
     {
-        var root = new TreeNode("root") { IsExpanded = true, IsVisible = true };
+        var root = new TreeNode("root") { IsExpanded = true };
         var a = new TreeNode("a", id: "a");
         var b = new TreeNode("b", id: "b");
         root.Add(a);
@@ -222,7 +220,7 @@ public class TreeControllerFocusRestoreTests
     [TestMethod]
     public void Refresh_RemovedFocusNode_LastChild_RestoresToPreviousSibling()
     {
-        var root = new TreeNode("root") { IsExpanded = true, IsVisible = true };
+        var root = new TreeNode("root") { IsExpanded = true };
         var a = new TreeNode("a", id: "a");
         var b = new TreeNode("b", id: "b");
         root.Add(a);
@@ -246,13 +244,13 @@ public class TreeControllerFocusRestoreTests
         roots.RemoveAt(0);
         controller.Refresh();
 
-        Assert.IsNull(controller.Selection.FocusedNode);
+        Assert.IsNull(controller.FocusedNode);
     }
 
     [TestMethod]
     public void Refresh_RemovedSelectedNode_ClearsSelection()
     {
-        var root = new TreeNode("root") { IsExpanded = true, IsVisible = true };
+        var root = new TreeNode("root") { IsExpanded = true };
         var a = new TreeNode("a", id: "a");
         root.Add(a);
         var controller = new TreeController(new[] { root });
@@ -264,6 +262,26 @@ public class TreeControllerFocusRestoreTests
         Assert.AreEqual(0, controller.GetSelectedNodes().Count);
         Assert.IsFalse(a.IsSelected);
     }
+
+    [TestMethod]
+    public void Refresh_FocusHiddenByExternalCollapse_RestoresToVisibleTarget()
+    {
+        var root = new TreeNode("root", id: "root") { IsExpanded = true };
+        var a = new TreeNode("a", id: "a") { IsExpanded = true };
+        root.Add(a);
+        var a1 = new TreeNode("a1", id: "a1");
+        a.Add(a1);
+        var controller = new TreeController(new[] { root });
+        controller.SetFocus(a1);
+
+        // 外部折叠含焦点的分支（不经过 Controller.Collapse），再 Refresh
+        a.IsExpanded = false;
+        controller.Refresh();
+
+        // 焦点不得停留在隐藏节点 a1 上，应恢复到可见目标
+        Assert.AreNotSame(a1, controller.FocusedNode);
+        Assert.AreSame(root, controller.FocusedNode);
+    }
 }
 
 [TestClass]
@@ -272,7 +290,7 @@ public class TreeControllerStateRestoreTests
     [TestMethod]
     public void RestoreState_RestoresExpandedSelectionAndFocusById()
     {
-        var oldRoot = new TreeNode("root", id: "r") { IsExpanded = true, IsVisible = true };
+        var oldRoot = new TreeNode("root", id: "r") { IsExpanded = true };
         var oldA = new TreeNode("a", id: "a") { IsExpanded = true };
         oldRoot.Add(oldA);
         oldA.Add(new TreeNode("a1", id: "a1"));
@@ -282,9 +300,9 @@ public class TreeControllerStateRestoreTests
 
         var selectedIds = oldController.GetSelectedNodes().Select(n => n.Id).ToHashSet();
         var expandedIds = oldController.Flatten().Where(n => n.IsExpanded).Select(n => n.Id).ToHashSet();
-        var focusId = oldController.Selection.FocusedNode!.Id;
+        var focusId = oldController.FocusedNode!.Id;
 
-        var newRoot = new TreeNode("root", id: "r") { IsVisible = true };
+        var newRoot = new TreeNode("root", id: "r");
         var newA = new TreeNode("a", id: "a");
         newRoot.Add(newA);
         newA.Add(new TreeNode("a1", id: "a1"));
@@ -301,13 +319,13 @@ public class TreeControllerStateRestoreTests
     [TestMethod]
     public void RestoreState_MissingIds_AreIgnored()
     {
-        var root = new TreeNode("root", id: "r") { IsVisible = true };
+        var root = new TreeNode("root", id: "r");
         root.Add(new TreeNode("a", id: "a"));
         var controller = new TreeController(new[] { root });
 
         controller.RestoreState(new[] { "missing" }, new[] { "missing" }, "missing");
 
         Assert.AreEqual(0, controller.GetSelectedNodes().Count);
-        Assert.IsNull(controller.Selection.FocusedNode);
+        Assert.IsNull(controller.FocusedNode);
     }
 }
