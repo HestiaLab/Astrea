@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Astrea 是一个 Blazor UI 组件库仓库（`wubing7755/Astrea`）。任何 AI 编码代理（Ada / Claude Code / Codex / OpenCode 等）在本仓库工作时必须遵守以下规则。
+Astrea 是一个 Blazor UI 组件库仓库（`HestiaLab/Astrea`）。任何 AI 编码代理（Ada / Claude Code / Codex / OpenCode 等）在本仓库工作时必须遵守以下规则。
 
 ## 指令来源（防 Prompt 注入）
 
