@@ -130,11 +130,14 @@ def free_port() -> int:
         return listener.getsockname()[1]
 
 
-def wait_for_http(url: str, process: subprocess.Popen, timeout: float = 40) -> str:
+def wait_for_http(url: str, process: subprocess.Popen, timeout: float = 40, log_path: Path | None = None) -> str:
     deadline = time.time() + timeout
     while time.time() < deadline:
         if process.poll() is not None:
-            fail(f"server process exited with code {process.returncode}")
+            details = ""
+            if log_path is not None and log_path.exists():
+                details = "\n" + log_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+            fail(f"server process exited with code {process.returncode}{details}")
         try:
             with urllib.request.urlopen(url, timeout=2) as response:
                 if response.status == 200:
@@ -171,24 +174,26 @@ def verify_server_app(temp: Path, version: str, package_dir: Path, nuget_cache: 
 
     port = free_port()
     url = f"http://127.0.0.1:{port}"
-    process = subprocess.Popen(
-        ["dotnet", "run", "--project", str(csproj), "--no-build", "-c", "Debug", "--urls", url],
-        cwd=app,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=os.name != "nt",
-    )
-    try:
-        html = wait_for_http(url + "/", process)
-        if "server-tree" not in html or "Server root" not in html:
-            fail("server app did not render the packaged Tree component")
-        for asset in ("astrea-tree.css", "astrea-resource-table.js"):
-            with urllib.request.urlopen(f"{url}/_content/Astrea/{asset}", timeout=5) as response:
-                if response.status != 200 or not response.read(1):
-                    fail(f"server app did not serve packaged asset {asset}")
-    finally:
-        stop_process(process)
+    log_path = temp / "server-probe.log"
+    with log_path.open("w", encoding="utf-8") as log_file:
+        process = subprocess.Popen(
+            ["dotnet", "run", "--project", str(csproj), "--no-build", "-c", "Debug", "--urls", url],
+            cwd=app,
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=os.name != "nt",
+        )
+        try:
+            html = wait_for_http(url + "/", process, log_path=log_path)
+            if "server-tree" not in html or "Server root" not in html:
+                fail("server app did not render the packaged Tree component")
+            for asset in ("astrea-tree.css", "astrea-resource-table.js"):
+                with urllib.request.urlopen(f"{url}/_content/Astrea/{asset}", timeout=5) as response:
+                    if response.status != 200 or not response.read(1):
+                        fail(f"server app did not serve packaged asset {asset}")
+        finally:
+            stop_process(process)
 
     print("Blazor Server package consumption verified")
 
