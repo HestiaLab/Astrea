@@ -144,4 +144,124 @@ public class TreeKeyboardNavigationTests
         Assert.IsFalse(root.IsSelected);
         Assert.IsFalse(result.SelectionChanged);
     }
+
+    [TestMethod]
+    public void Space_MultipleMode_TogglesFocusedNode()
+    {
+        var controller = Build(out _, out var a, out _);
+        controller.Select(a);
+        controller.SetFocus(a);
+
+        var deselect = TreeKeyboardNavigation.Navigate(controller, " ", multipleSelection: true);
+        Assert.IsFalse(a.IsSelected);
+        Assert.IsTrue(deselect.SelectionChanged);
+
+        var select = TreeKeyboardNavigation.Navigate(controller, " ", multipleSelection: true);
+        Assert.IsTrue(a.IsSelected);
+        Assert.IsTrue(select.SelectionChanged);
+    }
+
+    [TestMethod]
+    public void Space_MultipleMode_PreservesOtherSelections()
+    {
+        var controller = Build(out var root, out var a, out _);
+        controller.Select(root);
+        controller.SetFocus(a);
+
+        TreeKeyboardNavigation.Navigate(controller, " ", multipleSelection: true);
+
+        Assert.IsTrue(root.IsSelected);
+        Assert.IsTrue(a.IsSelected);
+    }
+
+    [TestMethod]
+    public void ArrowDown_ShiftMultiple_ExtendsRangeFromAnchor()
+    {
+        var controller = Build(out var root, out var a, out _);
+        var a1 = a.Children[0];
+        controller.SetFocus(root);
+
+        TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+        Assert.AreSame(a, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id }, controller.SelectedIds.ToArray());
+
+        TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+        Assert.AreSame(a1, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id, a1.Id }, controller.SelectedIds.ToArray());
+    }
+
+    [TestMethod]
+    public void ArrowUp_ShiftMultiple_ExtendsRangeBackwards()
+    {
+        var controller = Build(out var root, out var a, out var b);
+        var a1 = a.Children[0];
+        controller.SetFocus(b);
+
+        TreeKeyboardNavigation.Navigate(controller, "ArrowUp", multipleSelection: true, shiftKey: true, rangeAnchor: b);
+
+        Assert.AreSame(a1, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { a1.Id, b.Id }, controller.SelectedIds.ToArray());
+        Assert.IsFalse(root.IsSelected);
+    }
+
+    [TestMethod]
+    public void Home_ShiftMultiple_SelectsFromAnchorToFirstVisible()
+    {
+        var controller = Build(out var root, out var a, out var b);
+        var a1 = a.Children[0];
+        controller.SetFocus(b);
+
+        TreeKeyboardNavigation.Navigate(controller, "Home", multipleSelection: true, shiftKey: true, rangeAnchor: b);
+
+        Assert.AreSame(root, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id, a1.Id, b.Id }, controller.SelectedIds.ToArray());
+    }
+
+    [TestMethod]
+    public void End_ShiftMultiple_SelectsFromAnchorToLastVisible()
+    {
+        var controller = Build(out var root, out var a, out var b);
+        var a1 = a.Children[0];
+        controller.SetFocus(root);
+
+        TreeKeyboardNavigation.Navigate(controller, "End", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+
+        Assert.AreSame(b, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id, a1.Id, b.Id }, controller.SelectedIds.ToArray());
+    }
+
+    [TestMethod]
+    public void ShiftArrow_SingleMode_MovesFocusWithoutSelecting()
+    {
+        var controller = Build(out var root, out var a, out _);
+        controller.SetFocus(root);
+
+        var result = TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: false, shiftKey: true, rangeAnchor: root);
+
+        Assert.AreSame(a, controller.FocusedNode);
+        Assert.IsFalse(result.SelectionChanged);
+        Assert.AreEqual(0, controller.SelectedIds.Count);
+    }
+
+    [TestMethod]
+    public void ShiftArrow_MultipleMode_DisabledTargetRejectsRangeButFocusMoves()
+    {
+        var controller = Build(out var root, out var a, out var b);
+        var a1 = a.Children[0];
+        a1.IsDisabled = true;
+        controller.SetFocus(root);
+
+        TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+        TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+
+        Assert.AreSame(a1, controller.FocusedNode);
+        Assert.IsFalse(a1.IsSelected);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id }, controller.SelectedIds.ToArray());
+
+        TreeKeyboardNavigation.Navigate(controller, "ArrowDown", multipleSelection: true, shiftKey: true, rangeAnchor: root);
+
+        Assert.AreSame(b, controller.FocusedNode);
+        CollectionAssert.AreEquivalent(new[] { root.Id, a.Id, b.Id }, controller.SelectedIds.ToArray());
+        Assert.IsFalse(a1.IsSelected);
+    }
 }

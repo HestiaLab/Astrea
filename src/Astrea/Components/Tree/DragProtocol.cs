@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Astrea.Components.Tree;
 
 /// <summary>拖拽放置位置（之前/之内/之后）。</summary>
@@ -16,20 +18,28 @@ public sealed class TreeDragMessage
 {
     public const int CurrentProtocolVersion = 1;
 
+    [JsonPropertyName("protocolVersion")]
     public int ProtocolVersion { get; set; } = CurrentProtocolVersion;
 
+    [JsonPropertyName("sessionId")]
     public string SessionId { get; set; } = string.Empty;
 
+    [JsonPropertyName("sourceTreeId")]
     public string SourceTreeId { get; set; } = string.Empty;
 
+    [JsonPropertyName("sourceNodeIds")]
     public List<string> SourceNodeIds { get; set; } = new();
 
+    [JsonPropertyName("sourceRevision")]
     public long SourceRevision { get; set; }
 
+    [JsonPropertyName("targetTreeId")]
     public string TargetTreeId { get; set; } = string.Empty;
 
+    [JsonPropertyName("targetNodeId")]
     public string TargetNodeId { get; set; } = string.Empty;
 
+    [JsonPropertyName("relation")]
     public string Relation { get; set; } = string.Empty;
 
     /// <summary>严格解析 relation 字符串；未知/空白值返回 false（不回退默认值）。</summary>
@@ -53,6 +63,16 @@ public sealed class TreeDragMessage
     }
 }
 
+/// <summary>BeginDrag 的返回载荷；wire name 与 JS 读取的 camelCase 字段固定绑定。</summary>
+internal sealed class TreeDragBeginResult
+{
+    [JsonPropertyName("sourceRevision")]
+    public long SourceRevision { get; init; }
+
+    [JsonPropertyName("sourceNodeIds")]
+    public IReadOnlyList<string> SourceNodeIds { get; init; } = Array.Empty<string>();
+}
+
 /// <summary>拖拽放置结果事件参数（协议、结构规则与 guard 全部通过后才触发一次）。</summary>
 public sealed class TreeDropEventArgs : EventArgs
 {
@@ -72,7 +92,7 @@ public sealed class TreeDropEventArgs : EventArgs
 }
 
 /// <summary>拖拽协议与源归一化的纯逻辑（独立于组件生命周期，便于单测）。</summary>
-public static class DragProtocol
+internal static class DragProtocol
 {
     /// <summary>
     /// 源归一化：集合同时包含互为祖先/后代的节点时，只保留最高层祖先作为实际拖拽源（REQ-F-087 AC6）。
@@ -84,8 +104,20 @@ public static class DragProtocol
             return new List<TreeNode>();
         }
 
+        var sourceSet = new HashSet<TreeNode>(nodes, ReferenceEqualityComparer.Instance);
         return nodes
-            .Where(n => !nodes.Any(other => !ReferenceEquals(other, n) && n.IsDescendantOf(other)))
+            .Where(node =>
+            {
+                for (var ancestor = node.Parent; ancestor is not null; ancestor = ancestor.Parent)
+                {
+                    if (sourceSet.Contains(ancestor))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
             .ToList();
     }
 
@@ -172,7 +204,7 @@ public static class DragProtocol
 }
 
 /// <summary>拖拽消息验证结果。</summary>
-public sealed class TreeDropValidation
+internal sealed class TreeDropValidation
 {
     private TreeDropValidation(bool accepted, IReadOnlyList<TreeNode>? sourceNodes, TreeNode? targetNode, TreeDropRelation relation, string? rejectionReason)
     {

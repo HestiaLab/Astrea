@@ -1,0 +1,72 @@
+@page "/"
+
+<h1>Astrea Server Smoke</h1>
+
+@if (_interactive)
+{
+    <p data-testid="server-interactive">interactive</p>
+}
+
+<div style="height: 320px;">
+    <Tree DataSource="_roots"
+          SelectionMode="TreeSelectionMode.Multiple"
+          AllowDrag="true"
+          aria-label="Server tree"
+          data-testid="server-tree" />
+</div>
+
+<div style="height: 280px; margin-top: 1rem;">
+    <ResourceTable Columns="_columns"
+                   TableBody="@RenderRows"
+                   aria-label="Server resource table"
+                   data-testid="server-resource-table"
+                   OnColumnResized="HandleColumnResized" />
+</div>
+
+<p data-testid="server-resize-count">Resize notifications: @_resizeCount</p>
+
+@code {
+    private readonly List<TreeNode> _roots = BuildRoots();
+
+    private readonly List<TableColumn> _columns = new()
+    {
+        new TableColumn("ID") { Key = "id", Width = "80px", MinWidth = 40 },
+        new TableColumn("Name") { Key = "name", Width = "160px", MinWidth = 60 },
+    };
+
+    private int _resizeCount;
+    private bool _interactive;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactive = true;
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment RenderRows => builder =>
+    {
+        builder.OpenElement(0, "tr");
+        builder.OpenElement(1, "td");
+        builder.AddContent(2, "1");
+        builder.CloseElement();
+        builder.OpenElement(3, "td");
+        builder.AddContent(4, "Sample");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private void HandleColumnResized(ColumnResizedEventArgs args)
+    {
+        _resizeCount++;
+    }
+
+    private static List<TreeNode> BuildRoots()
+    {
+        var root = new TreeNode("Server root", id: "server-root", isExpanded: true);
+        root.Add(new TreeNode("Server child", id: "server-child"));
+        return new List<TreeNode> { root };
+    }
+}

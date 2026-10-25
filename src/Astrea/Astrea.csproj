@@ -6,6 +6,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Astrea</RootNamespace>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <PackageId>Astrea</PackageId>
+    <Version>0.7.0</Version>
+    <Authors>Astrea contributors</Authors>
+    <Company>Astrea contributors</Company>
+    <Copyright>Copyright (c) 2026 Astrea contributors</Copyright>
+    <Description>Astrea Blazor UI components for .NET 6: Tree and ResourceTable.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/HestiaLab/Astrea</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/HestiaLab/Astrea</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>blazor;ui;tree;resourcetable;components</PackageTags>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes>See CHANGELOG.md.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +29,16 @@
 
   <ItemGroup>
     <Folder Include="Components\ResourceTable\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\..\CHANGELOG.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Astrea.Tests" />
   </ItemGroup>
 
 </Project>

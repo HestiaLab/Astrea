@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.ObjectModel;
 
 namespace Astrea.Components.Tree;
 
@@ -10,10 +11,11 @@ namespace Astrea.Components.Tree;
 public class TreeNode : IEnumerable<TreeNode>
 {
     private readonly List<TreeNode> _children = new();
+    private readonly ReadOnlyCollection<TreeNode> _childrenView;
     private string _cssClass = string.Empty;
     private string _text = string.Empty;
 
-    public TreeNode(string text, string? icon = null, object? bindData = null, string? id = null)
+    public TreeNode(string text, string? icon = null, object? bindData = null, string? id = null, bool isExpanded = false)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -29,6 +31,8 @@ public class TreeNode : IEnumerable<TreeNode>
         _text = text;
         Icon = icon;
         BindData = bindData;
+        IsExpanded = isExpanded;
+        _childrenView = _children.AsReadOnly();
     }
 
     #region 身份与展示
@@ -96,7 +100,7 @@ public class TreeNode : IEnumerable<TreeNode>
 
     public TreeNode? Parent { get; internal set; }
 
-    public IReadOnlyList<TreeNode> Children => _children.AsReadOnly();
+    public IReadOnlyList<TreeNode> Children => _childrenView;
 
     /// <summary>节点在父元素中的索引。</summary>
     public int Index { get; internal set; }
@@ -397,7 +401,7 @@ public class TreeNode : IEnumerable<TreeNode>
 
     #region 视图状态（由 Controller 维护，勿直接写）
 
-    public bool IsExpanded { get; set; }
+    public bool IsExpanded { get; internal set; }
 
     /// <summary>选中状态（派生自所属 Controller 的状态，非权威；未绑定时为 false）。</summary>
     public bool IsSelected => Controller?.IsSelected(Id) ?? false;

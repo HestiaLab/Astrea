@@ -1,6 +1,4 @@
-/* 组件库样式统一经 app.css 引入（方式 B） */
-@import url("../_content/Astrea/astrea-tree.css");
-@import url("../_content/Astrea/astrea-resource-table.css");
+/* 组件库样式由 index.html 直接引入，避免重复加载。 */
 
 :root {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

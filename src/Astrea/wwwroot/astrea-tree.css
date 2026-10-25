@@ -31,6 +31,29 @@
     z-index: 1;
 }
 
+/* 层级连线：在缩进区按每一级绘制竖线，并在末级缩进处连到节点 */
+.tree-container.show-link .tree-node-indent {
+    background-image: repeating-linear-gradient(
+        to right,
+        transparent 0,
+        transparent calc(var(--indent-step) - 1px),
+        var(--ast-tree-color-border) calc(var(--indent-step) - 1px),
+        var(--ast-tree-color-border) var(--indent-step));
+}
+
+.tree-container.show-link .tree-node-indent::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -4px;
+    width: 4px;
+    border-top: 1px solid var(--ast-tree-color-border);
+}
+
+.tree-container.show-link .tree-node[aria-level='1'] .tree-node-indent::after {
+    display: none;
+}
+
 .tree-node {
     display: flex;
     cursor: default;

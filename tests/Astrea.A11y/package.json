@@ -1,0 +1,8 @@
+{
+  "name": "astrea-a11y-tests",
+  "private": true,
+  "description": "Dev-only accessibility tooling for Astrea browser tests",
+  "devDependencies": {
+    "axe-core": "4.14.0"
+  }
+}

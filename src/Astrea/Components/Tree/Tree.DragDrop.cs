@@ -84,7 +84,7 @@ public sealed partial class Tree
         foreach (var id in sourceNodeIds)
         {
             var node = _controller.FindById(id);
-            if (node is null)
+            if (node is null || node.IsDisabled)
             {
                 return "{}";
             }
@@ -103,7 +103,11 @@ public sealed partial class Tree
 
         _dragSession = new DragSession(sessionId, sourceRevision, sourceSnapshot);
 
-        return JsonSerializer.Serialize(new { sourceRevision, sourceNodeIds = sourceSnapshot });
+        return JsonSerializer.Serialize(new TreeDragBeginResult
+        {
+            SourceRevision = sourceRevision,
+            SourceNodeIds = sourceSnapshot,
+        });
     }
 
     /// <summary>

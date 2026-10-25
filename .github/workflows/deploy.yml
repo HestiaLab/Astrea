@@ -26,13 +26,15 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: |
+            10.0.x
+            6.0.x
 
       - name: Restore
         run: dotnet restore Astrea.sln
 
-      - name: Test
-        run: dotnet test Astrea.sln --no-restore -c Release
+      - name: Test (non-browser; browser coverage runs in CI)
+        run: dotnet test Astrea.sln --no-restore -c Release --filter "TestCategory!=Browser"
 
       - name: Publish demo
         run: dotnet publish src/Astrea.Demo --no-restore -c Release -o publish

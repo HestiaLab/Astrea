@@ -21,7 +21,9 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: |
+            10.0.x
+            6.0.x
 
       - name: Scan for leaked secrets (gitleaks, no token)
         run: |
@@ -36,14 +38,14 @@ jobs:
       - name: Build
         run: dotnet build Astrea.sln --no-restore --configuration Release
 
-      - name: Install Playwright browsers
-        run: pwsh tests/Astrea.Tests/bin/Release/net6.0/playwright.ps1 install --with-deps chromium
+      - name: Verify NuGet package consumption
+        run: python3 scripts/verify_package.py
 
-      - name: Test
-        run: dotnet test Astrea.sln --no-build --no-restore --configuration Release
+      - name: Test (non-browser)
+        run: dotnet test Astrea.sln --no-build --no-restore --configuration Release --filter "TestCategory!=Browser"
 
       - name: JS unit tests
-        run: node --test tests/Astrea.JsTests/astrea-tree.test.mjs
+        run: node --test tests/Astrea.JsTests/*.test.mjs
 
       - name: Audit NuGet vulnerabilities (fail on any)
         run: |
@@ -62,6 +64,34 @@ jobs:
               sys.exit(1)
           EOF
 
+  browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    runs-on: ubuntu-latest
+    env:
+      ASTREA_BROWSER_ENGINE: ${{ matrix.engine }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: |
+            10.0.x
+            6.0.x
+      - name: Restore
+        run: dotnet restore Astrea.sln
+      - name: Build
+        run: dotnet build Astrea.sln --no-restore --configuration Release
+      - name: Install axe-core
+        run: npm ci --prefix tests/Astrea.A11y
+      - name: Install Playwright ${{ matrix.engine }}
+        run: pwsh tests/Astrea.Tests/bin/Release/net6.0/playwright.ps1 install --with-deps ${{ matrix.engine }}
+      - name: Browser tests (${{ matrix.engine }})
+        run: dotnet test Astrea.sln --no-build --no-restore --configuration Release --filter "TestCategory=Browser"
+
   format:
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +100,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: |
+            10.0.x
+            6.0.x
       - run: dotnet restore Astrea.sln
       - run: dotnet format Astrea.sln --verify-no-changes --no-restore --verbosity minimal

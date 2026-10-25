@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -19,6 +20,29 @@ public sealed partial class Tree
         }
 
         return $"ast-tree-{_id}-node-{token}";
+    }
+
+    internal bool HasNodeToken(string nodeId) => _nodeTokens.ContainsKey(nodeId);
+
+    private void PruneNodeTokens()
+    {
+        if (_controller is null)
+        {
+            ClearNodeTokens();
+            return;
+        }
+
+        var liveIds = new HashSet<string>(_controller.Flatten().Select(node => node.Id), StringComparer.Ordinal);
+        foreach (var id in _nodeTokens.Keys.Where(id => !liveIds.Contains(id)).ToArray())
+        {
+            _nodeTokens.Remove(id);
+        }
+    }
+
+    private void ClearNodeTokens()
+    {
+        _nodeTokens.Clear();
+        _nodeTokenCounter = 0;
     }
 
     private static bool IsContainerGuaranteedAttribute(string key)
@@ -105,6 +129,7 @@ public sealed partial class Tree
 
         // 容器聚焦时若无焦点节点，聚焦首个可见节点（WAI-ARIA Tree View Pattern：树接收焦点时建立 active descendant）
         builder.AddAttribute(11, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, _ => HandleContainerFocus()));
+        builder.AddElementReferenceCapture(12, reference => _containerRef = reference);
 
         if (EnableVirtualization)
         {
@@ -144,18 +169,17 @@ public sealed partial class Tree
                 nodeCssClass.Add("selected");
             }
 
-            int indent = nodeLevel <= 1 ? 0 : (nodeLevel - 1) * Indent;
+            int indent = nodeLevel * Indent;
 
             builder.OpenElement(0, "div");
             builder.SetKey(node.Id);
             builder.AddAttribute(1, "class", string.Join(" ", nodeCssClass));
-            builder.AddAttribute(2, "style", $"--indent: {indent}px");
+            builder.AddAttribute(2, "style", $"--indent: {indent}px; --indent-step: {Indent}px");
             builder.AddAttribute(3, "id", NodeDomId(node.Id));
             builder.AddAttribute(4, "data-node-id", node.Id);
             builder.AddAttribute(5, "role", "treeitem");
             builder.AddAttribute(6, "aria-level", nodeLevel + 1);
             builder.AddAttribute(7, "aria-selected", node.IsSelected ? "true" : "false");
-            builder.AddAttribute(8, "tabindex", "-1");
             if (node.HasChildren)
             {
                 builder.AddAttribute(9, "aria-expanded", node.IsExpanded ? "true" : "false");
@@ -166,7 +190,7 @@ public sealed partial class Tree
                 builder.AddAttribute(10, "aria-disabled", "true");
             }
 
-            if (AllowDrag)
+            if (AllowDrag && !node.IsDisabled)
             {
                 builder.AddAttribute(11, "draggable", "true");
             }
@@ -185,8 +209,9 @@ public sealed partial class Tree
                     builder.AddAttribute(32, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => ToggleNode(node)));
                     builder.OpenElement(33, "svg");
                     builder.AddAttribute(34, "class", "tree-node-icon");
-                    builder.OpenElement(35, "use");
-                    builder.AddAttribute(36, "href", node.ExpandIcon);
+                    builder.AddAttribute(35, "aria-hidden", "true");
+                    builder.OpenElement(36, "use");
+                    builder.AddAttribute(37, "href", node.ExpandIcon);
                     builder.CloseElement();
                     builder.CloseElement();
                 }
@@ -311,6 +336,7 @@ public sealed partial class Tree
         {
             builder.OpenElement(61, "input");
             builder.AddAttribute(62, "class", "tree-node-edit");
+            builder.AddAttribute(69, "aria-label", string.Format(CultureInfo.CurrentCulture, EditLabelFormat, node.Text));
             builder.AddAttribute(63, "value", context.Value);
             builder.AddAttribute(64, "autofocus", true);
             builder.AddAttribute(65, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => context.SetValue(e.Value?.ToString() ?? string.Empty)));
@@ -372,12 +398,13 @@ public sealed partial class Tree
         };
     }
 
-    private static RenderFragment RenderEmptyPlaceHolder()
+    private RenderFragment RenderEmptyPlaceHolder()
     {
+        var text = LoadingText;
         return builder =>
         {
             builder.OpenElement(0, "div");
-            builder.AddContent(1, "Loading items...");
+            builder.AddContent(1, text);
             builder.CloseElement();
         };
     }

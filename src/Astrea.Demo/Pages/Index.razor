@@ -40,6 +40,7 @@
           OnContextMenu="HandleContextMenu"
           OnDrop="HandleDrop"
           OnEditCommitted="HandleEditCommitted"
+          OnEditCancelled="HandleEditCancelled"
           OnEditRejected="HandleEditRejected"
           OnKeyDown="HandleKeyDown"
           aria-label="演示树"
@@ -125,9 +126,9 @@
     /// <summary>用稳定 Id 构建树；重建树（新对象、同 Id）时验证状态保持。</summary>
     private static List<TreeNode> BuildTree()
     {
-        var root = new TreeNode("我的项目", id: "project") { IsExpanded = true };
+        var root = new TreeNode("我的项目", id: "project", isExpanded: true);
 
-        var specs = new TreeNode("页面", id: "specs") { IsExpanded = true };
+        var specs = new TreeNode("页面", id: "specs", isExpanded: true);
         specs.Add(new TreeNode("页面 1", id: "df-1"));
         specs.Add(new TreeNode("页面 2", id: "df-2"));
         specs.Add(new TreeNode("已禁用页面", id: "df-3") { IsDisabled = true });
@@ -189,7 +190,7 @@
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        var root = new TreeNode("根节点", id: "perf-root") { IsExpanded = true };
+        var root = new TreeNode("根节点", id: "perf-root", isExpanded: true);
 
         var currentLayer = new List<TreeNode> { root };
         int count = 1;
@@ -202,7 +203,7 @@
             for (int i = 0; i < target && count < 50_000; i++)
             {
                 var parent = currentLayer[parentIdx % currentLayer.Count];
-                var child = new TreeNode($"层级 {level}-{i}", id: $"p{count}") { IsExpanded = true };
+                var child = new TreeNode($"层级 {level}-{i}", id: $"p{count}", isExpanded: true);
                 parent.Add(child);
                 nextLayer.Add(child);
                 count++;
@@ -275,6 +276,7 @@
         if (args.TargetNode.Text == "资源")
         {
             Log($"否决拖放 → {args.TargetNode.Text}");
+            StateHasChanged();
             return ValueTask.FromResult(false);
         }
 
@@ -383,9 +385,19 @@
     键盘 ↑/↓ 移动选中，拖动列边界调整列宽（相邻列补偿、最小宽度约束）。
 </p>
 
+<div class="demo-toolbar">
+    <label class="demo-check">
+        <input id="toggle-rt-resizable" type="checkbox" checked="@_rtResizableColumns" @onchange="ToggleRtResizable" /> 列宽拖拽
+    </label>
+    <span class="demo-hint">键盘聚焦列边界后可用 ←/→ 调整列宽。</span>
+</div>
+
 <div class="demo-panel" style="height: 360px;">
     <ResourceTable Columns="_rtColumns"
                    TableBody="@RenderRows"
+                   ResizableColumns="_rtResizableColumns"
+                   aria-label="资源表"
+                   data-testid="demo-resource-table"
                    ShowRedoButton="true"
                    CanUndo="_rtUndoStack.Count > 0"
                    CanRedo="_rtRedoStack.Count > 0"
@@ -433,6 +445,7 @@
 
     private int? _rtSelectedIndex;
     private int _rtNextId = 4;
+    private bool _rtResizableColumns = true;
 
     private sealed record ResourceRow(int Id, string Name, string Type, string Note);
     private sealed record ResourceSnapshot(List<ResourceRow> Rows, int? SelectedIndex);
@@ -573,6 +586,12 @@
         {
             _rtLog.RemoveAt(_rtLog.Count - 1);
         }
+    }
+
+    private void ToggleRtResizable(ChangeEventArgs e)
+    {
+        _rtResizableColumns = (bool)(e.Value ?? false);
+        RtLog(_rtResizableColumns ? "已开启列宽拖拽" : "已关闭列宽拖拽");
     }
 
     private void HandleColumnResized(ColumnResizedEventArgs args)

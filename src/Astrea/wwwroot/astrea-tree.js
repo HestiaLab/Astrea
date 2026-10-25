@@ -64,7 +64,8 @@ export function initialize(containerId, treeId, dotNetObjectRef, options = {}) {
 
     const getTargetNode = (event) => {
         const target = event.target;
-        if (!(target instanceof HTMLElement) || typeof target.closest !== 'function') {
+        // SVG icons are Element but not HTMLElement; their closest() still resolves the tree node.
+        if (!(target instanceof Element) || typeof target.closest !== 'function') {
             return null;
         }
         return target.closest(config.nodeSelector);
