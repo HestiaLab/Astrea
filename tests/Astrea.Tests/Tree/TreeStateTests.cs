@@ -21,6 +21,19 @@ public class TreeStateTests
     }
 
     [TestMethod]
+    public void SelectedIds_ReturnsStableLiveReadOnlyView()
+    {
+        var state = new TreeState();
+        var view = state.SelectedIds;
+
+        state.Select("a");
+
+        Assert.AreSame(view, state.SelectedIds);
+        Assert.IsTrue(view.Contains("a"));
+        Assert.IsFalse(view is ISet<string>);
+    }
+
+    [TestMethod]
     public void Select_SetsSingleIdSelected()
     {
         var state = new TreeState();

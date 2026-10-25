@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -17,6 +18,9 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
 
     private DotNetObjectReference<ResourceTable>? _dotNetRef;
     private IJSObjectReference? _jsModule;
+    private bool _resizeInitialized;
+    private string? _resizeSignature;
+    private bool _disposed;
 
     [Inject] private IJSRuntime? Js { get; set; }
 
@@ -55,6 +59,29 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
     /// </summary>
     [Parameter]
     public bool ShowRedoButton { get; set; }
+
+    /// <summary>Toolbar button accessible names/tooltips (REQ-F-009).</summary>
+    [Parameter]
+    public string AddButtonLabel { get; set; } = "Add";
+
+    [Parameter]
+    public string RemoveButtonLabel { get; set; } = "Remove";
+
+    [Parameter]
+    public string MoveUpButtonLabel { get; set; } = "Move Up";
+
+    [Parameter]
+    public string MoveDownButtonLabel { get; set; } = "Move Down";
+
+    [Parameter]
+    public string UndoButtonLabel { get; set; } = "Undo";
+
+    [Parameter]
+    public string RedoButtonLabel { get; set; } = "Redo";
+
+    /// <summary>Resize handle accessible name; <c>{0}</c> is the column title.</summary>
+    [Parameter]
+    public string ResizeHandleLabelFormat { get; set; } = "Resize column {0}";
 
     /// <summary>
     /// 表格容器样式类
@@ -140,45 +167,146 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && ResizableColumns)
+        if (_disposed || Js is null)
         {
-            _dotNetRef = DotNetObjectReference.Create(this);
-            _jsModule = await Js!.InvokeAsync<IJSObjectReference>("import",
-                "./_content/Astrea/astrea-resource-table.js");
-            var minWidths = _columns.Select(c => c.MinWidth).ToArray();
-            await _jsModule.InvokeVoidAsync("initializeResizeTable", _tableId, _dotNetRef, new { minWidths });
+            return;
+        }
+
+        if (ResizableColumns)
+        {
+            var signature = BuildResizeSignature();
+            if (!_resizeInitialized || _resizeSignature != signature)
+            {
+                await EnsureResizeInitializedAsync(signature);
+            }
+        }
+        else if (_resizeInitialized)
+        {
+            await DestroyResizeAsync();
+        }
+    }
+
+    private string BuildResizeSignature()
+        => string.Join(
+            "\u001f",
+            _columns.Select(column => string.Join(
+                "\u001e",
+                column.Key,
+                column.Title,
+                column.MinWidth?.ToString(CultureInfo.InvariantCulture) ?? "-",
+                column.Resizable.ToString())));
+
+    private async Task EnsureResizeInitializedAsync(string signature)
+    {
+        try
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            var module = _jsModule;
+            if (module is null)
+            {
+                module = await Js!.InvokeAsync<IJSObjectReference>("import",
+                    "./_content/Astrea/astrea-resource-table.js");
+                if (_disposed || !ResizableColumns)
+                {
+                    await DisposeReferenceQuietlyAsync(module);
+                    return;
+                }
+
+                _jsModule = module;
+            }
+
+            var minWidths = _columns.Select(column => column.MinWidth).ToArray();
+            await module.InvokeVoidAsync("initializeResizeTable", _tableId, _dotNetRef, new { minWidths });
+            if (_disposed || !ResizableColumns)
+            {
+                await DestroyResizeAsync();
+                return;
+            }
+
+            _resizeInitialized = true;
+            _resizeSignature = signature;
+        }
+        catch (JSDisconnectedException)
+        {
+            // Blazor Server 断线：放弃本次初始化，后续渲染可重试。
+        }
+        catch (ObjectDisposedException)
+        {
+            // Dispose 与初始化交错时模块已被释放。
+        }
+    }
+
+    private async Task DestroyResizeAsync()
+    {
+        var module = _jsModule;
+        if (module is not null)
+        {
+            try
+            {
+                await module.InvokeVoidAsync("disposeResizableColumns", _tableId);
+            }
+            catch (JSDisconnectedException)
+            {
+                // 断线后 JS 句柄已不可达。
+            }
+            catch (ObjectDisposedException)
+            {
+                // 模块已被并发释放。
+            }
+        }
+
+        _resizeInitialized = false;
+        _resizeSignature = null;
+    }
+
+    private static async Task DisposeReferenceQuietlyAsync(IJSObjectReference reference)
+    {
+        try
+        {
+            await reference.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // 断线后 JS 句柄已不可达。
+        }
+        catch (ObjectDisposedException)
+        {
+            // 已被并发释放。
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_jsModule is not null)
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_resizeInitialized)
+        {
+            await DestroyResizeAsync();
+        }
+
+        var module = _jsModule;
+        _jsModule = null;
+        if (module is not null)
         {
             try
             {
-                await _jsModule.InvokeVoidAsync("disposeResizableColumns", _tableId);
+                await module.DisposeAsync();
             }
             catch (JSDisconnectedException) { }
-            catch (TaskCanceledException) { }
-
-            try
-            {
-                await _jsModule.DisposeAsync();
-            }
-            catch (JSDisconnectedException) { }
+            catch (ObjectDisposedException) { }
             catch (TaskCanceledException) { }
         }
 
         _dotNetRef?.Dispose();
+        _dotNetRef = null;
     }
 
-    private void HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (OnKeyDown.HasDelegate)
-        {
-            OnKeyDown.InvokeAsync(e);
-        }
-    }
+    private Task HandleKeyDown(KeyboardEventArgs e)
+        => OnKeyDown.HasDelegate ? OnKeyDown.InvokeAsync(e) : Task.CompletedTask;
 
     /// <summary>
     /// JS 拖拽结束回调入口（JS 侧调用名：OnColumnResized）
@@ -186,7 +314,13 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
     [JSInvokable("OnColumnResized")]
     public Task HandleColumnResized(int columnIndex, double newWidth)
     {
-        var key = _columns.ElementAtOrDefault(columnIndex)?.Key;
-        return OnColumnResized.InvokeAsync(new ColumnResizedEventArgs(columnIndex, key, newWidth));
+        if (columnIndex < 0 || columnIndex >= _columns.Count || !double.IsFinite(newWidth) || newWidth < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var column = _columns[columnIndex];
+        var width = column.MinWidth is { } minWidth && newWidth < minWidth ? minWidth : newWidth;
+        return OnColumnResized.InvokeAsync(new ColumnResizedEventArgs(columnIndex, column.Key, width));
     }
 }

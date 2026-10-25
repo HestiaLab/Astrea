@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Astrea.Components.Tree.Tests;
@@ -54,6 +55,21 @@ public class TreeNodeStructureTests
         Assert.AreEqual(1, b.Index);
         Assert.AreEqual(2, c.Index);
         Assert.AreEqual(3, root.Count);
+    }
+
+    [TestMethod]
+    public void Children_ReturnsStableReadOnlyView()
+    {
+        var root = new TreeNode("root");
+        root.Add(new TreeNode("child"));
+
+        var first = root.Children;
+        var second = root.Children;
+
+        Assert.AreSame(first, second);
+        Assert.IsInstanceOfType(first, typeof(ReadOnlyCollection<TreeNode>));
+        Assert.ThrowsException<NotSupportedException>(() => ((IList<TreeNode>)first).Add(new TreeNode("injected")));
+        Assert.AreEqual(1, root.Children.Count);
     }
 
     [TestMethod]

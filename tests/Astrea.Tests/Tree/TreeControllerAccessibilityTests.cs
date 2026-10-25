@@ -63,20 +63,72 @@ public class TreeControllerDisabledNodeTests
         Assert.IsFalse(result);
         Assert.IsTrue(node.IsExpanded);
     }
+
+    [TestMethod]
+    public void Expand_ExpandDisabledNode_ReturnsFalse()
+    {
+        var node = new TreeNode("n") { IsExpandDisable = true };
+        node.Add(new TreeNode("child"));
+        var controller = new TreeController(new[] { node });
+
+        Assert.IsFalse(controller.Expand(node));
+        Assert.IsFalse(node.IsExpanded);
+    }
+
+    [TestMethod]
+    public void Collapse_ExpandDisabledNode_ReturnsFalse()
+    {
+        var node = new TreeNode("n") { IsExpandDisable = true, IsExpanded = true };
+        node.Add(new TreeNode("child"));
+        var controller = new TreeController(new[] { node });
+
+        Assert.IsFalse(controller.Collapse(node));
+        Assert.IsTrue(node.IsExpanded);
+    }
+
+    [TestMethod]
+    public void BeginEdit_DisabledNode_ReturnsFalse()
+    {
+        var node = new TreeNode("n") { IsDisabled = true };
+        var controller = new TreeController(new[] { node });
+
+        Assert.IsFalse(controller.BeginEdit(node));
+        Assert.IsFalse(node.IsEditing);
+    }
+
+    [TestMethod]
+    public void TryRename_DisabledNode_ReturnsFalse()
+    {
+        var node = new TreeNode("n") { IsDisabled = true };
+        var controller = new TreeController(new[] { node });
+
+        Assert.IsFalse(controller.TryRename(node, "new"));
+    }
+
+    [TestMethod]
+    public void CanDrop_DisabledSource_ReturnsFalse()
+    {
+        var source = new TreeNode("source", id: "source") { IsDisabled = true };
+        var target = new TreeNode("target", id: "target");
+        var controller = new TreeController(new[] { source, target });
+
+        Assert.IsFalse(controller.CanDrop(new[] { source }, target));
+    }
+
+    [TestMethod]
+    public void CanDrop_DisabledTarget_ReturnsFalse()
+    {
+        var source = new TreeNode("source", id: "source");
+        var target = new TreeNode("target", id: "target") { IsDisabled = true };
+        var controller = new TreeController(new[] { source, target });
+
+        Assert.IsFalse(controller.CanDrop(new[] { source }, target));
+    }
 }
 
 [TestClass]
 public class TreeControllerEditVetoTests
 {
-    [TestMethod]
-    public void TryRename_BeforeRenameVeto_ReturnsFalse()
-    {
-        var node = new TreeNode("n");
-        var controller = new TreeController(new[] { node }) { BeforeRename = (n, v) => false };
-
-        Assert.IsFalse(controller.TryRename(node, "new"));
-    }
-
     [TestMethod]
     public void TryRename_NoVeto_ReturnsTrue()
     {
@@ -84,16 +136,6 @@ public class TreeControllerEditVetoTests
         var controller = new TreeController(new[] { node });
 
         Assert.IsTrue(controller.TryRename(node, "new"));
-    }
-
-    [TestMethod]
-    public void BeginEdit_BeforeEditNameVeto_ReturnsFalse()
-    {
-        var node = new TreeNode("n");
-        var controller = new TreeController(new[] { node }) { BeforeEditName = _ => false };
-
-        Assert.IsFalse(controller.BeginEdit(node));
-        Assert.IsFalse(node.IsEditing);
     }
 
     [TestMethod]

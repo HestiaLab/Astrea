@@ -23,9 +23,40 @@ public sealed partial class Tree
         }
 
         _dotNetRef ??= DotNetObjectReference.Create(this);
-        _dropModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
-        _dropInstance = await _dropModule.InvokeAsync<IJSObjectReference>(
-            "initialize", $"tree-container-{_id}", _id, _dotNetRef);
+
+        try
+        {
+            var module = _dropModule;
+            if (module is null)
+            {
+                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+                if (_dragDisposed || !AllowDrag || DataSource is null)
+                {
+                    await DisposeReferenceQuietlyAsync(module);
+                    return;
+                }
+
+                _dropModule = module;
+            }
+
+            var instance = await module.InvokeAsync<IJSObjectReference>(
+                "initialize", $"tree-container-{_id}", _id, _dotNetRef);
+            if (_dragDisposed || !AllowDrag || DataSource is null)
+            {
+                await DestroyInstanceQuietlyAsync(instance);
+                return;
+            }
+
+            _dropInstance = instance;
+        }
+        catch (JSDisconnectedException)
+        {
+            // Blazor Server 断线：放弃本次初始化，后续渲染可重试。
+        }
+        catch (ObjectDisposedException)
+        {
+            // Dispose 与初始化交错时模块/实例已被释放。
+        }
     }
 
     /// <summary>销毁拖拽实例并释放（幂等；AllowDrag=false 或 Dispose 时调用）。</summary>
@@ -69,9 +100,75 @@ public sealed partial class Tree
             return;
         }
 
-        _dropModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
-        _keyboardInstance = await _dropModule.InvokeAsync<IJSObjectReference>(
-            "initializeKeyboard", $"tree-container-{_id}");
+        try
+        {
+            var module = _dropModule;
+            if (module is null)
+            {
+                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+                if (_dragDisposed || !UseInternalKeyboard)
+                {
+                    await DisposeReferenceQuietlyAsync(module);
+                    return;
+                }
+
+                _dropModule = module;
+            }
+
+            var instance = await module.InvokeAsync<IJSObjectReference>(
+                "initializeKeyboard", $"tree-container-{_id}");
+            if (_dragDisposed || !UseInternalKeyboard)
+            {
+                await DestroyInstanceQuietlyAsync(instance);
+                return;
+            }
+
+            _keyboardInstance = instance;
+        }
+        catch (JSDisconnectedException)
+        {
+            // Blazor Server 断线：放弃本次初始化，后续渲染可重试。
+        }
+        catch (ObjectDisposedException)
+        {
+            // Dispose 与初始化交错时模块/实例已被释放。
+        }
+    }
+
+    private static async Task DestroyInstanceQuietlyAsync(IJSObjectReference instance)
+    {
+        try
+        {
+            await instance.InvokeVoidAsync("destroy");
+        }
+        catch (JSDisconnectedException)
+        {
+            // 断线后不能调用 JS，本地引用仍需释放。
+        }
+        catch (ObjectDisposedException)
+        {
+            // 实例已随模块释放。
+        }
+        finally
+        {
+            await DisposeReferenceQuietlyAsync(instance);
+        }
+    }
+
+    private static async Task DisposeReferenceQuietlyAsync(IJSObjectReference reference)
+    {
+        try
+        {
+            await reference.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // 断线后 JS 句柄已不可达。
+        }
+        catch (ObjectDisposedException)
+        {
+            // 已被并发释放。
+        }
     }
 
     private async Task DestroyKeyboardAsync()
@@ -112,6 +209,7 @@ public sealed partial class Tree
         }
 
         _dragDisposed = true;
+        EndEditingSession(restoreFocus: false);
         try
         {
             await DestroyDragAsync();

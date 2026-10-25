@@ -79,19 +79,6 @@ public class TreeControllerFlattenTests
 public class TreeControllerExpandTests
 {
     [TestMethod]
-    public void Expand_RespectsBeforeExpandVeto()
-    {
-        var root = new TreeNode("root");
-        root.Add(new TreeNode("child"));
-        var controller = new TreeController(new[] { root }) { BeforeExpand = _ => false };
-
-        bool result = controller.Expand(root);
-
-        Assert.IsFalse(result);
-        Assert.IsFalse(root.IsExpanded);
-    }
-
-    [TestMethod]
     public void Expand_LeafReturnsFalse()
     {
         var leaf = new TreeNode("leaf");

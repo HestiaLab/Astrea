@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -8,9 +9,34 @@ public sealed partial class ResourceTable
 {
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
+        var componentClass = $"ast-resource-table {(ContainerCss ?? "ast-rt-container")}";
+        var mergedClass = componentClass;
+        var extraAttributes = new List<KeyValuePair<string, object>>();
+        if (AdditionalAttributes is not null)
+        {
+            foreach (var attribute in AdditionalAttributes)
+            {
+                if (attribute.Key == "class")
+                {
+                    if (attribute.Value?.ToString() is { Length: > 0 } appClass)
+                    {
+                        mergedClass = $"{componentClass} {appClass}";
+                    }
+                }
+                else if (attribute.Key is not "tabindex" and not "onkeydown")
+                {
+                    extraAttributes.Add(attribute);
+                }
+            }
+        }
+
         builder.OpenElement(0, "div");
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "class", $"ast-resource-table {(ContainerCss ?? "ast-rt-container")}");
+        builder.AddAttribute(1, "class", mergedClass);
+        if (extraAttributes.Count > 0)
+        {
+            builder.AddMultipleAttributes(2, extraAttributes);
+        }
+
         builder.AddAttribute(3, "tabindex", "0");
         builder.AddAttribute(4, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
 
@@ -24,10 +50,10 @@ public sealed partial class ResourceTable
             {
                 builder.OpenElement(20, "div");
                 builder.AddAttribute(21, "class", "ast-rt-btn-group");
-                builder.AddContent(22, BuildButton(IconAdd ?? DefaultIcon_Add, OnAddClicked, "Add"));
-                builder.AddContent(23, BuildButton(IconRemove ?? DefaultIcon_Remove, OnRemoveClicked, "Remove"));
-                builder.AddContent(24, BuildButton(IconMoveUp ?? DefaultIcon_MoveUp, OnMoveUpClicked, "Move Up"));
-                builder.AddContent(25, BuildButton(IconMoveDown ?? DefaultIcon_MoveDown, OnMoveDownClicked, "Move Down"));
+                builder.AddContent(22, BuildButton(IconAdd ?? DefaultIcon_Add, OnAddClicked, AddButtonLabel));
+                builder.AddContent(23, BuildButton(IconRemove ?? DefaultIcon_Remove, OnRemoveClicked, RemoveButtonLabel));
+                builder.AddContent(24, BuildButton(IconMoveUp ?? DefaultIcon_MoveUp, OnMoveUpClicked, MoveUpButtonLabel));
+                builder.AddContent(25, BuildButton(IconMoveDown ?? DefaultIcon_MoveDown, OnMoveDownClicked, MoveDownButtonLabel));
 
                 if (ShowRedoButton)
                 {
@@ -35,8 +61,8 @@ public sealed partial class ResourceTable
                     builder.AddAttribute(27, "class", "ast-rt-divider");
                     builder.CloseElement();
 
-                    builder.AddContent(28, BuildButton(IconUndo ?? DefaultIcon_Undo, OnUndoClicked, "Undo", !CanUndo));
-                    builder.AddContent(29, BuildButton(IconRedo ?? DefaultIcon_Redo, OnRedoClicked, "Redo", !CanRedo));
+                    builder.AddContent(28, BuildButton(IconUndo ?? DefaultIcon_Undo, OnUndoClicked, UndoButtonLabel, !CanUndo));
+                    builder.AddContent(29, BuildButton(IconRedo ?? DefaultIcon_Redo, OnRedoClicked, RedoButtonLabel, !CanRedo));
                 }
 
                 builder.CloseElement();
@@ -54,47 +80,51 @@ public sealed partial class ResourceTable
         builder.AddAttribute(61, "id", _tableId);
         builder.AddAttribute(62, "class", "ast-rt-table ast-rt-no-select");
 
-        // 表头
-        builder.OpenElement(70, "thead");
-        builder.OpenElement(71, "tr");
+        // 表头：空列集合不渲染空 th/thead（REQ-F-096）
         if (HasColumns)
         {
+            builder.OpenElement(70, "thead");
+            builder.OpenElement(71, "tr");
             for (var i = 0; i < _columns.Count; i++)
             {
                 var column = _columns[i];
                 var index = i;
                 builder.OpenElement(80 + i * 10, "th");
                 builder.AddAttribute(81 + i * 10, "class", "ast-rt-th");
+                builder.AddAttribute(82 + i * 10, "scope", "col");
                 if (column.Width is not null)
                 {
-                    builder.AddAttribute(82 + i * 10, "style", $"width:{column.Width};");
+                    builder.AddAttribute(83 + i * 10, "style", $"width:{column.Width};");
                 }
 
-                builder.OpenElement(83 + i * 10, "div");
-                builder.AddAttribute(84 + i * 10, "class", "ast-rt-th-content");
-                builder.AddContent(85 + i * 10, column.Title);
+                builder.OpenElement(84 + i * 10, "div");
+                builder.AddAttribute(85 + i * 10, "class", "ast-rt-th-content");
+                builder.AddContent(86 + i * 10, column.Title);
                 builder.CloseElement();
 
-                if (index != _columns.Count - 1 && column.Resizable)
+                if (ResizableColumns && index != _columns.Count - 1 && column.Resizable)
                 {
-                    builder.OpenElement(86 + i * 10, "div");
-                    builder.AddAttribute(87 + i * 10, "class", "ast-rt-resize-handle");
-                    builder.AddAttribute(88 + i * 10, "data-column-index", index.ToString());
+                    var initialValue = ParseColumnWidth(column);
+                    var minValue = column.MinWidth ?? 50;
+                    builder.OpenElement(87 + i * 10, "div");
+                    builder.AddAttribute(88 + i * 10, "class", "ast-rt-resize-handle");
+                    builder.AddAttribute(89 + i * 10, "role", "separator");
+                    builder.AddAttribute(90 + i * 10, "aria-orientation", "vertical");
+                    builder.AddAttribute(91 + i * 10, "tabindex", "0");
+                    builder.AddAttribute(92 + i * 10, "aria-label", string.Format(CultureInfo.CurrentCulture, ResizeHandleLabelFormat, column.Title));
+                    builder.AddAttribute(93 + i * 10, "data-column-index", index.ToString());
+                    builder.AddAttribute(94 + i * 10, "aria-valuemin", FormatNumber(minValue));
+                    builder.AddAttribute(95 + i * 10, "aria-valuemax", FormatNumber(Math.Max(10000, initialValue)));
+                    builder.AddAttribute(96 + i * 10, "aria-valuenow", FormatNumber(initialValue));
                     builder.CloseElement();
                 }
 
                 builder.CloseElement();
             }
-        }
-        else
-        {
-            builder.OpenElement(80, "th");
-            builder.AddAttribute(81, "class", "ast-rt-th");
+
+            builder.CloseElement();
             builder.CloseElement();
         }
-
-        builder.CloseElement();
-        builder.CloseElement();
 
         // 表体
         builder.OpenElement(90, "tbody");
@@ -105,6 +135,21 @@ public sealed partial class ResourceTable
         builder.CloseElement();
 
         builder.CloseElement();
+    }
+
+    private static string FormatNumber(double value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static double ParseColumnWidth(TableColumn column)
+    {
+        if (column.Width is { Length: > 2 } width &&
+            width.EndsWith("px", StringComparison.OrdinalIgnoreCase) &&
+            double.TryParse(width[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) &&
+            parsed > 0)
+        {
+            return parsed;
+        }
+
+        return column.MinWidth ?? 50;
     }
 
     private static RenderFragment BuildButton(RenderFragment icon, EventCallback onClick, string title, bool disabled = false)
@@ -161,7 +206,8 @@ public sealed partial class ResourceTable
             builder.AddAttribute(5, "stroke-width", "2");
             builder.AddAttribute(6, "stroke-linecap", "round");
             builder.AddAttribute(7, "stroke-linejoin", "round");
-            builder.AddContent(8, (MarkupString)innerMarkup);
+            builder.AddAttribute(8, "aria-hidden", "true");
+            builder.AddContent(9, (MarkupString)innerMarkup);
             builder.CloseElement();
         };
     }

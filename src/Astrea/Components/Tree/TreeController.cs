@@ -1,16 +1,20 @@
+using System.Collections.ObjectModel;
+
 namespace Astrea.Components.Tree;
 
 /// <summary>
 /// 树控制器：持有根集合，维护 O(1) 节点索引、扁平化缓存、选择与展开操作、拖拽校验。
 /// 纯 C#，不依赖 Blazor 渲染，可独立单测。交互状态的唯一写入口（写前校验节点归属与禁用状态）。
 /// </summary>
-public sealed class TreeController
+internal sealed class TreeController
 {
     private readonly TreeState _state = new();
     private IReadOnlyList<TreeNode> _roots;
     private Dictionary<string, TreeNode>? _index;
     private List<TreeNode>? _flatten;
     private List<TreeNode>? _flattenVisible;
+    private ReadOnlyCollection<TreeNode>? _flattenView;
+    private ReadOnlyCollection<TreeNode>? _flattenVisibleView;
     private TreeSelectionMode _selectionMode;
 
     public TreeController(
@@ -26,18 +30,6 @@ public sealed class TreeController
 
     /// <summary>根节点集合。</summary>
     public IReadOnlyList<TreeNode> Roots => _roots;
-
-    /// <summary>否决展开（返回 false 阻止）。</summary>
-    public Func<TreeNode, bool>? BeforeExpand { get; set; }
-
-    /// <summary>否决折叠（返回 false 阻止）。</summary>
-    public Func<TreeNode, bool>? BeforeCollapse { get; set; }
-
-    /// <summary>否决重命名（参数：节点、新值）。</summary>
-    public Func<TreeNode, string, bool>? BeforeRename { get; set; }
-
-    /// <summary>否决进入编辑态。</summary>
-    public Func<TreeNode, bool>? BeforeEditName { get; set; }
 
     /// <summary>选中节点的稳定 ID 集合（只读快照）。</summary>
     public IReadOnlyCollection<string> SelectedIds => _state.SelectedIds;
@@ -90,9 +82,10 @@ public sealed class TreeController
         if (_flatten is null)
         {
             _flatten = _roots.SelectMany(EnumerateSubtree).ToList();
+            _flattenView = _flatten.AsReadOnly();
         }
 
-        return _flatten;
+        return _flattenView!;
     }
 
     /// <summary>可见节点（沿展开路径的 DFS 序列，包含全部根节点）。</summary>
@@ -101,9 +94,10 @@ public sealed class TreeController
         if (_flattenVisible is null)
         {
             _flattenVisible = _roots.SelectMany(EnumerateVisibleSubtree).ToList();
+            _flattenVisibleView = _flattenVisible.AsReadOnly();
         }
 
-        return _flattenVisible;
+        return _flattenVisibleView!;
     }
 
     /// <summary>重建索引与缓存，整树校验后原子提交；清理悬空选择并恢复丢失的焦点。</summary>
@@ -117,7 +111,9 @@ public sealed class TreeController
 
         _index = index;
         _flatten = flatten;
+        _flattenView = flatten.AsReadOnly();
         _flattenVisible = null;
+        _flattenVisibleView = null;
 
         foreach (var node in flatten)
         {
@@ -178,7 +174,11 @@ public sealed class TreeController
     }
 
     /// <summary>失效可见节点缓存（外部直接修改展开态后调用）。</summary>
-    public void InvalidateVisible() => _flattenVisible = null;
+    public void InvalidateVisible()
+    {
+        _flattenVisible = null;
+        _flattenVisibleView = null;
+    }
 
     /// <summary>整树校验：重复 Id、重复节点实例/循环、Parent/Index 不一致均抛确定性异常。</summary>
     private static (Dictionary<string, TreeNode> Index, List<TreeNode> Flatten) BuildIndexAndValidate(IReadOnlyList<TreeNode> roots)
@@ -289,15 +289,10 @@ public sealed class TreeController
 
     #region 展开与折叠
 
-    /// <summary>展开节点（受 BeforeExpand 否决）。</summary>
+    /// <summary>展开节点（应用侧否决由 Tree 组件统一处理）。</summary>
     public bool Expand(TreeNode node)
     {
-        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled)
-        {
-            return false;
-        }
-
-        if (BeforeExpand?.Invoke(node) == false)
+        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled || node.IsExpandDisable)
         {
             return false;
         }
@@ -307,15 +302,10 @@ public sealed class TreeController
         return true;
     }
 
-    /// <summary>折叠节点（受 BeforeCollapse 否决；焦点在被折叠分支内时移到折叠节点）。</summary>
+    /// <summary>折叠节点（应用侧否决由 Tree 组件统一处理；焦点在被折叠分支内时移到折叠节点）。</summary>
     public bool Collapse(TreeNode node)
     {
-        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled)
-        {
-            return false;
-        }
-
-        if (BeforeCollapse?.Invoke(node) == false)
+        if (!IsOwnedNode(node) || node.IsLeaf || node.IsDisabled || node.IsExpandDisable)
         {
             return false;
         }
@@ -563,15 +553,10 @@ public sealed class TreeController
 
     #region 编辑
 
-    /// <summary>进入编辑态（受 BeforeEditName 否决）。</summary>
+    /// <summary>进入编辑态（应用侧否决由 Tree 组件统一处理）。</summary>
     public bool BeginEdit(TreeNode node)
     {
-        if (!IsOwnedNode(node))
-        {
-            return false;
-        }
-
-        if (BeforeEditName?.Invoke(node) == false)
+        if (!IsOwnedNode(node) || node.IsDisabled)
         {
             return false;
         }
@@ -580,9 +565,9 @@ public sealed class TreeController
         return true;
     }
 
-    /// <summary>提交重命名（受 BeforeRename 否决）。返回 false 表示被否决，应用不应接受该新值。</summary>
+    /// <summary>提交重命名结果；应用侧否决由 Tree 组件统一处理。</summary>
     public bool TryRename(TreeNode node, string newValue)
-        => IsOwnedNode(node) && BeforeRename?.Invoke(node, newValue) != false;
+        => IsOwnedNode(node) && !node.IsDisabled;
 
     public void EndEdit(TreeNode node)
     {
@@ -636,7 +621,7 @@ public sealed class TreeController
             return false;
         }
 
-        if (sources.Any(s => !IsOwnedNode(s)) || !IsOwnedNode(target))
+        if (sources.Any(s => !IsOwnedNode(s) || s.IsDisabled) || !IsOwnedNode(target) || target.IsDisabled)
         {
             return false;
         }

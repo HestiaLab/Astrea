@@ -27,6 +27,10 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
     private (long SessionId, int ValueVersion)? _suppressBlurCommit;
     private bool _suppressNodeInvoke;
     private ElementReference _editInputRef;
+    private ElementReference _containerRef;
+    private bool _restoreFocusAfterEdit;
+    private TreeNode? _keyboardRangeAnchor;
+    private HashSet<string>? _appliedControlledExpandedIds;
 
     [Inject] private IJSRuntime? Js { get; set; }
 
@@ -50,6 +54,12 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
 
     [Parameter] public bool EnableVirtualization { get; set; }
 
+    /// <summary>
+    /// Detect in-place DataSource structure changes on every parent render. Disable for very large
+    /// trees and call <see cref="RefreshAsync"/> after in-place mutations.
+    /// </summary>
+    [Parameter] public bool AutoDetectStructureChanges { get; set; } = true;
+
     [Parameter] public float ItemSize { get; set; } = 32f;
 
     [Parameter] public bool UseInternalKeyboard { get; set; } = true;
@@ -59,6 +69,15 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
     [Parameter] public int Indent { get; set; } = 20;
 
     [Parameter] public bool OnlyHighlightText { get; set; } = true;
+
+    /// <summary>Virtualized loading placeholder text.</summary>
+    [Parameter] public string LoadingText { get; set; } = "Loading items...";
+
+    /// <summary>Default edit input accessible name; <c>{0}</c> is the node text.</summary>
+    [Parameter] public string EditLabelFormat { get; set; } = "Edit {0}";
+
+    /// <summary>Fallback validation message when a rename is vetoed.</summary>
+    [Parameter] public string RenameRejectedText { get; set; } = "Rename rejected";
 
     [Parameter] public RenderFragment<TreeNode>? NodeTemplate { get; set; }
 
@@ -114,6 +133,8 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
     /// <summary>当前 Tree 的只读查询视图。</summary>
     public TreeView? View => _view;
 
+    internal bool HasActiveEditSession => _editingContext is not null;
+
     public override Task SetParametersAsync(ParameterView parameters)
     {
         // 虚拟化前置条件校验（计划 §5.12）：参数赋值前 fail-fast，避免进入错误状态
@@ -142,6 +163,10 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
 
         if (DataSource is null)
         {
+            EndEditingSession(restoreFocus: false);
+            _keyboardRangeAnchor = null;
+            _appliedControlledExpandedIds = null;
+            ClearNodeTokens();
             _controller = null;
             _view = null;
             _boundDataSource = null;
@@ -157,11 +182,9 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             var focusId = _controller?.FocusedId;
 
             // 结束上一次编辑：复位旧节点编辑标志，避免复用同一 TreeNode 时标签空渲染
-            if (_editingContext is not null)
-            {
-                _editingContext.Node.IsEditing = false;
-                _editingContext = null;
-            }
+            EndEditingSession(restoreFocus: false);
+            _keyboardRangeAnchor = null;
+            _appliedControlledExpandedIds = null;
 
             // 虚拟化：DataSource 替换后 DOM 重建，清空 aria 焦点缓存待重新协调
             _ariaFocusId = null;
@@ -171,8 +194,9 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             _view = new TreeView(_controller);
             _controller.RestoreState(selectedIds, expandedIds, focusId);
             _boundStructureSnapshot = TreeStructureSnapshot.Capture(DataSource);
+            PruneNodeTokens();
         }
-        else
+        else if (AutoDetectStructureChanges)
         {
             // 仅真实的就地结构变更才重建索引并递增 revision；父组件的无关重渲染不使活动会话陈旧。
             var currentSnapshot = TreeStructureSnapshot.Capture(DataSource);
@@ -180,6 +204,14 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             {
                 _controller.Refresh();
                 _boundStructureSnapshot = TreeStructureSnapshot.Capture(DataSource);
+                PruneNodeTokens();
+
+                // 编辑节点被移除或替换后，旧会话不得继续渲染空编辑内容
+                if (_editingContext is not null &&
+                    !ReferenceEquals(_controller.FindById(_editingContext.Node.Id), _editingContext.Node))
+                {
+                    EndEditingSession(restoreFocus: false);
+                }
             }
         }
 
@@ -220,10 +252,17 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
     {
         if (_controller is null || ExpandedIds is null)
         {
+            _appliedControlledExpandedIds = null;
             return;
         }
 
         var expanded = ExpandedIds as ICollection<string> ?? ExpandedIds.ToHashSet();
+        if (_appliedControlledExpandedIds is not null && _appliedControlledExpandedIds.SetEquals(expanded))
+        {
+            return;
+        }
+
+        _appliedControlledExpandedIds = new HashSet<string>(expanded);
         foreach (var node in _controller.Flatten())
         {
             node.IsExpanded = expanded.Contains(node.Id);
@@ -257,11 +296,19 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
         // 仅默认 input 分支会捕获 _editInputRef；EditTemplate 路径下聚焦由应用自绘 UI 管理
         if (_editingContext is not null && EditTemplate is null)
         {
-            await _editInputRef.FocusAsync();
+            if (Js is not null)
+            {
+                await _editInputRef.FocusAsync();
+            }
         }
         else if (_editingContext?.FocusTarget is { } customFocusTarget)
         {
             await customFocusTarget.FocusAsync();
+        }
+        else if (_restoreFocusAfterEdit)
+        {
+            _restoreFocusAfterEdit = false;
+            await FocusContainerAsync();
         }
 
         // 虚拟化：跨视口导航后协调 aria-activedescendant（先滚动 → 等渲染 → 更新）
@@ -304,6 +351,10 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
 
         // 点击即聚焦（含禁用节点，REQ-F-061 AC4：禁用节点可被导航识别）
         _controller.SetFocus(node);
+        _keyboardRangeAnchor = null;
+
+        // active-descendant 模型：DOM 焦点始终由 role=tree 容器持有
+        await FocusContainerAsync();
 
         if (node.IsDisabled)
         {
@@ -367,6 +418,12 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             return;
         }
 
+        // 单独按下修饰键只改变后续按键状态，不得中断进行中的 Shift 范围锚点。
+        if (args.Key is "Shift" or "Control" or "Alt" or "Meta")
+        {
+            return;
+        }
+
         var oldIds = _controller.SelectedIds.ToArray();
         var oldExpandedIds = SnapshotExpandedIds();
         var revision = _controller.Revision;
@@ -395,7 +452,26 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             allowCollapse = await CanCollapseAsync(focused) && IsCurrentNode(focused, revision);
         }
 
-        var result = TreeKeyboardNavigation.Navigate(_controller, args.Key, allowExpand, allowCollapse);
+        var multipleSelection = SelectionMode == TreeSelectionMode.Multiple;
+        var isRangeSpace = multipleSelection && args.ShiftKey && (args.Key == " " || args.Key == "Spacebar");
+        var isRangeNavigation = multipleSelection && args.ShiftKey && IsRangeNavigationKey(args.Key);
+        if (!isRangeSpace && !isRangeNavigation)
+        {
+            _keyboardRangeAnchor = null;
+        }
+        else if (_keyboardRangeAnchor is null && focused is not null && !focused.IsDisabled)
+        {
+            _keyboardRangeAnchor = focused;
+        }
+
+        var result = TreeKeyboardNavigation.Navigate(
+            _controller,
+            args.Key,
+            allowExpand,
+            allowCollapse,
+            multipleSelection,
+            args.ShiftKey,
+            isRangeSpace || isRangeNavigation ? _keyboardRangeAnchor : null);
 
         if (result.Expanded is not null)
         {
@@ -528,6 +604,9 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             ? await BeforeRenameAsync(node, value)
             : BeforeRename?.Invoke(node, value) != false;
 
+    private static bool IsRangeNavigationKey(string key)
+        => key is "ArrowDown" or "ArrowUp" or "Home" or "End";
+
     private bool IsCurrentNode(TreeNode node, long revision)
         => _controller is not null &&
            _controller.Revision == revision &&
@@ -608,6 +687,7 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
         if (DataSource is not null)
         {
             _boundStructureSnapshot = TreeStructureSnapshot.Capture(DataSource);
+            PruneNodeTokens();
         }
 
         StateHasChanged();
@@ -631,18 +711,6 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
         return BeginEditCore(node);
     }
 
-    /// <summary>同步兼容入口；新代码应使用 <see cref="BeginEditAsync(string)"/>。</summary>
-    [Obsolete("Use BeginEditAsync(node.Id) so asynchronous guards and stale-result validation are honored.")]
-    public bool BeginEdit(TreeNode node)
-    {
-        if (BeforeEditNameAsync is not null)
-        {
-            throw new InvalidOperationException("BeginEdit cannot be used with BeforeEditNameAsync. Use BeginEditAsync.");
-        }
-
-        return BeforeEditName?.Invoke(node) != false && BeginEditCore(node);
-    }
-
     private bool BeginEditCore(TreeNode node)
     {
         if (_controller is null || !_controller.BeginEdit(node))
@@ -656,6 +724,7 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             _editingContext.Node.IsEditing = false;
         }
 
+        _controller.SetFocus(node);
         _editingContext = new TreeEditContext(
             ++_nextEditSessionId,
             _controller.Revision,
@@ -665,6 +734,7 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             CancelEditAsync);
         _suppressBlurCommit = null;
         _suppressNodeInvoke = false;
+        _restoreFocusAfterEdit = false;
         StateHasChanged();
         return true;
     }
@@ -690,14 +760,13 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
 
         if (!allowed || !_controller.TryRename(context.Node, context.Value))
         {
-            context.ValidationMessage ??= "Rename rejected";
+            context.ValidationMessage ??= RenameRejectedText;
             StateHasChanged();
             await OnEditRejected.InvokeAsync(new TreeEditRejectedEventArgs(context.Node, context.Value, context.ValidationMessage));
             return;
         }
 
-        _editingContext = null;
-        context.Node.IsEditing = false;
+        EndEditingSession(restoreFocus: true, keepNodeInvokeSuppression: true);
         StateHasChanged();
         await OnEditCommitted.InvokeAsync(new TreeEditEventArgs(context.Node, context.Value));
     }
@@ -710,11 +779,43 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        _editingContext = null;
-        _suppressBlurCommit = null;
-        context.Node.IsEditing = false;
+        EndEditingSession(restoreFocus: true);
         StateHasChanged();
         await OnEditCancelled.InvokeAsync(new TreeNodeEventArgs(context.Node));
+    }
+
+    private void EndEditingSession(bool restoreFocus, bool keepNodeInvokeSuppression = false)
+    {
+        if (_editingContext is not null)
+        {
+            _editingContext.Node.IsEditing = false;
+            _editingContext = null;
+        }
+
+        _suppressBlurCommit = null;
+        if (!keepNodeInvokeSuppression)
+        {
+            _suppressNodeInvoke = false;
+        }
+
+        _restoreFocusAfterEdit = restoreFocus;
+    }
+
+    private async Task FocusContainerAsync()
+    {
+        if (Js is null || string.IsNullOrEmpty(_containerRef.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            await _containerRef.FocusAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Blazor Server 断线后容器已不可聚焦。
+        }
     }
 
     #endregion

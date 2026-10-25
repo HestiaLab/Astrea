@@ -4,11 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | Complete（整改完成） |
+| 状态 | Historical（历史设计计划；当前状态见 SRS v0.7.0 与需求矩阵） |
 | 适用范围 | `src/Astrea/Components/Tree/`、`src/Astrea/wwwroot/astrea-tree.*`、Tree 测试、Demo、README 与 SRS 中的 Tree 契约 |
 | 目标框架 | .NET 6.0，兼容 Blazor Server 与 Blazor WebAssembly |
 | 当前基线 | `dotnet build Astrea.sln` 0 警告 0 错误；`dotnet test Astrea.sln --no-build` 174/174 通过；JS 单测 2/2 通过 |
 | 本文性质 | Tree 整改合同、实施顺序与验收基线；Phase 0 的可观察行为和公共 API 迁移方向已冻结 |
+
+> 历史说明（2026-10-25）：本文档记录 Tree 重设计阶段的方案与验收合同，不是当前发布状态的权威来源。当前需求与证据由 [docs/SRS.md](SRS.md) v0.7.0、[requirements-test-matrix.md](requirements-test-matrix.md) 与 [release-evidence.md](release-evidence.md) 跟踪；文中 174/174 等基线数字已过时。
 
 ## 2. 目标
 

@@ -4,7 +4,7 @@ namespace Astrea.Components.Tree;
 /// 树键盘导航状态机（纯逻辑）：根据按键与当前焦点/可见序列移动焦点、展开折叠或选择，
 /// 返回导航结果供组件触发对应通知。符合 WAI-ARIA Tree View Pattern（REQ-F-066）。
 /// </summary>
-public static class TreeKeyboardNavigation
+internal static class TreeKeyboardNavigation
 {
     /// <summary>一次键盘导航的结果。</summary>
     public sealed class Result
@@ -27,7 +27,10 @@ public static class TreeKeyboardNavigation
         TreeController controller,
         string key,
         bool allowExpand = true,
-        bool allowCollapse = true)
+        bool allowCollapse = true,
+        bool multipleSelection = false,
+        bool shiftKey = false,
+        TreeNode? rangeAnchor = null)
     {
         var result = new Result();
         var visible = controller.FlattenVisible();
@@ -52,6 +55,8 @@ public static class TreeKeyboardNavigation
                     controller.SetFocus(visible[idx + 1]);
                     result.Changed = true;
                 }
+
+                ApplyRangeSelection(controller, multipleSelection, shiftKey, rangeAnchor, result);
                 break;
 
             case "ArrowUp":
@@ -65,16 +70,20 @@ public static class TreeKeyboardNavigation
                     controller.SetFocus(visible[0]);
                     result.Changed = true;
                 }
+
+                ApplyRangeSelection(controller, multipleSelection, shiftKey, rangeAnchor, result);
                 break;
 
             case "Home":
                 controller.SetFocus(visible[0]);
                 result.Changed = true;
+                ApplyRangeSelection(controller, multipleSelection, shiftKey, rangeAnchor, result);
                 break;
 
             case "End":
                 controller.SetFocus(visible[visible.Count - 1]);
                 result.Changed = true;
+                ApplyRangeSelection(controller, multipleSelection, shiftKey, rangeAnchor, result);
                 break;
 
             case "ArrowRight":
@@ -113,14 +122,35 @@ public static class TreeKeyboardNavigation
             case "Spacebar":
                 if (focused is not null && !focused.IsDisabled)
                 {
-                    var selectResult = controller.Select(focused);
+                    var selectResult = multipleSelection
+                        ? shiftKey && rangeAnchor is not null
+                            ? controller.SelectRange(rangeAnchor, focused)
+                            : controller.ToggleSelection(focused)
+                        : controller.Select(focused);
                     result.SelectionChanged = selectResult.Changed;
-                    result.Changed = selectResult.Changed;
+                    result.Changed |= selectResult.Changed;
                 }
                 break;
         }
 
         return result;
+    }
+
+    private static void ApplyRangeSelection(
+        TreeController controller,
+        bool multipleSelection,
+        bool shiftKey,
+        TreeNode? rangeAnchor,
+        Result result)
+    {
+        if (!multipleSelection || !shiftKey || rangeAnchor is null || controller.FocusedNode is not { } target)
+        {
+            return;
+        }
+
+        var selection = controller.SelectRange(rangeAnchor, target);
+        result.SelectionChanged = selection.Changed;
+        result.Changed |= selection.Changed;
     }
 
     private static int IndexOf(IReadOnlyList<TreeNode> list, TreeNode? node)

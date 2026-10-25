@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace Astrea.Components.Tree;
 
 /// <summary>
@@ -5,14 +7,20 @@ namespace Astrea.Components.Tree;
 /// 纯状态容器，不做节点归属、禁用状态等校验；校验由 <see cref="TreeController"/> 在写入前完成。
 /// 选择/焦点不再以 <see cref="TreeNode"/> 实例属性为权威。
 /// </summary>
-public sealed class TreeState
+internal sealed class TreeState
 {
     private readonly HashSet<string> _selectedIds = new();
+    private readonly ReadOnlySetView<string> _selectedView;
     private string? _focusedId;
     private long _revision;
 
-    /// <summary>选中节点的稳定 ID 集合。</summary>
-    public IReadOnlySet<string> SelectedIds => new HashSet<string>(_selectedIds);
+    public TreeState()
+    {
+        _selectedView = new ReadOnlySetView<string>(_selectedIds);
+    }
+
+    /// <summary>选中节点的稳定 ID 集合（稳定只读视图，不复制）。</summary>
+    public IReadOnlySet<string> SelectedIds => _selectedView;
 
     /// <summary>当前焦点节点稳定 ID（全树唯一，可能为 null）。</summary>
     public string? FocusedId => _focusedId;
@@ -106,4 +114,32 @@ public sealed class TreeState
 
     /// <summary>结构刷新后递增 revision。</summary>
     public void IncrementRevision() => _revision++;
+}
+
+/// <summary>只读 IReadOnlySet 视图；不实现 ISet，调用方无法通过强制转换改写源集合。</summary>
+internal sealed class ReadOnlySetView<T> : IReadOnlySet<T>
+{
+    private readonly ISet<T> _source;
+
+    public ReadOnlySetView(ISet<T> source) => _source = source;
+
+    public int Count => _source.Count;
+
+    public bool Contains(T item) => _source.Contains(item);
+
+    public IEnumerator<T> GetEnumerator() => _source.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public bool IsProperSubsetOf(IEnumerable<T> other) => _source.IsProperSubsetOf(other);
+
+    public bool IsProperSupersetOf(IEnumerable<T> other) => _source.IsProperSupersetOf(other);
+
+    public bool IsSubsetOf(IEnumerable<T> other) => _source.IsSubsetOf(other);
+
+    public bool IsSupersetOf(IEnumerable<T> other) => _source.IsSupersetOf(other);
+
+    public bool Overlaps(IEnumerable<T> other) => _source.Overlaps(other);
+
+    public bool SetEquals(IEnumerable<T> other) => _source.SetEquals(other);
 }

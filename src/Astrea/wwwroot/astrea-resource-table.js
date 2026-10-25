@@ -11,7 +11,7 @@
  */
 
 /** @typedef {{header: HTMLTableCellElement, adjacent: (HTMLTableCellElement|null), startX: number, startWidth: number, adjacentStartWidth: number, minWidth: number, columnIndex: number}} ResizeSession */
-/** @typedef {{session: (ResizeSession|null), rafId: (number|null), controller: AbortController, dotNetRef: any}} TableState */
+/** @typedef {{session: (ResizeSession|null), rafId: (number|null), controller: AbortController, dotNetRef: any, resizeObserver: (ResizeObserver|null)}} TableState */
 
 /** @type {Map<string, TableState>} */
 const tableStates = new Map();
@@ -34,6 +34,7 @@ export function initializeResizeTable(tableId, dotNetRef, options) {
     const tableRect = table.getBoundingClientRect();
     table.style.width = `${tableRect.width}px`;
     table.style.tableLayout = 'fixed';
+    const keyboardStep = options?.keyboardStep ?? 10;
 
     const headers = Array.from(table.querySelectorAll('th.ast-rt-th'));
 
@@ -52,9 +53,24 @@ export function initializeResizeTable(tableId, dotNetRef, options) {
         rafId: null,
         controller,
         dotNetRef: dotNetRef ?? null,
+        resizeObserver: null,
     };
     tableStates.set(tableId, state);
     const { signal } = controller;
+
+    // 容器宽度变化时同步固定布局表格宽度；旧状态通过 tableStates 校验，避免迟到回调。
+    if (typeof ResizeObserver !== 'undefined' && table.parentElement) {
+        state.resizeObserver = new ResizeObserver(() => {
+            if (tableStates.get(tableId) !== state) {
+                return;
+            }
+            const width = table.parentElement?.getBoundingClientRect().width ?? 0;
+            if (width > 0) {
+                table.style.width = `${width}px`;
+            }
+        });
+        state.resizeObserver.observe(table.parentElement);
+    }
 
     headers.forEach((header, index) => {
         const handle = header.querySelector('.ast-rt-resize-handle');
@@ -69,6 +85,7 @@ export function initializeResizeTable(tableId, dotNetRef, options) {
         }
 
         const minWidth = options?.minWidths?.[index] ?? 50;
+        const adjacentMinWidth = options?.minWidths?.[index + 1] ?? 50;
 
         handle.addEventListener('pointerdown', (e) => {
             e.preventDefault();
@@ -83,7 +100,7 @@ export function initializeResizeTable(tableId, dotNetRef, options) {
                 startWidth: header.getBoundingClientRect().width,
                 adjacentStartWidth: adjacent.getBoundingClientRect().width,
                 minWidth,
-                adjacentMinWidth: options?.minWidths?.[index + 1] ?? 50,
+                adjacentMinWidth,
                 columnIndex: index,
             };
 
@@ -111,6 +128,26 @@ export function initializeResizeTable(tableId, dotNetRef, options) {
             stopDrag(state);
         }, { signal });
 
+        handle.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                return;
+            }
+
+            // 只阻止滚动，不阻断冒泡：应用仍需收到容器上的键盘事件（REQ-F-095）。
+            e.preventDefault();
+            const dx = e.key === 'ArrowRight' ? keyboardStep : -keyboardStep;
+            const newWidth = applyResize(
+                header,
+                adjacent,
+                header.getBoundingClientRect().width,
+                adjacent.getBoundingClientRect().width,
+                dx,
+                minWidth,
+                adjacentMinWidth,
+            );
+            notifyColumnResized(state, index, newWidth);
+        }, { signal });
+
         // 阻止手柄上的点击冒泡，防止触发排序等其他 th 事件
         handle.addEventListener('click', (e) => e.stopPropagation(), { signal });
     });
@@ -126,22 +163,41 @@ function doDrag(state, e) {
         return;
     }
 
-    const dx = e.clientX - s.startX;
+    applyResize(
+        s.header,
+        s.adjacent,
+        s.startWidth,
+        s.adjacentStartWidth,
+        e.clientX - s.startX,
+        s.minWidth,
+        s.adjacentMinWidth,
+    );
+}
 
-    let newWidth = s.startWidth + dx;
-    let adjacentNewWidth = s.adjacentStartWidth - dx;
+/**
+ * 应用列宽变化并返回当前列的新宽度。
+ * @returns {number}
+ */
+function applyResize(header, adjacent, startWidth, adjacentStartWidth, dx, minWidth, adjacentMinWidth) {
+    let newWidth = startWidth + dx;
+    let adjacentNewWidth = adjacentStartWidth - dx;
 
     // 边界检查：当前列与相邻列分别受各自最小宽度约束，总宽度守恒
-    if (newWidth < s.minWidth) {
-        newWidth = s.minWidth;
-        adjacentNewWidth = s.startWidth + s.adjacentStartWidth - newWidth;
-    } else if (adjacentNewWidth < s.adjacentMinWidth) {
-        adjacentNewWidth = s.adjacentMinWidth;
-        newWidth = s.startWidth + s.adjacentStartWidth - adjacentNewWidth;
+    if (newWidth < minWidth) {
+        newWidth = minWidth;
+        adjacentNewWidth = startWidth + adjacentStartWidth - newWidth;
+    } else if (adjacentNewWidth < adjacentMinWidth) {
+        adjacentNewWidth = adjacentMinWidth;
+        newWidth = startWidth + adjacentStartWidth - adjacentNewWidth;
     }
 
-    s.header.style.width = `${newWidth}px`;
-    s.adjacent.style.width = `${adjacentNewWidth}px`;
+    header.style.width = `${newWidth}px`;
+    adjacent.style.width = `${adjacentNewWidth}px`;
+    const handle = header.querySelector('.ast-rt-resize-handle');
+    if (handle) {
+        handle.setAttribute('aria-valuenow', String(Math.round(newWidth)));
+    }
+    return newWidth;
 }
 
 /**
@@ -167,12 +223,18 @@ function stopDrag(state) {
         state.rafId = null;
     }
 
+    notifyColumnResized(state, columnIndex, finalWidth);
+}
+
+function notifyColumnResized(state, columnIndex, width) {
     // 通知 C# 侧列宽变化（失败静默：组件可能已卸载）
-    if (state.dotNetRef) {
-        state.dotNetRef
-            .invokeMethodAsync('OnColumnResized', columnIndex, finalWidth)
-            .catch(() => {});
+    if (!state.dotNetRef) {
+        return;
     }
+
+    state.dotNetRef
+        .invokeMethodAsync('OnColumnResized', columnIndex, width)
+        .catch(() => {});
 }
 
 /**
@@ -191,6 +253,7 @@ export function disposeResizableColumns(tableId) {
         state.rafId = null;
     }
 
+    state.resizeObserver?.disconnect();
     state.controller.abort();
     tableStates.delete(tableId);
 

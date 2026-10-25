@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Astrea.Components.Tree.Tests;
@@ -22,6 +23,40 @@ public class TreeControllerCommandTests
         Assert.IsTrue(controller.SelectRange(first, second).Rejected);
         Assert.IsTrue(controller.SelectAll(root, excludeSelf: true).Rejected);
         Assert.AreEqual(1, controller.SelectedIds.Count);
+    }
+
+    [TestMethod]
+    public void Flatten_ReturnsReadOnlyViewThatCannotMutateTheCache()
+    {
+        var root = new TreeNode("root", id: "root");
+        root.Add(new TreeNode("child", id: "child"));
+        var controller = new TreeController(new[] { root });
+
+        var flatten = controller.Flatten();
+
+        Assert.IsInstanceOfType(flatten, typeof(ReadOnlyCollection<TreeNode>));
+        Assert.ThrowsException<NotSupportedException>(
+            () => ((ICollection<TreeNode>)flatten).Add(new TreeNode("injected", id: "injected")));
+        Assert.AreEqual(2, controller.Flatten().Count);
+        Assert.IsNull(controller.FindById("injected"));
+    }
+
+    [TestMethod]
+    public void FlattenVisible_InvalidationReturnsAnotherReadOnlyView()
+    {
+        var root = new TreeNode("root", id: "root") { IsExpanded = true };
+        root.Add(new TreeNode("child", id: "child"));
+        var controller = new TreeController(new[] { root });
+
+        var first = controller.FlattenVisible();
+        controller.InvalidateVisible();
+        var second = controller.FlattenVisible();
+
+        Assert.IsInstanceOfType(first, typeof(ReadOnlyCollection<TreeNode>));
+        Assert.IsInstanceOfType(second, typeof(ReadOnlyCollection<TreeNode>));
+        Assert.ThrowsException<NotSupportedException>(
+            () => ((ICollection<TreeNode>)second).Add(new TreeNode("injected", id: "injected")));
+        Assert.AreEqual(2, controller.FlattenVisible().Count);
     }
 
     private static (TreeController Controller, TreeNode Owned, TreeNode External) Build()
@@ -138,20 +173,6 @@ public class TreeControllerCommandTests
         controller.Refresh();
 
         Assert.AreEqual(before + 1, controller.Revision);
-    }
-
-    [TestMethod]
-    public void BeforeExpandGuard_Replacement_TakesEffect()
-    {
-        var root = new TreeNode("root");
-        root.Add(new TreeNode("child"));
-        var controller = new TreeController(new[] { root }) { BeforeExpand = _ => false };
-
-        Assert.IsFalse(controller.Expand(root));
-
-        controller.BeforeExpand = null;
-
-        Assert.IsTrue(controller.Expand(root));
     }
 
     [TestMethod]

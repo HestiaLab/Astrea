@@ -8,7 +8,7 @@ Astrea 是一个企业级 Blazor UI 组件库（.NET 6.0），强调正确性、
 # 构建（RCL + 演示 + 测试）
 dotnet build Astrea.sln
 
-# 测试（核心纯 C# 逻辑：TreeNode / TreeController / TreeSelection）
+# 测试（核心纯 C# 逻辑：TreeNode / TreeController / TreeState / DragProtocol / TreeKeyboardNavigation）
 dotnet test Astrea.sln --no-build
 
 # 代码风格
@@ -37,7 +37,7 @@ dotnet run --project src/Astrea.Demo
 ```
 
 - **type**（必填）：`feat` 新功能 / `fix` 缺陷修复 / `docs` 文档 / `test` 测试 / `refactor` 重构 / `style` 样式视觉 / `perf` 性能 / `ci` CI 与部署 / `chore` 杂项
-- **scope**（可选）：`tree`（Tree 组件）、`core`（核心模型 TreeNode/TreeController/TreeSelection）、`srs`（需求文档）、`ci`（CI/CD）、`demo`（演示 app）、`test`（测试）、`docs`（文档）
+- **scope**（可选）：`tree`（Tree 组件）、`core`（核心模型 TreeNode/TreeController/TreeState）、`srs`（需求文档）、`ci`（CI/CD）、`demo`（演示 app）、`test`（测试）、`docs`（文档）
 - **subject**：中文简短描述，动词开头，≤ 72 字符
 
 示例：

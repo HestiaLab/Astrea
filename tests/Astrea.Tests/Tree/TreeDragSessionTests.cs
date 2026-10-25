@@ -134,6 +134,64 @@ public class TreeDragSessionTests
     }
 
     [TestMethod]
+    public void TreeDragMessage_JsCamelCaseJson_DeserializesAllFields()
+    {
+        const string json = "{\"protocolVersion\":1,\"sessionId\":\"s-1\",\"sourceTreeId\":\"tree-1\",\"sourceNodeIds\":[\"a\",\"b\"],\"sourceRevision\":42,\"targetTreeId\":\"tree-1\",\"targetNodeId\":\"c\",\"relation\":\"inside\"}";
+
+        var message = JsonSerializer.Deserialize<TreeDragMessage>(json);
+
+        Assert.IsNotNull(message);
+        Assert.AreEqual(1, message!.ProtocolVersion);
+        Assert.AreEqual("s-1", message.SessionId);
+        Assert.AreEqual("tree-1", message.SourceTreeId);
+        CollectionAssert.AreEqual(new[] { "a", "b" }, message.SourceNodeIds);
+        Assert.AreEqual(42L, message.SourceRevision);
+        Assert.AreEqual("tree-1", message.TargetTreeId);
+        Assert.AreEqual("c", message.TargetNodeId);
+        Assert.AreEqual("inside", message.Relation);
+    }
+
+    [TestMethod]
+    public async Task HandleDrop_JsCamelCaseMessage_NotifiesOnceWithRelation()
+    {
+        var (tree, controller, treeId) = CreateTree();
+        TreeDropEventArgs? received = null;
+        SetParameter(tree, nameof(Tree.OnDrop), EventCallback.Factory.Create<TreeDropEventArgs>(this, args => received = args));
+        Assert.AreNotEqual("{}", tree.BeginDrag("js-session", "[\"a\"]"));
+
+        var json = $"{{\"protocolVersion\":1,\"sessionId\":\"js-session\",\"sourceTreeId\":\"{treeId}\",\"sourceNodeIds\":[\"a\"],\"sourceRevision\":{controller.Revision},\"targetTreeId\":\"{treeId}\",\"targetNodeId\":\"b\",\"relation\":\"after\"}}";
+
+        await tree.HandleDrop(json);
+
+        Assert.IsNotNull(received);
+        Assert.AreEqual("b", received!.TargetNode.Id);
+        Assert.AreEqual(TreeDropRelation.After, received.Relation);
+        CollectionAssert.AreEqual(new[] { "a" }, received.SourceNodes.Select(node => node.Id).ToArray());
+    }
+
+    [TestMethod]
+    public void BeginDrag_Response_UsesCamelCaseWireNames()
+    {
+        var (tree, _, _) = CreateTree();
+
+        var result = tree.BeginDrag("wire-session", "[\"a\"]");
+
+        using var document = JsonDocument.Parse(result);
+        Assert.IsTrue(document.RootElement.TryGetProperty("sourceRevision", out _));
+        Assert.IsTrue(document.RootElement.TryGetProperty("sourceNodeIds", out _));
+    }
+
+    [TestMethod]
+    public void BeginDrag_DisabledSource_Rejects()
+    {
+        var (tree, controller, _) = CreateTree();
+        controller.FindById("b")!.IsDisabled = true;
+
+        Assert.AreEqual("{}", tree.BeginDrag("disabled-session", "[\"b\"]"));
+        Assert.AreEqual("{}", tree.BeginDrag("disabled-session", "[\"a\",\"b\"]"));
+    }
+
+    [TestMethod]
     public async Task DisposeAsync_JsDisconnected_ClearsAllDragReferences()
     {
         var tree = new Tree();

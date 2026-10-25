@@ -3,9 +3,9 @@
 | 项目 | 内容 |
 |------|------|
 | 项目名称 | Astrea |
-| 版本 | 0.6.0 |
+| 版本 | 0.7.0 |
 | 状态 | 草案 |
-| 日期 | 2026-08-14 |
+| 日期 | 2026-10-25 |
 | 作者 | wubing7755 |
 | 适用范围 | Blazor 组件库（.NET 6.0） |
 
@@ -21,14 +21,22 @@
 
 ### 1.2.1 范围内
 
-Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数据展示场景。组件清单如下：
+Astrea 提供可复用的 UI 组件。当前版本（v0.7.0）的交付范围为 Tree 与 ResourceTable：
+
+| 分类 | 组件 |
+|------|------|
+| Data Display | Tree、ResourceTable |
+
+以下组件已定义需求，但**不属于当前版本交付范围**，状态为 Deferred；其需求保留在正文与附录 B，供后续版本评估。实现范围、依赖与验收计划见 [docs/Roadmap.md](Roadmap.md)：
 
 | 分类 | 组件 |
 |------|------|
 | Basic | Button、Divider、Label |
 | Form | Input、Select |
 | Feedback | Alert、Modal（对话框） |
-| Data Display | Table、Tree、Progress、ResourceTable |
+| Data Display | Table、Progress |
+
+§3.1 通用组件需求与 §4 非功能需求适用于当前版本的 Active 组件；未列入附录 B 的通用与非功能需求仍属于当前版本需求基线。
 
 ### 1.2.2 范围外
 
@@ -41,7 +49,7 @@ Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数
 | 数学运算 | 矩阵、几何变换等数学工具不纳入 |
 | 应用级服务 | 撤销/重做服务、事件总线、跨组件通信框架不纳入 |
 | 应用级布局 | 可停靠布局、分栏面板等应用级布局能力不纳入组件库 |
-| 未纳入首版的 UI 组件 | NumberInput、Checkbox、Radio、Switch、TextArea、DatePicker、Combobox、Tooltip、Toast 等未列于 §1.2.1 的组件不纳入本版 |
+| 未纳入首版的 UI 组件 | NumberInput、Checkbox、Radio、Switch、TextArea、DatePicker、Combobox、Tooltip、Toast 等未列于 §1.2.1 任一表的组件不纳入本版 |
 
 ## 1.3 术语
 
@@ -92,9 +100,9 @@ Astrea 提供可复用的 UI 组件，覆盖基础控件、表单、反馈与数
 
 ### 1.4.3 需求状态
 
-- 除附录 B 明确列出的需求外，本文档中的需求均为 **Active**，属于当前版本需求基线。
-- 附录 B 中的需求状态为 **Deferred**，不属于当前版本必须实现的范围，但保留其预期行为供后续版本评估。
-- 优先级表示需求的重要程度，需求状态表示是否纳入当前版本，两者不得混用。
+- 附录 B 是 **Deferred** 状态的唯一权威列表。其中的需求不属于当前版本必须实现的范围，但保留其预期行为供后续版本评估。
+- 除附录 B 明确列出的需求外，本文档中的需求均为 **Active**，属于当前版本需求基线。当前版本 Active 功能需求集合为 §3.1 通用需求、§3.10 Tree（REQ-F-065 除外）与 §3.12 ResourceTable；§3.2～§3.9 与 §3.11 的组件需求均为 Deferred。Active 非功能需求为 §4 中未列入附录 B 的需求。
+- 优先级表示需求的重要程度，需求状态表示是否纳入当前版本，两者不得混用；因此附录 B 可以包含任意优先级的需求。
 
 ### 1.4.4 需求格式
 
@@ -4026,6 +4034,8 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 
 # 5 需求统计
 
+> §5.1 与 §5.2 统计全部需求（含 Deferred）；当前版本 Active 需求的状态统计见 §5.3。
+
 ## 5.1 按优先级
 
 | 优先级 | 数量 |
@@ -4053,6 +4063,14 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | §3.12 ResourceTable | REQ-F-090 ~ 097 | 8 |
 | §4 NFR | REQ-NF-001 ~ 012 | 12 |
 | 合计 | | 109 |
+
+## 5.3 按状态
+
+| 状态 | 功能需求 | 非功能需求 | 合计 |
+|:---:|---:|---:|---:|
+| Active | 27 | 11 | 38 |
+| Deferred | 70 | 1 | 71 |
+| 合计 | 97 | 12 | 109 |
 
 ---
 
@@ -4236,18 +4254,81 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 
 ## 附录B：延期需求
 
+> 本附录是 Deferred 状态的唯一权威列表；其中需求可具有任意优先级，优先级与状态相互独立。
+
 | 编号 | 标题 | 说明 |
 |------|------|------|
+| REQ-F-010 | Button 基础呈现 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-011 | Button 点击事件 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-012 | Button 表单行为 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-013 | Button 视觉变体 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-014 | Button 尺寸 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-015 | Button 禁用 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-016 | Button 图标 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-017 | Button 可访问性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-018 | Alert 类型 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-019 | Alert 内容 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-020 | Alert 关闭操作 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-021 | Alert 可见性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-022 | Alert 自动关闭 | Deferred；不属于当前版本需求基线 |
+| REQ-F-023 | Alert 可访问性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-024 | Divider 方向与语义 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-025 | Divider 视觉定制 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-026 | Divider 嵌入内容 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-027 | Divider 响应式表现 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-028 | Input 文本输入类型 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-029 | Input 值同步 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-030 | Input 交互通知 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-031 | Input 占位提示 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-032 | Input 禁用与只读 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-033 | Input 验证反馈 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-034 | Input 前后内容 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-035 | Input 自动聚焦 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-036 | Input 标签与错误关联 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-037 | Label 内容与控件关联 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-038 | Label 必填指示 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-039 | Label 可访问性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-040 | Modal 可见状态与关闭请求 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-041 | Modal 尺寸预设 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-042 | Modal 内容区域 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-043 | Modal 确认与取消操作 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-044 | Modal 遮罩关闭 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-045 | Modal Escape 关闭 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-046 | Modal 焦点与背景交互 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-047 | Modal 可访问性语义 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-048 | Progress 确定进度 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-049 | Progress 边界处理 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-050 | Progress 百分比文本 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-051 | Progress 视觉状态 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-052 | Progress 可访问性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-053 | Select 选项与单选 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-054 | Select 值与选项同步 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-055 | Select 占位选项 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-056 | Select 禁用状态 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-057 | Select 自定义选项内容 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-058 | Select 多选 | Deferred；不属于当前版本需求基线 |
 | REQ-F-059 | Select 搜索过滤 | Deferred；不属于当前版本需求基线 |
+| REQ-F-060 | Select 可访问性与键盘操作 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-065 | Tree 懒加载 | Deferred；不属于当前版本需求基线 |
+| REQ-F-067 | Table 数据集合 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-068 | Table 列定义 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-069 | Table 固定表头 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-070 | Table 行操作 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-071 | Table 空状态 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-072 | Table 斑马纹 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-073 | Table 分页 | Deferred；不属于当前版本需求基线 |
+| REQ-F-074 | Table 可访问性语义 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-075 | Select 选项值唯一性 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-076 | Progress 不确定进度 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-078 | Table 加载与错误状态 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
+| REQ-F-079 | Table 宽内容访问 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-080 | Button 加载与忙碌状态 | Deferred；不属于当前版本需求基线 |
 | REQ-F-081 | Modal 多实例与嵌套 | Deferred；不属于当前版本需求基线 |
 | REQ-F-082 | Table 排序 | Deferred；不属于当前版本需求基线 |
+| REQ-F-083 | Select 单个选项禁用 | Deferred；当前版本不交付该组件，见 docs/Roadmap.md |
 | REQ-F-084 | Table 筛选 | Deferred；不属于当前版本需求基线 |
 | REQ-F-085 | Table 行选择 | Deferred；不属于当前版本需求基线 |
+| REQ-NF-003 | 代表性数据量性能 | Deferred；随 Table 组件延期 |
 
 ---
 
@@ -4263,6 +4344,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | 2026-08-13 | **v0.4.0 Tree 全功能扩充**: Tree 新增多选（REQ-F-086）、拖拽重排（REQ-F-087）、节点编辑（REQ-F-088）、右键通知（REQ-F-089），Tree 定位为全功能树 | Ada |
 | 2026-08-13 | **v0.5.0 Tree 交互边界澄清**: 明确同一 Tree 多根同界、范围选择与拖拽跨根、拖拽源祖先归一化；修正文件头版本元数据与变更记录一致性 | Ada |
 | 2026-08-14 | **v0.6.0 Tree 交付合同冻结**: 明确选择与展开的受控/非受控语义、跨根范围内禁用节点规则、异步应用决策、过期编辑操作和拖拽结果单次消费 | Codex |
+| 2026-10-25 | **v0.7.0 交付范围收敛**: 当前版本交付范围收敛为 Tree 与 ResourceTable；其余 9 类组件的 60 条 Active 功能需求及依赖 Table 的 REQ-NF-003 移入 Deferred（附录 B）；新增 docs/Roadmap.md 与需求-测试矩阵 | wubing7755 |
 
 ---
 

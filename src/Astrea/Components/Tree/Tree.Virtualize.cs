@@ -17,7 +17,7 @@ public sealed partial class Tree
     /// </summary>
     private async Task SyncVirtualizationFocusAsync()
     {
-        if (_controller is null || Js is null)
+        if (_controller is null || Js is null || _dragDisposed)
         {
             return;
         }
@@ -45,24 +45,55 @@ public sealed partial class Tree
             return;
         }
 
-        _scrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
-        var nodeDomId = NodeDomId(focusedId);
-
-        // 先尝试滚动到目标索引；未渲染时轮询等待 Virtualize 重渲染（子组件滚动重渲染不触发父 OnAfterRender）
-        var rendered = await _scrollModule.InvokeAsync<bool>(
-            "ensureNodeRendered", $"tree-container-{_id}", nodeDomId, index, ItemSize);
-        for (int attempt = 0; !rendered && attempt < 40; attempt++)
+        try
         {
-            await Task.Delay(30);
-            rendered = await _scrollModule.InvokeAsync<bool>("isNodeRendered", nodeDomId);
-        }
+            _scrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+            if (_dragDisposed)
+            {
+                return;
+            }
 
-        if (rendered)
-        {
-            _ariaFocusId = focusedId;
-            StateHasChanged();
+            var nodeDomId = NodeDomId(focusedId);
+
+            // 先尝试滚动到目标索引；未渲染时轮询等待 Virtualize 重渲染（子组件滚动重渲染不触发父 OnAfterRender）
+            var rendered = await _scrollModule.InvokeAsync<bool>(
+                "ensureNodeRendered", $"tree-container-{_id}", nodeDomId, index, ItemSize);
+            for (int attempt = 0; !rendered && attempt < 40; attempt++)
+            {
+                if (_dragDisposed)
+                {
+                    return;
+                }
+
+                await Task.Delay(30);
+                if (_dragDisposed)
+                {
+                    return;
+                }
+
+                rendered = await _scrollModule.InvokeAsync<bool>("isNodeRendered", nodeDomId);
+            }
+
+            if (_dragDisposed)
+            {
+                return;
+            }
+
+            if (rendered)
+            {
+                _ariaFocusId = focusedId;
+                StateHasChanged();
+            }
+            // 超时仍未渲染：保持 _ariaFocusId 不变（不指向未渲染节点），下次导航会重新协调
         }
-        // 超时仍未渲染：保持 _ariaFocusId 不变（不指向未渲染节点），下次导航会重新协调
+        catch (JSDisconnectedException)
+        {
+            // Blazor Server 断线后不再同步虚拟化焦点。
+        }
+        catch (ObjectDisposedException)
+        {
+            // Dispose 与滚动模块调用交错。
+        }
     }
 
     private int IndexOfVisible(TreeNode? node)
