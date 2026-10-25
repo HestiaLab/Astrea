@@ -136,10 +136,9 @@ public sealed class TreeBrowserTests
         Assert.IsTrue(await tree.EvaluateAsync<double>("element => element.scrollTop") > 0);
 
         await session.Page.Keyboard.PressAsync("Home");
-        var activeId = await WaitForValidActiveDescendantAsync(tree);
-        Assert.AreEqual("perf-root", await tree.Locator($"#{activeId}").GetAttributeAsync("data-node-id"));
+        await WaitForActiveNodeAsync(tree, "perf-root");
         await session.Page.Keyboard.PressAsync("ArrowDown");
-        await WaitForValidActiveDescendantAsync(tree);
+        await WaitForActiveNodeAsync(tree, "p1");
         session.AssertNoConsoleErrors();
     }
 
@@ -709,6 +708,30 @@ public sealed class TreeBrowserTests
 
         Assert.Fail($"aria-activedescendant did not resolve to a rendered element. Last value: {activeId}");
         return string.Empty;
+    }
+
+    private static async Task WaitForActiveNodeAsync(ILocator tree, string expectedNodeId)
+    {
+        string? activeId = null;
+        string? actualNodeId = null;
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            activeId = await tree.GetAttributeAsync("aria-activedescendant");
+            if (!string.IsNullOrEmpty(activeId))
+            {
+                actualNodeId = await tree.EvaluateAsync<string?>(
+                    "(_element, id) => document.getElementById(id)?.getAttribute('data-node-id')",
+                    activeId);
+                if (actualNodeId == expectedNodeId)
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(50);
+        }
+
+        Assert.Fail($"Active descendant did not resolve to '{expectedNodeId}'. Last active id: {activeId}, node: {actualNodeId}");
     }
 
     private sealed class BrowserSession : IAsyncDisposable

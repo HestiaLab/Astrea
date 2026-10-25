@@ -10,6 +10,7 @@ public sealed partial class Tree
 {
     private IJSObjectReference? _scrollModule;
     private string? _ariaFocusId;
+    private int _focusSyncGeneration;
 
     /// <summary>
     /// 协调虚拟化模式下的 aria-activedescendant。焦点节点已渲染时立即引用其 DOM id；
@@ -22,6 +23,8 @@ public sealed partial class Tree
             return;
         }
 
+        // 新的焦点同步取消尚未完成的旧轮询，避免过期导航写回 aria-activedescendant。
+        var generation = ++_focusSyncGeneration;
         var focusedId = _controller.FocusedId;
 
         if (focusedId == _ariaFocusId)
@@ -48,7 +51,7 @@ public sealed partial class Tree
         try
         {
             _scrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
-            if (_dragDisposed)
+            if (_dragDisposed || generation != _focusSyncGeneration)
             {
                 return;
             }
@@ -60,13 +63,13 @@ public sealed partial class Tree
                 "ensureNodeRendered", $"tree-container-{_id}", nodeDomId, index, ItemSize);
             for (int attempt = 0; !rendered && attempt < 40; attempt++)
             {
-                if (_dragDisposed)
+                if (_dragDisposed || generation != _focusSyncGeneration)
                 {
                     return;
                 }
 
                 await Task.Delay(30);
-                if (_dragDisposed)
+                if (_dragDisposed || generation != _focusSyncGeneration)
                 {
                     return;
                 }
@@ -74,7 +77,7 @@ public sealed partial class Tree
                 rendered = await _scrollModule.InvokeAsync<bool>("isNodeRendered", nodeDomId);
             }
 
-            if (_dragDisposed)
+            if (_dragDisposed || generation != _focusSyncGeneration || _controller.FocusedId != focusedId)
             {
                 return;
             }
