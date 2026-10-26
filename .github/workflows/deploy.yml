@@ -39,8 +39,11 @@ jobs:
       - name: Publish demo
         run: dotnet publish src/Astrea.Demo --no-restore -c Release -o publish
 
-      - name: Set GitHub Pages base path
-        run: sed -i 's|<base href="/" />|<base href="/Astrea/" />|' publish/wwwroot/index.html
+      - name: Rewrite base href and emit the SPA fallback
+        run: |
+          sed -i 's|<base href="/" />|<base href="/Astrea/" />|' publish/wwwroot/index.html
+          grep -q '<base href="/Astrea/" />' publish/wwwroot/index.html
+          cp publish/wwwroot/index.html publish/wwwroot/404.html
 
       - name: Add .nojekyll
         run: touch publish/wwwroot/.nojekyll

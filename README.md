@@ -10,6 +10,12 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 | ResourceTable | Active | §3.12 |
 | Button, Alert, Divider, Input, Label, Modal, Progress, Select, Table | Deferred | Appendix B / [Roadmap](docs/Roadmap.md) |
 
+## Demo Site
+
+The Blazor WebAssembly demo is published as a GitHub Pages project site at <https://hestialab.github.io/Astrea/>. The deploy workflow rewrites `<base href>` to `/Astrea/` and copies the rewritten `index.html` to `404.html`, so direct links and refreshes reach the Blazor router.
+
+All in-app links must remain relative to the `<base>` path (for example `components/tree`; use an empty `href` for the catalog home). Avoid root-absolute paths such as `/components/tree`, which resolve outside the project site. Pushes to `main` or `dev` deploy automatically; use the `Deploy demo to GitHub Pages` workflow's `workflow_dispatch` trigger to redeploy manually.
+
 ## Tree Features
 
 - **Multi-select** — Ctrl toggles selection; Shift ranges may cross root boundaries in the same Tree, reject disabled endpoints, and skip disabled intermediate nodes. Keyboard: Space toggles the focused node; Shift+Arrow/Home/End extends a range from the keyboard anchor.
