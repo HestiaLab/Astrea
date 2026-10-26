@@ -1,0 +1,66 @@
+/* ResourceTable page specifics. Library styling remains in _content/Astrea.Components/astrea-resource-table.css. */
+
+.demo-table-box {
+    height: 360px;
+    min-width: 0;
+    padding: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--demo-border);
+    border-radius: 8px;
+    background: var(--demo-surface);
+}
+
+.demo-table-box .ast-rt-scroll {
+    overflow-x: auto;
+}
+
+@media (min-width: 600px) {
+    .demo-table-box .ast-rt-scroll {
+        overflow-x: hidden;
+    }
+}
+
+.demo-table-box--short {
+    height: 220px;
+}
+
+.demo-variant-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+.demo-variant {
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--demo-border);
+    border-radius: 10px;
+    background: var(--demo-surface);
+}
+
+.demo-variant h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+}
+
+.demo-rt-icon {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
+.demo-status {
+    margin: 0.6rem 0 0;
+    color: var(--demo-muted);
+    font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+    .demo-table-box {
+        height: 320px;
+    }
+
+    .demo-table-box--short {
+        height: 200px;
+    }
+}

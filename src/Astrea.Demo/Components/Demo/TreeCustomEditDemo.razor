@@ -1,0 +1,99 @@
+@using Astrea.Components.Tree
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="demo-inline-actions">
+    <button id="btn-custom-edit" type="button" class="demo-button demo-button--primary" @onclick="BeginCustomEdit">
+        编辑「可自定义编辑」
+    </button>
+    <span class="demo-hint">Enter 提交，Escape 取消；输入包含「拒绝」会被 <code>BeforeRenameAsync</code> 否决。</span>
+</div>
+
+<div class="demo-tree-stage demo-tree-stage--compact">
+    <Tree DataSource="_dataSource"
+          EditTemplate="CustomEditTemplate"
+          BeforeRenameAsync="BeforeRenameAsync"
+          OnEditCommitted="HandleEditCommitted"
+          OnEditCancelled="HandleEditCancelled"
+          OnEditRejected="HandleEditRejected"
+          aria-label="自定义编辑树"
+          @ref="_customTree" />
+</div>
+
+<DemoDetails Summary="查看 EditTemplate 代码">
+    <DemoCodeSample Code="@UsageSample" />
+</DemoDetails>
+
+@code {
+    private const string UsageSample = @"<Tree DataSource=""_roots""
+      EditTemplate=""CustomEditTemplate""
+      BeforeRenameAsync=""BeforeRename""
+      OnEditCommitted=""OnCommitted"" />
+
+@code {
+    private RenderFragment<TreeEditContext> CustomEditTemplate => context => builder =>
+    {
+        builder.OpenElement(0, ""input"");
+        builder.AddAttribute(1, ""value"", context.Value);
+        builder.AddAttribute(2, ""oninput"", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, e => context.SetValue(e.Value?.ToString() ?? """")));
+        builder.AddElementReferenceCapture(3, context.RegisterFocusTarget);
+        builder.CloseElement();
+    };
+}";
+
+    [CascadingParameter]
+    private DemoEventLogStore LogStore { get; set; } = default!;
+
+    private List<TreeNode> _dataSource = new();
+    private Tree? _customTree;
+
+    protected override void OnInitialized()
+        => _dataSource = new List<TreeNode> { new("可自定义编辑", id: "custom-edit") };
+
+    private async Task BeginCustomEdit()
+    {
+        if (_customTree is not null && await _customTree.BeginEditAsync("custom-edit"))
+        {
+            Log("自定义编辑模板已进入编辑并注册焦点目标");
+        }
+    }
+
+    private static ValueTask<bool> BeforeRenameAsync(TreeNode node, string value)
+        => ValueTask.FromResult(!value.Contains("拒绝", StringComparison.Ordinal));
+
+    private void HandleEditCommitted(TreeEditEventArgs args)
+    {
+        Log($"重命名：{args.Node.Text} → {args.Value}");
+        args.Node.Text = args.Value;
+    }
+
+    private void HandleEditCancelled(TreeNodeEventArgs args) => Log($"取消编辑：{args.Node.Text}");
+
+    private void HandleEditRejected(TreeEditRejectedEventArgs args)
+        => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
+
+    private RenderFragment<TreeEditContext> CustomEditTemplate => context => builder =>
+    {
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "class", "tree-node-edit demo-custom-editor");
+        builder.AddAttribute(2, "value", context.Value);
+        builder.AddAttribute(3, "aria-label", "自定义节点名称");
+        builder.AddAttribute(4, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, args => context.SetValue(args.Value?.ToString() ?? string.Empty)));
+        builder.AddAttribute(5, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, async args =>
+        {
+            if (args.Key == "Enter")
+            {
+                await context.CommitAsync();
+            }
+            else if (args.Key == "Escape")
+            {
+                await context.CancelAsync();
+            }
+        }));
+        builder.AddElementReferenceCapture(6, context.RegisterFocusTarget);
+        builder.CloseElement();
+    };
+
+    private void Log(string message) => LogStore.Add(message);
+}

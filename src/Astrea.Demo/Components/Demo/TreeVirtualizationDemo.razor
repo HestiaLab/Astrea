@@ -1,0 +1,135 @@
+@using Astrea.Components.Tree
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="demo-controls demo-controls--actions" role="group" aria-label="虚拟化树操作">
+    <button id="btn-load-50k" type="button" class="demo-button demo-button--primary" @onclick="BuildLargeTree">生成 5 万节点</button>
+    <button id="btn-rebuild-virtual" type="button" class="demo-button" @onclick="BuildLargeTree">重建虚拟化树（保持状态）</button>
+    <button id="btn-clear-virtual" type="button" class="demo-button" @onclick="ClearVirtualTree">清空虚拟化树</button>
+</div>
+
+<p class="demo-hint">
+    只有点击按钮才会构建数据。容器固定 320px 高、行高 32px；键盘导航 / Home / End 会滚动视口并保持有效
+    <code>aria-activedescendant</code>，F2 可编辑当前节点。
+</p>
+
+<div class="demo-tree-virtual">
+    <Tree DataSource="_largeDataSource"
+          EnableVirtualization="true"
+          ItemSize="32"
+          OnEditCommitted="HandleEditCommitted"
+          OnEditRejected="HandleEditRejected"
+          OnKeyDown="HandleVirtualKeyDown"
+          aria-label="虚拟化树"
+          @ref="_virtualTree" />
+    @if (_nodeCount == 0)
+    {
+        <p class="demo-tree-virtual__empty">点击「生成 5 万节点」后，虚拟化树会在这里出现。</p>
+    }
+</div>
+
+<div class="demo-stat-strip" role="status" aria-live="polite">
+    <span>数据节点：@_nodeCount.ToString("N0")</span>
+    <span>构建耗时：@_buildMilliseconds ms</span>
+    <span>渲染方式：Virtualize（仅视口内节点进入 DOM）</span>
+</div>
+
+<DemoDetails Summary="查看虚拟化代码与要求">
+    <DemoCodeSample Code="@UsageSample" />
+</DemoDetails>
+
+@code {
+    private const string UsageSample = @"<div style=""height: 320px;"">
+    <Tree DataSource=""_largeDataSource""
+          EnableVirtualization=""true""
+          ItemSize=""32"" />
+</div>
+<!-- NodeTemplate 与 EditTemplate 不能和虚拟化组合使用 -->";
+
+    [CascadingParameter]
+    private DemoEventLogStore LogStore { get; set; } = default!;
+
+    private List<TreeNode> _largeDataSource = new();
+    private Tree? _virtualTree;
+    private int _nodeCount;
+    private long _buildMilliseconds;
+
+    private void BuildLargeTree()
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var root = new TreeNode("根节点", id: "perf-root", isExpanded: true);
+        var currentLayer = new List<TreeNode> { root };
+        var count = 1;
+
+        for (var level = 1; level < 15 && count < 50_000; level++)
+        {
+            var target = TargetCountForLevel(level, 50_000 - count, 15 - level);
+            var nextLayer = new List<TreeNode>();
+            var parentIndex = 0;
+            for (var i = 0; i < target && count < 50_000; i++)
+            {
+                var parent = currentLayer[parentIndex % currentLayer.Count];
+                var child = new TreeNode($"层级 {level}-{i}", id: $"p{count}", isExpanded: true);
+                parent.Add(child);
+                nextLayer.Add(child);
+                count++;
+                parentIndex++;
+            }
+
+            currentLayer = nextLayer;
+        }
+
+        _largeDataSource = new List<TreeNode> { root };
+        _nodeCount = count;
+        stopwatch.Stop();
+        _buildMilliseconds = stopwatch.ElapsedMilliseconds;
+        Log($"生成 {count:N0} 节点（嵌套 15 层）：构建 {_buildMilliseconds} ms");
+    }
+
+    private static int TargetCountForLevel(int level, int remaining, int levelsLeft)
+    {
+        return level switch
+        {
+            1 => Math.Min(5, remaining),
+            2 => Math.Min(25, remaining),
+            3 => Math.Min(125, remaining),
+            4 => Math.Min(500, remaining),
+            5 => Math.Min(2000, remaining),
+            6 => Math.Min(5000, remaining),
+            _ => Math.Min(remaining / Math.Max(1, levelsLeft), remaining),
+        };
+    }
+
+    private void ClearVirtualTree()
+    {
+        _largeDataSource = new List<TreeNode>();
+        _nodeCount = 0;
+        _buildMilliseconds = 0;
+        Log("已清空虚拟化树");
+    }
+
+    private async Task HandleVirtualKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key != "F2")
+        {
+            return;
+        }
+
+        var focused = _virtualTree?.View?.FocusedNode;
+        if (focused is not null && await _virtualTree!.BeginEditAsync(focused.Id))
+        {
+            Log($"虚拟化树进入编辑：{focused.Text}");
+        }
+    }
+
+    private void HandleEditCommitted(TreeEditEventArgs args)
+    {
+        Log($"重命名：{args.Node.Text} → {args.Value}");
+        args.Node.Text = args.Value;
+    }
+
+    private void HandleEditRejected(TreeEditRejectedEventArgs args)
+        => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
+
+    private void Log(string message) => LogStore.Add(message);
+}

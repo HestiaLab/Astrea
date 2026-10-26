@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 状态 | Historical（历史设计计划；当前状态见 SRS v0.7.0 与需求矩阵） |
-| 适用范围 | `src/Astrea/Components/Tree/`、`src/Astrea/wwwroot/astrea-tree.*`、Tree 测试、Demo、README 与 SRS 中的 Tree 契约 |
+| 适用范围 | `src/Astrea.Components/Components/Tree/`、`src/Astrea.Components/wwwroot/astrea-tree.*`、Tree 测试、Demo、README 与 SRS 中的 Tree 契约 |
 | 目标框架 | .NET 6.0，兼容 Blazor Server 与 Blazor WebAssembly |
 | 当前基线 | `dotnet build Astrea.sln` 0 警告 0 错误；`dotnet test Astrea.sln --no-build` 174/174 通过；JS 单测 2/2 通过 |
 | 本文性质 | Tree 整改合同、实施顺序与验收基线；Phase 0 的可观察行为和公共 API 迁移方向已冻结 |
@@ -375,11 +375,11 @@ Task<TreeOperationResult> RefreshAsync();
 
 **主要文件：**
 
-- 修改 `src/Astrea/Components/Tree/TreeNode.cs`。
-- 修改 `src/Astrea/Components/Tree/TreeController.cs`。
-- 修改 `src/Astrea/Components/Tree/TreeSelection.cs`，最终由 `TreeState` 替代或降为内部实现。
-- 新建 `src/Astrea/Components/Tree/TreeState.cs`。
-- 新建 `src/Astrea/Components/Tree/TreeOperationResult.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/TreeNode.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/TreeController.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/TreeSelection.cs`，最终由 `TreeState` 替代或降为内部实现。
+- 新建 `src/Astrea.Components/Components/Tree/TreeState.cs`。
+- 新建 `src/Astrea.Components/Components/Tree/TreeOperationResult.cs`。
 - 新建/扩充 `tests/Astrea.Tests/Tree/TreeNodeTests.cs`、`TreeControllerTests.cs`、`TreeSelectionTests.cs`。
 
 **RED 测试：** 自身挂接、祖先回挂、重复 ID、重复节点实例、外部节点选择、禁用节点程序化选择、状态恢复求交集、Refresh 失败不部分提交、revision 递增。
@@ -392,7 +392,7 @@ Task<TreeOperationResult> RefreshAsync();
 
 **主要文件：**
 
-- 修改 `src/Astrea/Components/Tree/Tree.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/Tree.cs`。
 - 修改或替换 `TreeSettings.cs`、`TreeCallbacks.cs`。
 - 新建 `TreeEventArgs.cs`、`TreeRequests.cs`。
 - 增加组件级参数生命周期测试。
@@ -407,9 +407,9 @@ Task<TreeOperationResult> RefreshAsync();
 
 **主要文件：**
 
-- 修改 `src/Astrea/Components/Tree/Tree.Render.cs`。
-- 修改 `src/Astrea/Components/Tree/TreeKeyboardNavigation.cs`。
-- 修改 `src/Astrea/wwwroot/astrea-tree.css`。
+- 修改 `src/Astrea.Components/Components/Tree/Tree.Render.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/TreeKeyboardNavigation.cs`。
+- 修改 `src/Astrea.Components/wwwroot/astrea-tree.css`。
 - 增加组件渲染测试和浏览器焦点测试。
 
 **RED 测试：** 只有容器可 Tab 进入；Tab/Shift+Tab 可离开；方向键更新 active descendant；空 Tree 不引用不存在元素；两个 Tree 使用相同逻辑 ID 不产生 DOM 冲突；插入/删除/重排后节点身份稳定；ARIA level/selected/expanded/disabled 正确；AdditionalAttributes 冲突规则正确。
@@ -422,10 +422,10 @@ Task<TreeOperationResult> RefreshAsync();
 
 **主要文件：**
 
-- 修改 `src/Astrea/Components/Tree/Tree.DragDrop.cs`。
-- 修改 `src/Astrea/Components/Tree/DragNodesArgs.cs` 或以新协议类型替代。
-- 新建 `src/Astrea/Components/Tree/Tree.Interop.cs`。
-- 修改 `src/Astrea/wwwroot/astrea-tree.js`。
+- 修改 `src/Astrea.Components/Components/Tree/Tree.DragDrop.cs`。
+- 修改 `src/Astrea.Components/Components/Tree/DragNodesArgs.cs` 或以新协议类型替代。
+- 新建 `src/Astrea.Components/Components/Tree/Tree.Interop.cs`。
+- 修改 `src/Astrea.Components/wwwroot/astrea-tree.js`。
 - 增加 JS 纯函数测试、C# 消费端敌对输入测试和真实浏览器拖拽测试。
 
 **RED 测试：** 未知 relation、陈旧 revision、未知 ID、重复 ID、跨 Tree、同 Tree 跨根、自引用、循环、祖先+后代源归一化、AllowDrag 动态启停、重复初始化、Dispose 幂等、两个 Tree 隔离。

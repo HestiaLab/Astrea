@@ -1,6 +1,6 @@
 # Astrea
 
-Enterprise-grade Blazor UI component library targeting .NET 6, built around correctness, accessibility, and testability. The current release delivers **Tree** and **ResourceTable** per [SRS v0.7.0](docs/SRS.md); all other planned components are [Deferred](docs/Roadmap.md) rather than part of the current release contract.
+Enterprise-grade Blazor UI component library targeting .NET 6, built around correctness, accessibility, and testability. The current release delivers **Tree** and **ResourceTable** per [SRS v0.8.0](docs/SRS.md); all other planned components are [Deferred](docs/Roadmap.md) rather than part of the current release contract.
 
 ## Current Release Scope
 
@@ -23,10 +23,12 @@ Enterprise-grade Blazor UI component library targeting .NET 6, built around corr
 
 ## Quick Start
 
-1. Install the NuGet package (or reference `src/Astrea/Astrea.csproj` for local development):
+> **Package identity (0.8.0):** the NuGet package ID, assembly name, and static asset base path are `Astrea.Components` (formerly `Astrea`). Update `PackageReference Include="Astrea.Components"` and change `_content/Astrea/` links to `_content/Astrea.Components/`; public namespaces remain `Astrea.Components.*`. Version 0.8.0 is the first release under the new package identity; component behavior is unchanged.
+
+1. Install the NuGet package (or reference `src/Astrea.Components/Astrea.Components.csproj` for local development):
 
 ```sh
-dotnet add package Astrea --version 0.7.0
+dotnet add package Astrea.Components --version 0.8.0
 ```
 
 2. Add the namespace to `_Imports.razor`:
@@ -38,7 +40,7 @@ dotnet add package Astrea --version 0.7.0
 3. Link the stylesheet in `wwwroot/index.html`:
 
 ```html
-<link href="_content/Astrea/astrea-tree.css" rel="stylesheet" />
+<link href="_content/Astrea.Components/astrea-tree.css" rel="stylesheet" />
 ```
 
 4. Minimal example:
@@ -294,7 +296,7 @@ ResourceTable renders a column-driven header with an application-provided body. 
 ```
 
 ```html
-<link href="_content/Astrea/astrea-resource-table.css" rel="stylesheet" />
+<link href="_content/Astrea.Components/astrea-resource-table.css" rel="stylesheet" />
 ```
 
 ```razor

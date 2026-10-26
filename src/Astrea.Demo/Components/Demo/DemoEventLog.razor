@@ -1,0 +1,20 @@
+@using Astrea.Demo.Components.Demo
+@implements IDisposable
+
+<div class="demo-log" role="log" aria-label="事件日志">
+    @foreach (var entry in Store.Entries)
+    {
+        <div @key="entry.Id">@entry.Message</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DemoEventLogStore Store { get; set; } = default!;
+
+    protected override void OnInitialized() => Store.Changed += HandleChanged;
+
+    private void HandleChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Store.Changed -= HandleChanged;
+}

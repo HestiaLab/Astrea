@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const sourceUrl = new URL('../../src/Astrea/wwwroot/astrea-resource-table.js', import.meta.url);
+const sourceUrl = new URL('../../src/Astrea.Components/wwwroot/astrea-resource-table.js', import.meta.url);
 const source = await readFile(sourceUrl, 'utf8');
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const tableModule = await import(moduleUrl);

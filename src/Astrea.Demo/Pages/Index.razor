@@ -1,615 +1,83 @@
 @page "/"
-@using Microsoft.AspNetCore.Components
-@using Astrea.Components.Tree
-@using Astrea.Components.ResourceTable
+@using Astrea.Demo.Components.Demo
 
-<PageTitle>Astrea 组件库演示</PageTitle>
+<PageTitle>Astrea 组件目录</PageTitle>
 
-<h1>Astrea Tree 演示</h1>
-<p>
-    多选（Ctrl 切换 / Shift 范围）、拖拽（上/中/下）、内联编辑（F2）、右键通知、
-    键盘导航（方向键 / Home / End / Space / Enter）。
-</p>
+<main id="main-content" class="demo-catalog" data-testid="component-catalog">
+    <header class="demo-catalog-hero">
+        <p class="demo-eyebrow">Astrea · Blazor UI 组件库 · v0.8.0</p>
+        <h1 data-demo-page-heading tabindex="-1">组件目录</h1>
+        <p class="demo-catalog-hero__lede">
+            当前版本只交付 Tree 与 ResourceTable。选择一个组件进入独立演示页；
+            其他组件标记为 Deferred，不属于当前交付范围。
+        </p>
+        <div class="demo-tag-row" aria-label="技术特性">
+            <span class="demo-tag">v0.8.0</span>
+            <span class="demo-tag">net6.0</span>
+            <span class="demo-tag">Blazor WebAssembly</span>
+            <span class="demo-tag">Blazor Server</span>
+            <span class="demo-tag">WAI-ARIA</span>
+            <span class="demo-tag">零运行时依赖</span>
+        </div>
+    </header>
 
-<div class="demo-toolbar">
-    <label class="demo-check">
-        <input id="toggle-multi" type="checkbox" checked="@_allowMultiSelect" @onchange="ToggleMultiSelect" /> 多选
-    </label>
-    <label class="demo-check">
-        <input id="toggle-drag" type="checkbox" checked="@_allowDrag" @onchange="ToggleAllowDrag" /> 拖拽
-    </label>
-    <label class="demo-check">
-        <input id="toggle-selection-acceptance" type="checkbox" checked="@_acceptSelectionProposal" @onchange="ToggleSelectionAcceptance" /> 接受受控选择提案
-    </label>
-    <button @onclick="RebuildTree">重建树（保持状态）</button>
-    <button @onclick="RemoveSelected">移除选中</button>
-    <button @onclick="ClearTree">清空</button>
-    <span class="demo-hint">选中节点后按 F2 重命名；拖到「资源」会被否决；「已禁用页面」可导航但不可选。</span>
-</div>
-
-<div class="demo-panel">
-    <Tree DataSource="_dataSource"
-          SelectionMode="_selectionMode"
-          SelectedIds="_controlledSelectedIds"
-          SelectedIdsChanged="HandleSelectedIdsChanged"
-          AllowDrag="_allowDrag"
-          BeforeDropAsync="BeforeDropAsync"
-          BeforeRenameAsync="BeforeRenameAsync"
-          OnNodeClicked="HandleNodeClicked"
-          OnNodeInvoked="HandleNodeInvoked"
-          OnContextMenu="HandleContextMenu"
-          OnDrop="HandleDrop"
-          OnEditCommitted="HandleEditCommitted"
-          OnEditCancelled="HandleEditCancelled"
-          OnEditRejected="HandleEditRejected"
-          OnKeyDown="HandleKeyDown"
-          aria-label="演示树"
-          class="demo-tree-custom"
-          data-testid="demo-tree"
-          @ref="_tree" />
-</div>
-
-<div class="demo-panel">
-    <h3>第二个 Tree（相同逻辑 ID，验证组件实例隔离）</h3>
-    <Tree DataSource="_secondDataSource" AllowDrag="true" aria-label="第二棵树">
-        <IconTemplate Context="icon">
-            <span class="demo-custom-icon">@(icon.HasChildren ? "◆" : "◇")</span>
-        </IconTemplate>
-    </Tree>
-</div>
-
-<div class="demo-panel">
-    <h3>自定义编辑模板</h3>
-    <button id="btn-custom-edit" @onclick="BeginCustomEdit">编辑自定义节点</button>
-    <Tree DataSource="_customDataSource"
-          EditTemplate="CustomEditTemplate"
-          OnEditCommitted="HandleEditCommitted"
-          OnEditCancelled="HandleEditCancelled"
-          OnEditRejected="HandleEditRejected"
-          aria-label="自定义编辑树"
-          @ref="_customTree" />
-</div>
-
-<div class="demo-panel">
-    <h3>虚拟化（固定行高 32px，5 万节点性能探针）</h3>
-    <button id="btn-load-50k" @onclick="BuildLargeTree">生成 5 万节点</button>
-    <button id="btn-clear-virtual" @onclick="ClearVirtualTree">清空虚拟化树</button>
-    <button id="btn-rebuild-virtual" @onclick="BuildLargeTree">重建虚拟化树（保持状态）</button>
-    <span class="demo-hint">键盘导航 / Home / End 会滚动视口并保持焦点正确；F2 重命名。</span>
-    <div class="demo-tree-virtual">
-        <Tree DataSource="_largeDataSource"
-              EnableVirtualization="true"
-              ItemSize="32"
-              OnEditCommitted="HandleEditCommitted"
-              OnEditRejected="HandleEditRejected"
-              OnKeyDown="HandleVirtualKeyDown"
-              aria-label="虚拟化树"
-              @ref="_virtualTree" />
-    </div>
-</div>
-
-<div class="demo-panel">
-    <h3>事件日志</h3>
-    <div class="demo-log">
-        <div class="demo-selected"><b>选中：</b>@(string.Join("、", _selectedNames))</div>
-        @foreach (var line in _log)
-        {
-            <div>@line</div>
-        }
-    </div>
-</div>
-
-@code {
-    private List<TreeNode> _dataSource = new();
-    private List<TreeNode> _secondDataSource = new();
-    private List<TreeNode> _largeDataSource = new();
-    private List<TreeNode> _customDataSource = new();
-    private TreeSelectionMode _selectionMode = TreeSelectionMode.Multiple;
-    private Tree? _tree;
-    private Tree? _virtualTree;
-    private Tree? _customTree;
-    private List<string> _selectedNames = new();
-    private IReadOnlyCollection<string> _controlledSelectedIds = Array.Empty<string>();
-    private readonly List<string> _log = new();
-    private bool _allowMultiSelect = true;
-    private bool _allowDrag = true;
-    private bool _acceptSelectionProposal = true;
-
-    protected override void OnInitialized()
+    @foreach (var group in DemoComponentCatalog.ActiveByCategory)
     {
-        _dataSource = BuildTree();
-        // 第二棵树使用相同逻辑 ID 但独立节点对象，验证组件实例隔离
-        _secondDataSource = BuildTree();
-        _customDataSource = new List<TreeNode> { new("可自定义编辑", id: "custom-edit") };
+        <section class="demo-catalog-group" aria-label="@group.Key">
+            <h2>@group.Key</h2>
+            <div class="demo-catalog-grid">
+                @foreach (var component in group)
+                {
+                    <NavLink class="demo-catalog-card" href="@component.Route">
+                        <div class="demo-catalog-card__top">
+                            <span class="demo-catalog-card__glyph" aria-hidden="true">@component.Title.Substring(0, 1)</span>
+                            <span class="demo-tag demo-tag--active">Active</span>
+                        </div>
+                        <h3>@component.Title</h3>
+                        <p>@component.Summary</p>
+                        <ul class="demo-catalog-card__capabilities" aria-label="能力">
+                            @foreach (var capability in component.Capabilities)
+                            {
+                                <li>@capability</li>
+                            }
+                        </ul>
+                        <span class="demo-catalog-card__link">打开演示 <span aria-hidden="true">→</span></span>
+                    </NavLink>
+                }
+            </div>
+        </section>
     }
 
-    /// <summary>用稳定 Id 构建树；重建树（新对象、同 Id）时验证状态保持。</summary>
-    private static List<TreeNode> BuildTree()
-    {
-        var root = new TreeNode("我的项目", id: "project", isExpanded: true);
-
-        var specs = new TreeNode("页面", id: "specs", isExpanded: true);
-        specs.Add(new TreeNode("页面 1", id: "df-1"));
-        specs.Add(new TreeNode("页面 2", id: "df-2"));
-        specs.Add(new TreeNode("已禁用页面", id: "df-3") { IsDisabled = true });
-        root.Add(specs);
-
-        var symbols = new TreeNode("图符", id: "symbols");
-        symbols.Add(new TreeNode("图符 A", id: "sym-1"));
-        root.Add(symbols);
-
-        var resources = new TreeNode("资源", id: "resources");
-        var colors = new TreeNode("颜色表", id: "colors");
-        colors.Add(new TreeNode("ColorTable", id: "res-color"));
-        resources.Add(colors);
-        resources.Add(new TreeNode("字体表", id: "res-font"));
-        root.Add(resources);
-
-        return new List<TreeNode> { root };
-    }
-
-    // 重建树：新对象、同 Id，验证 DataSource 替换后按稳定 Id 保持选中/展开/焦点（REQ-F-061 AC2）
-    private void RebuildTree()
-    {
-        _dataSource = BuildTree();
-        Log("已重建树（同 Id 新对象，状态应保持）");
-    }
-
-    // 移除选中节点：验证焦点恢复 + 悬空选择清理（REQ-F-077）
-    private async Task RemoveSelected()
-    {
-        var selected = _tree?.View?.GetSelectedNodes().ToList();
-        if (selected is null || selected.Count == 0)
-        {
-            Log("无选中节点可移除");
-            return;
-        }
-
-        foreach (var node in selected)
-        {
-            node.Parent?.Remove(node);
-        }
-
-        _controlledSelectedIds = _controlledSelectedIds.Except(selected.Select(node => node.Id)).ToArray();
-        if (_tree is not null)
-        {
-            await _tree.RefreshAsync();
-        }
-        Log($"移除 {selected.Count} 个节点（焦点应恢复）");
-    }
-
-    private void ClearTree()
-    {
-        _dataSource = new List<TreeNode>();
-        _selectedNames.Clear();
-        Log("已清空树");
-    }
-
-    // 性能探针：嵌套 5 万节点，最大 15 层，全展开（渲染最坏情况）
-    private void BuildLargeTree()
-    {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-
-        var root = new TreeNode("根节点", id: "perf-root", isExpanded: true);
-
-        var currentLayer = new List<TreeNode> { root };
-        int count = 1;
-
-        for (int level = 1; level < 15 && count < 50_000; level++)
-        {
-            int target = TargetCountForLevel(level, 50_000 - count, 15 - level);
-            var nextLayer = new List<TreeNode>();
-            int parentIdx = 0;
-            for (int i = 0; i < target && count < 50_000; i++)
+    <details class="demo-deferred">
+        <summary>Deferred 组件与 Roadmap（@DemoComponentCatalog.Deferred.Count）</summary>
+        <div class="demo-deferred__body">
+            @foreach (var group in DemoComponentCatalog.DeferredByCategory)
             {
-                var parent = currentLayer[parentIdx % currentLayer.Count];
-                var child = new TreeNode($"层级 {level}-{i}", id: $"p{count}", isExpanded: true);
-                parent.Add(child);
-                nextLayer.Add(child);
-                count++;
-                parentIdx++;
+                <div class="demo-deferred__group">
+                    <h3>@group.Key</h3>
+                    <ul>
+                        @foreach (var component in group)
+                        {
+                            <li>@component.Title</li>
+                        }
+                    </ul>
+                </div>
             }
+            <p class="demo-hint">
+                Deferred 组件没有 Demo 页面，也不属于 v0.8.0 的交付契约。
+                <a href="https://github.com/HestiaLab/Astrea/blob/main/docs/Roadmap.md" target="_blank" rel="noopener noreferrer">查看 Roadmap ↗</a>
+            </p>
+        </div>
+    </details>
 
-            currentLayer = nextLayer;
-        }
-
-        _largeDataSource = new List<TreeNode> { root };
-        _selectedNames.Clear();
-        sw.Stop();
-        Log($"生成 {count} 节点（嵌套 15 层）：构建 {sw.ElapsedMilliseconds} ms");
-    }
-
-    private static int TargetCountForLevel(int level, int remaining, int levelsLeft)
-    {
-        return level switch
-        {
-            1 => Math.Min(5, remaining),
-            2 => Math.Min(25, remaining),
-            3 => Math.Min(125, remaining),
-            4 => Math.Min(500, remaining),
-            5 => Math.Min(2000, remaining),
-            6 => Math.Min(5000, remaining),
-            _ => Math.Min(remaining / Math.Max(1, levelsLeft), remaining),
-        };
-    }
-
-    private void ClearVirtualTree()
-    {
-        _largeDataSource = new List<TreeNode>();
-        Log("已清空虚拟化树");
-    }
-
-    private async Task HandleVirtualKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key == "F2")
-        {
-            var focused = _virtualTree?.View?.FocusedNode;
-            if (focused is not null && await _virtualTree!.BeginEditAsync(focused.Id))
-            {
-                Log($"虚拟化树进入编辑：{focused.Text}");
-            }
-        }
-    }
-
-    private void ToggleMultiSelect(ChangeEventArgs e)
-    {
-        _allowMultiSelect = (bool)(e.Value ?? false);
-        // 关闭多选触发选择收敛（REQ-F-086 AC4）
-        _selectionMode = _allowMultiSelect ? TreeSelectionMode.Multiple : TreeSelectionMode.Single;
-        Log(_allowMultiSelect ? "已开启多选" : "已关闭多选（选择应收敛）");
-    }
-
-    private void ToggleAllowDrag(ChangeEventArgs e)
-    {
-        _allowDrag = (bool)(e.Value ?? false);
-        Log(_allowDrag ? "已开启拖拽" : "已关闭拖拽（活动会话立即失效）");
-    }
-
-    private void ToggleSelectionAcceptance(ChangeEventArgs e)
-    {
-        _acceptSelectionProposal = (bool)(e.Value ?? false);
-        Log(_acceptSelectionProposal ? "应用将接受受控选择提案" : "应用将拒绝受控选择提案");
-    }
-
-    private ValueTask<bool> BeforeDropAsync(TreeDropEventArgs args)
-    {
-        if (args.TargetNode.Text == "资源")
-        {
-            Log($"否决拖放 → {args.TargetNode.Text}");
-            StateHasChanged();
-            return ValueTask.FromResult(false);
-        }
-
-        return ValueTask.FromResult(true);
-    }
-
-    private static ValueTask<bool> BeforeRenameAsync(TreeNode node, string value)
-        => ValueTask.FromResult(!string.IsNullOrWhiteSpace(value));
-
-    private void HandleSelectedIdsChanged(IReadOnlyCollection<string> proposedIds)
-    {
-        Log($"受控选择提案：{string.Join("、", proposedIds)}");
-        if (!_acceptSelectionProposal)
-        {
-            return;
-        }
-
-        _controlledSelectedIds = proposedIds.ToArray();
-        _selectedNames = proposedIds.Select(id => _tree?.View?.FindById(id)?.Text ?? id).ToList();
-    }
-
-    private void HandleNodeClicked(TreeNodeEventArgs args) => Log($"单击：{args.Node.Text}");
-
-    private void HandleNodeInvoked(TreeNodeEventArgs args) => Log($"激活：{args.Node.Text}");
-
-    private void HandleContextMenu(TreeContextMenuEventArgs args) => Log($"右键：{args.Node.Text}");
-
-    private void HandleDrop(TreeDropEventArgs args)
-    {
-        var names = string.Join("、", args.SourceNodes.Select(n => n.Text));
-        Log($"拖放：{names} → {args.TargetNode.Text}（{PositionName(args.Relation)}）");
-    }
-
-    private void HandleEditCommitted(TreeEditEventArgs args)
-    {
-        Log($"重命名：{args.Node.Text} → {args.Value}");
-        args.Node.Text = args.Value;
-    }
-
-    private void HandleEditRejected(TreeEditRejectedEventArgs args)
-        => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
-
-    private void HandleEditCancelled(TreeNodeEventArgs args) => Log($"取消编辑：{args.Node.Text}");
-
-    private async Task HandleKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key == "F2")
-        {
-            var focused = _tree?.View?.FocusedNode;
-            if (focused is not null && await _tree!.BeginEditAsync(focused.Id))
-            {
-                Log($"进入编辑：{focused.Text}");
-            }
-        }
-    }
-
-    private async Task BeginCustomEdit()
-    {
-        if (_customTree is not null && await _customTree.BeginEditAsync("custom-edit"))
-        {
-            Log("自定义编辑模板已进入编辑并注册焦点目标");
-        }
-    }
-
-    private RenderFragment<TreeEditContext> CustomEditTemplate => context => builder =>
-    {
-        builder.OpenElement(0, "input");
-        builder.AddAttribute(1, "class", "tree-node-edit demo-custom-editor");
-        builder.AddAttribute(2, "value", context.Value);
-        builder.AddAttribute(3, "aria-label", "自定义节点名称");
-        builder.AddAttribute(4, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this,
-            args => context.SetValue(args.Value?.ToString() ?? string.Empty)));
-        builder.AddAttribute(5, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, async args =>
-        {
-            if (args.Key == "Enter")
-            {
-                await context.CommitAsync();
-            }
-            else if (args.Key == "Escape")
-            {
-                await context.CancelAsync();
-            }
-        }));
-        builder.AddElementReferenceCapture(6, context.RegisterFocusTarget);
-        builder.CloseElement();
-    };
-
-    private static string PositionName(TreeDropRelation r) =>
-        r == TreeDropRelation.Before ? "之前" : r == TreeDropRelation.Inside ? "之内" : "之后";
-
-    private void Log(string message)
-    {
-        _log.Insert(0, message);
-        if (_log.Count > 20)
-        {
-            _log.RemoveAt(_log.Count - 1);
-        }
-    }
-}
-
-<hr />
-
-<h2>Astrea ResourceTable 演示</h2>
-<p>
-    点击行选中（高亮），工具栏 + − ↑ ↓ 增删移选中行，撤销/重做真实生效（快照栈），
-    键盘 ↑/↓ 移动选中，拖动列边界调整列宽（相邻列补偿、最小宽度约束）。
-</p>
-
-<div class="demo-toolbar">
-    <label class="demo-check">
-        <input id="toggle-rt-resizable" type="checkbox" checked="@_rtResizableColumns" @onchange="ToggleRtResizable" /> 列宽拖拽
-    </label>
-    <span class="demo-hint">键盘聚焦列边界后可用 ←/→ 调整列宽。</span>
-</div>
-
-<div class="demo-panel" style="height: 360px;">
-    <ResourceTable Columns="_rtColumns"
-                   TableBody="@RenderRows"
-                   ResizableColumns="_rtResizableColumns"
-                   aria-label="资源表"
-                   data-testid="demo-resource-table"
-                   ShowRedoButton="true"
-                   CanUndo="_rtUndoStack.Count > 0"
-                   CanRedo="_rtRedoStack.Count > 0"
-                   OnAddClicked="AddRow"
-                   OnRemoveClicked="RemoveRow"
-                   OnMoveUpClicked="MoveUp"
-                   OnMoveDownClicked="MoveDown"
-                   OnUndoClicked="Undo"
-                   OnRedoClicked="Redo"
-                   OnColumnResized="HandleColumnResized"
-                   OnKeyDown="HandleRtKeyDown">
-    </ResourceTable>
-</div>
-
-<div class="demo-panel">
-    <h3>ResourceTable 事件日志</h3>
-    <div class="demo-log">
-        @foreach (var line in _rtLog)
-        {
-            <div>@line</div>
-        }
-    </div>
-</div>
-
-@code {
-    private readonly List<TableColumn> _rtColumns = new()
-    {
-        new("ID") { Key = "id", Width = "60px", MinWidth = 40 },
-        new("名称") { Key = "name", Width = "160px", MinWidth = 60 },
-        new("类型") { Key = "type", Width = "100px" },
-        new("备注") { Key = "note" },
-    };
-
-    private readonly List<ResourceRow> _rtRows = new()
-    {
-        new(1, "颜色表", "ColorTable", "资源颜色定义"),
-        new(2, "字体表", "FontTable", "资源字体定义"),
-        new(3, "图片表", "PictureTable", "资源图片定义"),
-    };
-
-    private readonly List<string> _rtLog = new();
-
-    private readonly Stack<ResourceSnapshot> _rtUndoStack = new();
-    private readonly Stack<ResourceSnapshot> _rtRedoStack = new();
-
-    private int? _rtSelectedIndex;
-    private int _rtNextId = 4;
-    private bool _rtResizableColumns = true;
-
-    private sealed record ResourceRow(int Id, string Name, string Type, string Note);
-    private sealed record ResourceSnapshot(List<ResourceRow> Rows, int? SelectedIndex);
-
-    private RenderFragment RenderRows => builder =>
-    {
-        for (var i = 0; i < _rtRows.Count; i++)
-        {
-            var row = _rtRows[i];
-            var index = i;
-
-            builder.OpenElement(0, "tr");
-            if (index == _rtSelectedIndex)
-            {
-                builder.AddAttribute(1, "class", "ast-rt-row-selected");
-            }
-
-            builder.AddAttribute(2, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => SelectRow(index)));
-
-            builder.OpenElement(3, "td");
-            builder.AddContent(4, row.Id);
-            builder.CloseElement();
-            builder.OpenElement(5, "td");
-            builder.AddContent(6, row.Name);
-            builder.CloseElement();
-            builder.OpenElement(7, "td");
-            builder.AddContent(8, row.Type);
-            builder.CloseElement();
-            builder.OpenElement(9, "td");
-            builder.AddContent(10, row.Note);
-            builder.CloseElement();
-            builder.CloseElement();
-        }
-    };
-
-    private void SelectRow(int index)
-    {
-        _rtSelectedIndex = index;
-        RtLog($"选中：{_rtRows[index].Name}");
-    }
-
-    private void AddRow()
-    {
-        Snapshot();
-        var id = _rtNextId++;
-        var row = new ResourceRow(id, $"资源 {id}", "NewTable", "新建资源");
-        _rtRows.Add(row);
-        _rtSelectedIndex = _rtRows.Count - 1;
-        RtLog($"添加：{row.Name}（已选中）");
-    }
-
-    private void RemoveRow()
-    {
-        if (_rtSelectedIndex is not int index || index >= _rtRows.Count)
-        {
-            RtLog("未选中行，无法删除");
-            return;
-        }
-
-        Snapshot();
-        var removed = _rtRows[index];
-        _rtRows.RemoveAt(index);
-        _rtSelectedIndex = _rtRows.Count == 0 ? null : Math.Min(index, _rtRows.Count - 1);
-        RtLog($"删除：{removed.Name}");
-    }
-
-    private void MoveUp()
-    {
-        if (_rtSelectedIndex is not int index || index <= 0)
-        {
-            RtLog("无法上移（未选中或已在顶部）");
-            return;
-        }
-
-        Snapshot();
-        (_rtRows[index - 1], _rtRows[index]) = (_rtRows[index], _rtRows[index - 1]);
-        _rtSelectedIndex = index - 1;
-        RtLog($"上移：{_rtRows[index - 1].Name}");
-    }
-
-    private void MoveDown()
-    {
-        if (_rtSelectedIndex is not int index || index >= _rtRows.Count - 1)
-        {
-            RtLog("无法下移（未选中或已在底部）");
-            return;
-        }
-
-        Snapshot();
-        (_rtRows[index], _rtRows[index + 1]) = (_rtRows[index + 1], _rtRows[index]);
-        _rtSelectedIndex = index + 1;
-        RtLog($"下移：{_rtRows[index + 1].Name}");
-    }
-
-    private void Undo()
-    {
-        if (_rtUndoStack.Count == 0)
-        {
-            RtLog("无可撤销");
-            return;
-        }
-
-        _rtRedoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
-        Restore(_rtUndoStack.Pop());
-        RtLog("撤销");
-    }
-
-    private void Redo()
-    {
-        if (_rtRedoStack.Count == 0)
-        {
-            RtLog("无可重做");
-            return;
-        }
-
-        _rtUndoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
-        Restore(_rtRedoStack.Pop());
-        RtLog("重做");
-    }
-
-    private void Snapshot()
-    {
-        _rtUndoStack.Push(new ResourceSnapshot(_rtRows.ToList(), _rtSelectedIndex));
-        _rtRedoStack.Clear();
-    }
-
-    private void Restore(ResourceSnapshot snapshot)
-    {
-        _rtRows.Clear();
-        _rtRows.AddRange(snapshot.Rows);
-        _rtSelectedIndex = snapshot.SelectedIndex;
-    }
-
-    private void RtLog(string message)
-    {
-        _rtLog.Insert(0, message);
-        if (_rtLog.Count > 20)
-        {
-            _rtLog.RemoveAt(_rtLog.Count - 1);
-        }
-    }
-
-    private void ToggleRtResizable(ChangeEventArgs e)
-    {
-        _rtResizableColumns = (bool)(e.Value ?? false);
-        RtLog(_rtResizableColumns ? "已开启列宽拖拽" : "已关闭列宽拖拽");
-    }
-
-    private void HandleColumnResized(ColumnResizedEventArgs args)
-        => RtLog($"列宽调整：列 {args.ColumnIndex}（{(args.ColumnKey ?? "-")}）→ {args.NewWidth:F0}px");
-
-    private void HandleRtKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key == "ArrowUp")
-        {
-            MoveUp();
-        }
-        else if (args.Key == "ArrowDown")
-        {
-            MoveDown();
-        }
-        else
-        {
-            RtLog($"键盘：{args.Key}");
-        }
-    }
-}
+    <section class="demo-catalog-docs" aria-labelledby="catalog-docs-title">
+        <h2 id="catalog-docs-title">文档</h2>
+        <ul>
+            <li><a href="https://github.com/HestiaLab/Astrea/blob/main/README.md" target="_blank" rel="noopener noreferrer">README ↗</a></li>
+            <li><a href="https://github.com/HestiaLab/Astrea/blob/main/docs/SRS.md" target="_blank" rel="noopener noreferrer">SRS v0.8.0 ↗</a></li>
+            <li><a href="https://github.com/HestiaLab/Astrea/blob/main/docs/requirements-test-matrix.md" target="_blank" rel="noopener noreferrer">需求-测试矩阵 ↗</a></li>
+            <li><a href="https://github.com/HestiaLab/Astrea/blob/main/docs/release-evidence.md" target="_blank" rel="noopener noreferrer">发布验证证据 ↗</a></li>
+            <li><a href="https://github.com/HestiaLab/Astrea/blob/main/docs/Roadmap.md" target="_blank" rel="noopener noreferrer">Roadmap ↗</a></li>
+        </ul>
+    </section>
+</main>

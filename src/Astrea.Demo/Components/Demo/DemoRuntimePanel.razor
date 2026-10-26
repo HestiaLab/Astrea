@@ -1,0 +1,36 @@
+@using Astrea.Demo.Components.Demo
+@implements IDisposable
+
+<details class="demo-runtime">
+    <summary>
+        <span class="demo-runtime__title">运行状态</span>
+        <span class="demo-runtime__count">@Store.Entries.Count 条事件</span>
+    </summary>
+    <div class="demo-runtime__body">
+        @if (StatusContent is not null)
+        {
+            <div class="demo-runtime__status">
+                @StatusContent
+            </div>
+        }
+        <section class="demo-runtime__log" aria-labelledby="runtime-log-title">
+            <h3 id="runtime-log-title">事件日志</h3>
+            <p class="demo-hint">此页共享，最新事件在上，最多保留 20 条。</p>
+            <DemoEventLog Store="Store" />
+        </section>
+    </div>
+</details>
+
+@code {
+    [Parameter, EditorRequired]
+    public DemoEventLogStore Store { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? StatusContent { get; set; }
+
+    protected override void OnInitialized() => Store.Changed += HandleChanged;
+
+    private void HandleChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Store.Changed -= HandleChanged;
+}

@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 |---|---|
-| 验证日期 | 2026-10-25 |
+| 验证日期 | 2026-10-26 |
 | 本地操作系统 | Windows 11（10.0.26300） |
 | 构建 SDK | .NET SDK 10.0.401，目标框架 net6.0 |
 | Playwright | 1.61.0 |
@@ -19,10 +19,10 @@
 
 | 引擎 | 版本 | 用例数 | 结果 | 备注 |
 |---|---:|---:|---|---|
-| Edge（msedge） | 156.0.4314.42 | 19 | 通过 | Windows 本地默认引擎 |
-| Chromium（bundled） | 149.0.7827.55 | 19 | 通过 | `ASTREA_BROWSER_CHANNEL=bundled` |
-| Firefox | 151.0 | 19 | 通过 | Playwright Firefox |
-| WebKit | 26.5 | 19 | 通过（合成拖放） | Playwright WebKit；原生 HTML5 拖放启动不可自动化，Tree 拖放用例改为派发合成 `DragEvent`，仍经过真实 JS/C# 链路 |
+| Edge（msedge） | 156.0.4314.42 | 25 | 通过 | Windows 本地默认引擎 |
+| Chromium（bundled） | 149.0.7827.55 | 25 | 通过 | `ASTREA_BROWSER_CHANNEL=bundled` |
+| Firefox | 151.0 | 25 | 通过 | Playwright Firefox |
+| WebKit | 26.5 | 25 | 通过（合成拖放） | Playwright WebKit；原生 HTML5 拖放启动不可自动化，Tree 拖放用例改为派发合成 `DragEvent`，仍经过真实 JS/C# 链路 |
 
 每个浏览器用例都断言页面控制台无错误。CI 在 Ubuntu 上以 Chromium/Firefox/WebKit 三引擎矩阵运行同一组 Browser 分类测试；Edge 由 Windows 本地验证记录。
 
@@ -35,12 +35,12 @@
 
 ## NuGet 包与外部消费
 
-- `scripts/verify_package.py` 运行 `dotnet pack -c Release` 生成 `Astrea.0.7.0.nupkg`，包含 `lib/net6.0/Astrea.dll`、`README.md`、`LICENSE` 与四个 `staticwebassets/` 资源。
-- 包元数据包含 MIT 许可证、README、版本 0.7.0、仓库 URL 与包标签。
-- 探针使用临时 NuGet 缓存和本地包源，复制干净的 Blazor Server 与 WebAssembly 应用，将 ProjectReference 替换为 `PackageReference Include="Astrea" Version="0.7.0"`：
-  - Blazor Server：还原、构建、启动；HTTP 检查预呈现页面与 `_content/Astrea/*` 静态资源。
-  - Blazor WebAssembly：还原、发布；检查发布目录包含全部四个 `_content/Astrea/*` 静态资源。
-- 结果：**PACKAGE PROBE PASSED（Astrea 0.7.0）**。
+- `scripts/verify_package.py` 运行 `dotnet pack -c Release` 生成 `Astrea.Components.0.8.0.nupkg`，包含 `lib/net6.0/Astrea.Components.dll`、`README.md`、`LICENSE` 与四个 `staticwebassets/` 资源。
+- 包元数据包含 MIT 许可证、README、版本 0.8.0、仓库 URL 与包标签。
+- 探针使用临时 NuGet 缓存和本地包源，复制干净的 Blazor Server 与 WebAssembly 应用，将 ProjectReference 替换为 `PackageReference Include="Astrea.Components" Version="0.8.0"`：
+  - Blazor Server：还原、构建、启动；HTTP 检查预呈现页面与 `_content/Astrea.Components/*` 静态资源。
+  - Blazor WebAssembly：还原、发布；检查发布目录包含全部四个 `_content/Astrea.Components/*` 静态资源。
+- 结果：**PACKAGE PROBE PASSED（Astrea.Components 0.8.0）**。
 - SDK 策略：`global.json` 固定 .NET 10 LTS；发布资产仍为 net6.0。
 
 ## axe 自动审计

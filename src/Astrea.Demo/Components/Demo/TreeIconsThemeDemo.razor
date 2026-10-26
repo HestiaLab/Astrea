@@ -1,0 +1,89 @@
+@using Astrea.Components.Tree
+
+<div class="demo-demo-row">
+    <div class="demo-field">
+        <label for="tree-theme-preset">主题预设</label>
+        <select id="tree-theme-preset" value="@_preset" @onchange="OnPresetChanged">
+            <option value="default">默认（不覆盖变量）</option>
+            <option value="accent">强调色：青蓝</option>
+            <option value="large">较大字号与行高</option>
+        </select>
+        <p class="demo-hint">变量以内联样式写在组件根节点上；默认不覆盖，保持库的原始视觉。</p>
+    </div>
+
+    <div class="demo-tree-stage demo-tree-stage--compact">
+        <Tree DataSource="_dataSource"
+              aria-label="第二棵树"
+              style="@ThemeStyle">
+            <IconTemplate Context="icon">
+                <span class="demo-custom-icon">@(icon.HasChildren ? "◆" : "◇")</span>
+            </IconTemplate>
+        </Tree>
+    </div>
+</div>
+
+<p class="demo-hint">
+    第二棵树与主树使用相同的逻辑 ID，但节点对象与组件实例完全独立；图标由 <code>IconTemplate</code> 提供。
+</p>
+
+<DemoDetails Summary="查看 IconTemplate 与主题代码">
+    <DemoCodeSample Code="@UsageSample" />
+</DemoDetails>
+
+@code {
+    private const string UsageSample = @"<Tree DataSource=""_roots""
+      style=""--ast-tree-color-active: rgba(12, 98, 140, 0.22);"">
+    <IconTemplate Context=""icon"">
+        <span>@(icon.HasChildren ? ""◆"" : ""◇"")</span>
+    </IconTemplate>
+</Tree>";
+
+    private const string AccentTheme =
+        "--ast-tree-color-active: rgba(12, 98, 140, 0.22); " +
+        "--ast-tree-color-focus: rgba(12, 98, 140, 0.12); " +
+        "--ast-tree-color-hover: rgba(12, 98, 140, 0.07);";
+
+    private const string LargeTheme =
+        "--ast-tree-font-size: 16px; " +
+        "--ast-tree-node-height: 40px; " +
+        "--ast-tree-control-indent: 24px;";
+
+    private List<TreeNode> _dataSource = new();
+    private string _preset = "default";
+
+    private string ThemeStyle => _preset switch
+    {
+        "accent" => AccentTheme,
+        "large" => LargeTheme,
+        _ => string.Empty,
+    };
+
+    protected override void OnInitialized() => _dataSource = BuildTree();
+
+    // Keep the same stable ids as the main tree so equal-id isolation stays observable.
+    private static List<TreeNode> BuildTree()
+    {
+        var root = new TreeNode("我的项目", id: "project", isExpanded: true);
+
+        var specs = new TreeNode("页面", id: "specs", isExpanded: true);
+        specs.Add(new TreeNode("页面 1", id: "df-1"));
+        specs.Add(new TreeNode("页面 2", id: "df-2"));
+        specs.Add(new TreeNode("已禁用页面", id: "df-3") { IsDisabled = true });
+        root.Add(specs);
+
+        var symbols = new TreeNode("图符", id: "symbols");
+        symbols.Add(new TreeNode("图符 A", id: "sym-1"));
+        root.Add(symbols);
+
+        var resources = new TreeNode("资源", id: "resources");
+        var colors = new TreeNode("颜色表", id: "colors");
+        colors.Add(new TreeNode("ColorTable", id: "res-color"));
+        resources.Add(colors);
+        resources.Add(new TreeNode("字体表", id: "res-font"));
+        root.Add(resources);
+
+        return new List<TreeNode> { root };
+    }
+
+    private void OnPresetChanged(ChangeEventArgs args) => _preset = args.Value?.ToString() ?? "default";
+}

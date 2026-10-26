@@ -4,6 +4,12 @@ All notable changes to Astrea are documented here. The format follows [Keep a Ch
 
 While the version is below 1.0.0, a minor release may contain documented breaking behavior changes. A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS.
 
+## [0.8.0] - 2026-10-26
+
+### Breaking (0.x)
+
+- Package identity: the NuGet package ID, assembly name, and static asset base path are now `Astrea.Components` (formerly `Astrea`). Update `PackageReference` and `_content/Astrea/` links; public namespaces remain `Astrea.Components.*`. Component behavior is unchanged.
+
 ## [0.7.0] - 2026-10-25
 
 ### Breaking (0.x)

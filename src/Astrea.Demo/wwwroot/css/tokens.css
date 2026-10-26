@@ -1,0 +1,116 @@
+:root {
+    --demo-bg: #f6f8fa;
+    --demo-surface: #ffffff;
+    --demo-surface-subtle: #f0f3f6;
+    --demo-text: #1f2328;
+    --demo-muted: #57606a;
+    --demo-border: #d0d7de;
+    --demo-border-strong: #8c959f;
+    --demo-accent: #0b5cad;
+    --demo-accent-dark: #0a4f95;
+    --demo-accent-soft: #ddf4ff;
+    --demo-code-bg: #0d1117;
+    --demo-code-surface: #161b22;
+    --demo-code-border: #30363d;
+    --demo-code-text: #e6edf3;
+    --demo-radius: 12px;
+    --demo-shadow: 0 1px 2px rgba(27, 31, 36, 0.06), 0 10px 28px rgba(27, 31, 36, 0.05);
+    --demo-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+    --demo-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    color-scheme: light;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--demo-bg);
+    color: var(--demo-text);
+    font-family: var(--demo-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--demo-accent);
+}
+
+a:hover {
+    color: var(--demo-accent-dark);
+}
+
+code,
+kbd {
+    font-family: var(--demo-mono);
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--demo-accent);
+    outline-offset: 2px;
+}
+
+.demo-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.demo-eyebrow {
+    margin: 0;
+    color: var(--demo-accent);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.demo-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
+}
+
+.demo-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.16rem 0.55rem;
+    border: 1px solid var(--demo-border);
+    border-radius: 999px;
+    background: var(--demo-surface);
+    color: var(--demo-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.demo-tag--active {
+    border-color: #a7e0b8;
+    background: #dafbe1;
+    color: #1a7f37;
+}
+
+.demo-tag--deferred {
+    border-color: #f0d58c;
+    background: #fff8c5;
+    color: #7a4f00;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}

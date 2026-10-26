@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Astrea\Astrea.csproj" />
+    <ProjectReference Include="..\Astrea.Components\Astrea.Components.csproj" />
   </ItemGroup>
 
 </Project>

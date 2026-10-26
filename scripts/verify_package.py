@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Pack Astrea and verify consumption from clean Blazor Server and WebAssembly apps.
+"""Pack Astrea.Components and verify consumption from clean Blazor Server and WebAssembly apps.
 
 This is a release-engineering check, not a unit test. It uses the local package
 source and a temporary NuGet cache so it does not accidentally consume a cached
-Astrea package.
+Astrea.Components package.
 
 Usage: python scripts/verify_package.py
 """
@@ -25,7 +25,7 @@ from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ROOT / "artifacts" / "packages"
-PROJECT = ROOT / "src" / "Astrea" / "Astrea.csproj"
+PROJECT = ROOT / "src" / "Astrea.Components" / "Astrea.Components.csproj"
 STATIC_ASSETS = (
     "astrea-tree.js",
     "astrea-tree.css",
@@ -47,7 +47,7 @@ def run(command: list[str], cwd: Path = ROOT, env: dict[str, str] | None = None)
 def project_version() -> str:
     match = re.search(r"<Version>([^<]+)</Version>", PROJECT.read_text(encoding="utf-8"))
     if not match:
-        fail("Astrea.csproj has no <Version>")
+        fail("Astrea.Components.csproj has no <Version>")
     return match.group(1)
 
 
@@ -56,12 +56,12 @@ def pack(version: str) -> Path:
     PACKAGES.mkdir(parents=True, exist_ok=True)
     run(["dotnet", "pack", str(PROJECT), "-c", "Release", "-o", str(PACKAGES), "--nologo"])
 
-    package = PACKAGES / f"Astrea.{version}.nupkg"
+    package = PACKAGES / f"Astrea.Components.{version}.nupkg"
     if not package.exists():
         fail(f"expected package not found: {package}")
 
     required = {
-        "lib/net6.0/Astrea.dll",
+        "lib/net6.0/Astrea.Components.dll",
         "README.md",
         "LICENSE",
         "CHANGELOG.md",
@@ -72,7 +72,7 @@ def pack(version: str) -> Path:
         missing = required - names
         if missing:
             fail(f"package is missing entries: {sorted(missing)}")
-        nuspec = archive.read("Astrea.nuspec").decode("utf-8")
+        nuspec = archive.read("Astrea.Components.nuspec").decode("utf-8")
         for expected in (
             f"<version>{version}</version>",
             "<license type=\"expression\">MIT</license>",
@@ -106,7 +106,7 @@ def replace_project_reference(csproj: Path, version: str) -> None:
     text = text.replace(
         "</Project>",
         "  <ItemGroup>\n"
-        f"    <PackageReference Include=\"Astrea\" Version=\"{version}\" />\n"
+        f"    <PackageReference Include=\"Astrea.Components\" Version=\"{version}\" />\n"
         "  </ItemGroup>\n"
         "</Project>",
     )
@@ -189,7 +189,7 @@ def verify_server_app(temp: Path, version: str, package_dir: Path, nuget_cache: 
             if "server-tree" not in html or "Server root" not in html:
                 fail("server app did not render the packaged Tree component")
             for asset in ("astrea-tree.css", "astrea-resource-table.js"):
-                with urllib.request.urlopen(f"{url}/_content/Astrea/{asset}", timeout=5) as response:
+                with urllib.request.urlopen(f"{url}/_content/Astrea.Components/{asset}", timeout=5) as response:
                     if response.status != 200 or not response.read(1):
                         fail(f"server app did not serve packaged asset {asset}")
         finally:
@@ -206,7 +206,7 @@ def verify_wasm_app(temp: Path, version: str, package_dir: Path, nuget_cache: Pa
     run(["dotnet", "publish", str(csproj), "-c", "Release", "-o", str(publish), "--nologo"], cwd=app, env=env)
 
     for asset in STATIC_ASSETS:
-        packaged = publish / "wwwroot" / "_content" / "Astrea" / asset
+        packaged = publish / "wwwroot" / "_content" / "Astrea.Components" / asset
         if not packaged.exists() or packaged.stat().st_size == 0:
             fail(f"WebAssembly publish is missing packaged asset {packaged}")
 
@@ -225,7 +225,7 @@ def main() -> None:
         verify_server_app(temp, version, package_dir, nuget_cache)
         verify_wasm_app(temp, version, package_dir, nuget_cache)
 
-    print(f"PACKAGE PROBE PASSED（Astrea {version}）")
+    print(f"PACKAGE PROBE PASSED（Astrea.Components {version}）")
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ public sealed partial class Tree
 
         try
         {
-            _scrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+            _scrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea.Components/astrea-tree.js");
             if (_dragDisposed || generation != _focusSyncGeneration)
             {
                 return;
