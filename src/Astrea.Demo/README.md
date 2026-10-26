@@ -23,7 +23,7 @@
    ```csharp
    new DemoComponentInfo(
        "my-component",
-       "/components/my-component",
+       "components/my-component",
        "MyComponent",
        "Data Display",
        DemoComponentStatus.Active,
@@ -51,7 +51,7 @@
        </ChildContent>
    </DemoComponentPage>
    ```
-   `@page` 路由必须与清单 `Route` 完全一致；页面状态和交互放在 `Components/Demo/` 下。
+   `Route` 是相对基路径的链接，不能以 `/` 开头；对应 `@page` 在前面补 `/`（如 `@page "/components/my-component"`）。页面状态和交互放在 `Components/Demo/` 下。
 
 3. 新增浏览器测试：
    - 在 `tests/Astrea.Tests/` 下按组件新增测试类，打开对应路由并使用该组件的选择器。
@@ -67,6 +67,15 @@
 - 底部 `DemoRuntimePanel` 只显示计数，展开后显示该页状态与最近 20 条事件。
 - 不展示 Deferred 组件的可点击 Demo；目录页只保留不可点击的 Roadmap 简表。
 - 不新增运行时依赖、外部字体、CDN 或图标库。
+
+## GitHub Pages 部署
+
+Demo 作为 GitHub Pages 项目站发布：<https://hestialab.github.io/Astrea/>。
+
+- `deploy.yml` 在发布后把 `index.html` 的 `<base href>` 改写为 `/Astrea/`。
+- 改写完成后，将 `index.html` 复制为 `404.html`，使直接访问或刷新 `/Astrea/components/<name>` 时仍由 Blazor Router 接管。
+- 站内链接必须使用基路径相对地址：目录路由写成 `components/tree`，首页使用空 `href`。不要写 `/components/tree` 或 `/`，否则浏览器会跳出 `/Astrea/`。
+- 推送 `main` / `dev` 会自动部署；需要手动重跑时，使用 `Deploy demo to GitHub Pages` workflow 的 `workflow_dispatch`。
 
 ## 本地验证
 

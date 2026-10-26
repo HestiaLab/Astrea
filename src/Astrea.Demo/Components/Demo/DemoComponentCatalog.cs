@@ -22,7 +22,7 @@ public static class DemoComponentCatalog
 {
     public static readonly DemoComponentInfo Tree = new(
         "tree",
-        "/components/tree",
+        "components/tree",
         "Tree",
         "Data Display",
         DemoComponentStatus.Active,
@@ -32,7 +32,7 @@ public static class DemoComponentCatalog
 
     public static readonly DemoComponentInfo ResourceTable = new(
         "resource-table",
-        "/components/resource-table",
+        "components/resource-table",
         "ResourceTable",
         "Data Display",
         DemoComponentStatus.Active,

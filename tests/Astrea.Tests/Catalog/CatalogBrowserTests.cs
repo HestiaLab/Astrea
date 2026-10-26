@@ -55,12 +55,13 @@ public sealed class CatalogBrowserTests
         Assert.AreEqual(0, await page.Locator("[data-testid=demo-tree]").CountAsync());
         Assert.AreEqual(0, await page.Locator("[data-testid=demo-resource-table]").CountAsync());
 
-        var treeCard = page.Locator(".demo-catalog-card[href='/components/tree']");
-        var tableCard = page.Locator(".demo-catalog-card[href='/components/resource-table']");
+        var treeCard = page.Locator(".demo-catalog-card[href='components/tree']");
+        var tableCard = page.Locator(".demo-catalog-card[href='components/resource-table']");
         Assert.AreEqual(1, await treeCard.CountAsync());
         Assert.AreEqual(1, await tableCard.CountAsync());
         Assert.AreEqual(1, await page.Locator(".demo-deferred").CountAsync());
-        Assert.AreEqual(0, await page.Locator(".demo-deferred a[href^='/components/']").CountAsync());
+        Assert.AreEqual(0, await page.Locator(".demo-deferred a[href^='components/']").CountAsync());
+        await AssertNoRootAbsoluteInternalLinksAsync(page);
 
         await page.EvaluateAsync("window.scrollTo({ top: 400, behavior: 'instant' })");
         await treeCard.ClickAsync();
@@ -83,13 +84,16 @@ public sealed class CatalogBrowserTests
         var routes = await page.Locator(".demo-catalog-card")
             .EvaluateAllAsync<string[]>("cards => cards.map(card => card.getAttribute('href'))");
         Assert.AreEqual(2, routes.Length);
+        var baseUri = new Uri(BaseUrl.TrimEnd('/') + "/");
         foreach (var route in routes)
         {
-            await page.GotoAsync($"{BaseUrl}{route}", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+            Assert.IsFalse(route.StartsWith('/'), $"Catalog route must be base-relative: {route}");
+            await page.GotoAsync(new Uri(baseUri, route).AbsoluteUri, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
             var heading = page.Locator("main h1[data-demo-page-heading]");
             await heading.WaitForAsync();
             Assert.IsFalse(string.IsNullOrWhiteSpace(await heading.InnerTextAsync()));
             await AssertAnchorTargetsExistAsync(page);
+            await AssertNoRootAbsoluteInternalLinksAsync(page);
         }
 
         session.AssertNoConsoleErrors();
@@ -111,7 +115,7 @@ public sealed class CatalogBrowserTests
             "Tree page did not record an event.");
 
         await page.EvaluateAsync("window.scrollTo({ top: 300, behavior: 'instant' })");
-        await page.Locator(".demo-component-sidebar a.demo-component-nav__link[href='/components/resource-table']").ClickAsync();
+        await page.Locator(".demo-component-sidebar a.demo-component-nav__link[href='components/resource-table']").ClickAsync();
         await page.Locator("[data-testid=demo-resource-table]").WaitForAsync();
         await WaitUntilAsync(
             () => page.EvaluateAsync<bool>(
@@ -120,7 +124,18 @@ public sealed class CatalogBrowserTests
 
         Assert.AreEqual(0, await page.Locator(".demo-log div").CountAsync());
         Assert.AreEqual("ResourceTable", await page.Locator("h1[data-demo-page-heading]").InnerTextAsync());
+        await AssertNoRootAbsoluteInternalLinksAsync(page);
         session.AssertNoConsoleErrors();
+    }
+
+    private static async Task AssertNoRootAbsoluteInternalLinksAsync(IPage page)
+    {
+        var hrefs = await page.Locator("a[href^='/']")
+            .EvaluateAllAsync<string[]>("links => links.map(link => link.getAttribute('href'))");
+        CollectionAssert.AreEqual(
+            Array.Empty<string>(),
+            hrefs,
+            $"Internal links must stay relative to the base path: {string.Join(", ", hrefs)}");
     }
 
     private static async Task AssertAnchorTargetsExistAsync(IPage page)
