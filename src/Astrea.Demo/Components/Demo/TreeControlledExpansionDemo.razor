@@ -1,0 +1,105 @@
+@using Astrea.Components.Tree
+
+<div class="demo-demo-stack">
+    <div class="demo-controls demo-controls--actions" role="group" aria-label="受控展开操作">
+        <button id="btn-expand-all" type="button" class="demo-button" @onclick="ExpandAll">全部展开</button>
+        <button id="btn-collapse-all" type="button" class="demo-button" @onclick="CollapseAll">全部折叠</button>
+        <label class="demo-check">
+            <input id="toggle-expansion-acceptance" type="checkbox" checked="@_acceptExpansion" @onchange="ToggleExpansionAcceptance" />
+            接受展开提案
+        </label>
+    </div>
+
+    <div class="demo-tree-stage demo-tree-stage--compact">
+        <Tree DataSource="_dataSource"
+              ExpandedIds="_expandedIds"
+              ExpandedIdsChanged="HandleExpandedIdsChanged"
+              aria-label="受控展开树" />
+    </div>
+
+    <p class="demo-inline-status" role="status" aria-live="polite">
+        已展开 @_expandedIds.Count / @ExpandableCount 项
+    </p>
+
+    <p class="demo-hint">
+        <code>ExpandedIds</code> 非 null 即受控。应用更新集合不会触发 <code>ExpandedIdsChanged</code>；
+        用户展开/折叠只提出下一次集合，接受后才更新。
+    </p>
+</div>
+
+<DemoDetails Summary="查看受控展开代码">
+    <DemoCodeSample Code="@UsageSample" />
+</DemoDetails>
+
+@code {
+    private const string UsageSample = @"<Tree DataSource=""_roots""
+      ExpandedIds=""_expandedIds""
+      ExpandedIdsChanged=""OnExpandedIdsChanged"" />
+
+@code {
+    private IReadOnlyCollection<string> _expandedIds = new[] { ""root"" };
+
+    private void OnExpandedIdsChanged(IReadOnlyCollection<string> proposedIds)
+        => _expandedIds = proposedIds;
+}";
+
+    private const int ExpandableCount = 3;
+    private static readonly string[] AllIds = { "exp-root", "exp-specs", "exp-assets" };
+
+    [CascadingParameter]
+    private DemoEventLogStore LogStore { get; set; } = default!;
+
+    private List<TreeNode> _dataSource = new();
+    private IReadOnlyCollection<string> _expandedIds = new[] { "exp-root", "exp-specs" };
+    private bool _acceptExpansion = true;
+
+    protected override void OnInitialized() => _dataSource = BuildTree();
+
+    private static List<TreeNode> BuildTree()
+    {
+        var root = new TreeNode("受控根节点", id: "exp-root", isExpanded: true);
+
+        var specs = new TreeNode("页面", id: "exp-specs", isExpanded: true);
+        specs.Add(new TreeNode("页面 A", id: "exp-page-a"));
+        specs.Add(new TreeNode("页面 B", id: "exp-page-b"));
+        root.Add(specs);
+
+        var assets = new TreeNode("资源", id: "exp-assets");
+        assets.Add(new TreeNode("颜色", id: "exp-color"));
+        root.Add(assets);
+
+        return new List<TreeNode> { root };
+    }
+
+    private void HandleExpandedIdsChanged(IReadOnlyCollection<string> proposedIds)
+    {
+        if (!_acceptExpansion)
+        {
+            Log($"已拒绝展开提案（{proposedIds.Count} 个节点）；树保持应用状态");
+            return;
+        }
+
+        _expandedIds = proposedIds.ToArray();
+        Log($"已接受展开提案：{_expandedIds.Count} 个节点展开");
+    }
+
+    private void ExpandAll()
+    {
+        _expandedIds = AllIds.ToArray();
+        Log("应用更新：全部展开（不触发 ExpandedIdsChanged）");
+    }
+
+    private void CollapseAll()
+    {
+        _expandedIds = Array.Empty<string>();
+        Log("应用更新：全部折叠（不触发 ExpandedIdsChanged）");
+    }
+
+    private void ToggleExpansionAcceptance(ChangeEventArgs args)
+    {
+        _acceptExpansion = (bool)(args.Value ?? false);
+        Log(_acceptExpansion ? "将接受受控展开提案" : "将拒绝受控展开提案");
+    }
+
+    private void Log(string message) => LogStore.Add(message);
+}

@@ -1,0 +1,15 @@
+<figure class="demo-code-sample">
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <figcaption>@Title</figcaption>
+    }
+    <pre tabindex="0"><code>@Code</code></pre>
+</figure>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Code { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Title { get; set; }
+}

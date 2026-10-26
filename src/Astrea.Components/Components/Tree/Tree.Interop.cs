@@ -29,7 +29,7 @@ public sealed partial class Tree
             var module = _dropModule;
             if (module is null)
             {
-                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea.Components/astrea-tree.js");
                 if (_dragDisposed || !AllowDrag || DataSource is null)
                 {
                     await DisposeReferenceQuietlyAsync(module);
@@ -105,7 +105,7 @@ public sealed partial class Tree
             var module = _dropModule;
             if (module is null)
             {
-                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea/astrea-tree.js");
+                module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/Astrea.Components/astrea-tree.js");
                 if (_dragDisposed || !UseInternalKeyboard)
                 {
                     await DisposeReferenceQuietlyAsync(module);

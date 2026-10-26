@@ -1,0 +1,46 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.JSInterop
+@implements IDisposable
+
+@code {
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    private string _lastPath = string.Empty;
+    private bool _focusPending;
+
+    protected override void OnInitialized()
+    {
+        _lastPath = new Uri(Navigation.Uri).AbsolutePath;
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        var path = new Uri(args.Location).AbsolutePath;
+        if (string.Equals(path, _lastPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _lastPath = path;
+        _focusPending = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending)
+        {
+            return;
+        }
+
+        _focusPending = false;
+        await Js.InvokeVoidAsync("demoShell.focusPageHeading");
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= HandleLocationChanged;
+}

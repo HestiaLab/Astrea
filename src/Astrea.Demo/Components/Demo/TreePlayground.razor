@@ -1,0 +1,244 @@
+@using Astrea.Components.Tree
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="demo-controls" role="group" aria-label="主树交互开关">
+    <label class="demo-check">
+        <input id="toggle-multi" type="checkbox" checked="@_allowMultiSelect" @onchange="ToggleMultiSelect" />
+        多选
+    </label>
+    <label class="demo-check">
+        <input id="toggle-drag" type="checkbox" checked="@_allowDrag" @onchange="ToggleAllowDrag" />
+        拖拽
+    </label>
+    <DemoDetails Summary="更多操作" Class="demo-details--inline">
+        <div class="demo-controls demo-controls--actions" role="group" aria-label="主树高级操作">
+            <label class="demo-check">
+                <input id="toggle-selection-acceptance" type="checkbox" checked="@_acceptSelectionProposal" @onchange="ToggleSelectionAcceptance" />
+                接受受控选择提案
+            </label>
+            <button type="button" class="demo-button" @onclick="RebuildTree">重建树（保持状态）</button>
+            <button type="button" class="demo-button" @onclick="RemoveSelected">移除选中</button>
+            <button type="button" class="demo-button" @onclick="ClearSelection">清空选择（应用更新）</button>
+            <button type="button" class="demo-button" @onclick="ClearTree">清空树</button>
+        </div>
+    </DemoDetails>
+</div>
+
+<div class="demo-tree-stage">
+    <Tree DataSource="_dataSource"
+          SelectionMode="_selectionMode"
+          SelectedIds="_controlledSelectedIds"
+          SelectedIdsChanged="HandleSelectedIdsChanged"
+          AllowDrag="_allowDrag"
+          BeforeDropAsync="BeforeDropAsync"
+          BeforeRenameAsync="BeforeRenameAsync"
+          OnNodeClicked="HandleNodeClicked"
+          OnNodeInvoked="HandleNodeInvoked"
+          OnContextMenu="HandleContextMenu"
+          OnDrop="HandleDrop"
+          OnEditCommitted="HandleEditCommitted"
+          OnEditCancelled="HandleEditCancelled"
+          OnEditRejected="HandleEditRejected"
+          OnKeyDown="HandleKeyDown"
+          aria-label="演示树"
+          data-testid="demo-tree"
+          @ref="_tree" />
+</div>
+<p class="demo-hint">
+    选中节点后按 F2 重命名；拖到「资源」会被 <code>BeforeDropAsync</code> 否决；
+    「已禁用页面」可导航但不可选中或展开。右键只通知，不改变选择或焦点。
+</p>
+
+@code {
+    [CascadingParameter]
+    private DemoEventLogStore LogStore { get; set; } = default!;
+
+    private List<TreeNode> _dataSource = new();
+    private Tree? _tree;
+    private TreeSelectionMode _selectionMode = TreeSelectionMode.Multiple;
+    private IReadOnlyCollection<string> _controlledSelectedIds = Array.Empty<string>();
+    private bool _allowMultiSelect = true;
+    private bool _allowDrag = true;
+    private bool _acceptSelectionProposal = true;
+
+    public Tree? Tree => _tree;
+
+    public string ModeLabel => _allowMultiSelect ? "多选" : "单选";
+
+    protected override void OnInitialized() => _dataSource = BuildTree();
+
+    private static List<TreeNode> BuildTree()
+    {
+        var root = new TreeNode("我的项目", id: "project", isExpanded: true);
+
+        var specs = new TreeNode("页面", id: "specs", isExpanded: true);
+        specs.Add(new TreeNode("页面 1", id: "df-1"));
+        specs.Add(new TreeNode("页面 2", id: "df-2"));
+        specs.Add(new TreeNode("已禁用页面", id: "df-3") { IsDisabled = true });
+        root.Add(specs);
+
+        var symbols = new TreeNode("图符", id: "symbols");
+        symbols.Add(new TreeNode("图符 A", id: "sym-1"));
+        root.Add(symbols);
+
+        var resources = new TreeNode("资源", id: "resources");
+        var colors = new TreeNode("颜色表", id: "colors");
+        colors.Add(new TreeNode("ColorTable", id: "res-color"));
+        resources.Add(colors);
+        resources.Add(new TreeNode("字体表", id: "res-font"));
+        root.Add(resources);
+
+        return new List<TreeNode> { root };
+    }
+
+    private void RebuildTree()
+    {
+        _dataSource = BuildTree();
+        Log("已重建树（同 Id 新对象，状态应保持）");
+    }
+
+    private async Task RemoveSelected()
+    {
+        var selected = _tree?.View?.GetSelectedNodes().ToList();
+        if (selected is null || selected.Count == 0)
+        {
+            Log("无选中节点可移除");
+            return;
+        }
+
+        foreach (var node in selected)
+        {
+            if (node.Parent is not null)
+            {
+                node.Parent.Remove(node);
+            }
+            else
+            {
+                _dataSource.Remove(node);
+            }
+        }
+
+        _controlledSelectedIds = _controlledSelectedIds
+            .Except(selected.Select(node => node.Id))
+            .ToArray();
+        if (_tree is not null)
+        {
+            await _tree.RefreshAsync();
+        }
+
+        Log($"移除 {selected.Count} 个节点（焦点应恢复）");
+    }
+
+    private void ClearSelection()
+    {
+        _controlledSelectedIds = Array.Empty<string>();
+        Log("应用已清空受控 SelectedIds（不会触发 SelectedIdsChanged）");
+    }
+
+    private void ClearTree()
+    {
+        _dataSource = new List<TreeNode>();
+        _controlledSelectedIds = Array.Empty<string>();
+        Log("已清空树（空数据源仍保留可访问树容器）");
+    }
+
+    private void ToggleMultiSelect(ChangeEventArgs args)
+    {
+        _allowMultiSelect = (bool)(args.Value ?? false);
+        _selectionMode = _allowMultiSelect ? TreeSelectionMode.Multiple : TreeSelectionMode.Single;
+        Log(_allowMultiSelect ? "已开启多选" : "已关闭多选（选择应收敛为单节点）");
+    }
+
+    private void ToggleAllowDrag(ChangeEventArgs args)
+    {
+        _allowDrag = (bool)(args.Value ?? false);
+        Log(_allowDrag ? "已开启拖拽" : "已关闭拖拽（活动会话立即失效）");
+    }
+
+    private void ToggleSelectionAcceptance(ChangeEventArgs args)
+    {
+        _acceptSelectionProposal = (bool)(args.Value ?? false);
+        Log(_acceptSelectionProposal
+            ? "应用将接受受控选择提案"
+            : "应用将拒绝受控选择提案（树保持应用提供的选择）");
+    }
+
+    private void HandleSelectedIdsChanged(IReadOnlyCollection<string> proposedIds)
+    {
+        var ids = proposedIds.ToArray();
+        if (!_acceptSelectionProposal)
+        {
+            Log($"已拒绝选择提案：{DescribeIds(ids)}");
+            return;
+        }
+
+        _controlledSelectedIds = ids;
+        Log($"已接受选择提案：{DescribeIds(ids)}");
+    }
+
+    private string DescribeIds(IEnumerable<string> ids)
+    {
+        var names = ids.Select(id => _tree?.View?.FindById(id)?.Text ?? id).ToArray();
+        return names.Length == 0 ? "（无）" : string.Join("、", names);
+    }
+
+    private ValueTask<bool> BeforeDropAsync(TreeDropEventArgs args)
+    {
+        if (args.TargetNode.Text == "资源")
+        {
+            Log("否决拖放 → 资源");
+            return ValueTask.FromResult(false);
+        }
+
+        return ValueTask.FromResult(true);
+    }
+
+    private static ValueTask<bool> BeforeRenameAsync(TreeNode node, string value)
+        => ValueTask.FromResult(!string.IsNullOrWhiteSpace(value));
+
+    private void HandleNodeClicked(TreeNodeEventArgs args) => Log($"单击：{args.Node.Text}");
+
+    private void HandleNodeInvoked(TreeNodeEventArgs args) => Log($"激活：{args.Node.Text}");
+
+    private void HandleContextMenu(TreeContextMenuEventArgs args) => Log($"右键：{args.Node.Text}");
+
+    private void HandleDrop(TreeDropEventArgs args)
+    {
+        var names = string.Join("、", args.SourceNodes.Select(node => node.Text));
+        Log($"拖放：{names} → {args.TargetNode.Text}（{PositionName(args.Relation)}）");
+    }
+
+    private void HandleEditCommitted(TreeEditEventArgs args)
+    {
+        Log($"重命名：{args.Node.Text} → {args.Value}");
+        args.Node.Text = args.Value;
+    }
+
+    private void HandleEditRejected(TreeEditRejectedEventArgs args)
+        => Log($"重命名被否决：{args.Node.Text} → {args.Value}");
+
+    private void HandleEditCancelled(TreeNodeEventArgs args) => Log($"取消编辑：{args.Node.Text}");
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key != "F2")
+        {
+            return;
+        }
+
+        var focused = _tree?.View?.FocusedNode;
+        if (focused is not null && await _tree!.BeginEditAsync(focused.Id))
+        {
+            Log($"进入编辑：{focused.Text}");
+        }
+    }
+
+    private static string PositionName(TreeDropRelation relation) => relation switch
+    {
+        TreeDropRelation.Before => "之前",
+        TreeDropRelation.Inside => "之内",
+        _ => "之后",
+    };
+
+    private void Log(string message) => LogStore.Add(message);
+}

@@ -1,0 +1,24 @@
+@using Astrea.Demo.Components.Demo
+
+@{
+    var headingId = $"{Info.Id}-title";
+}
+
+<section id="@Info.Id" class="demo-chapter" aria-labelledby="@headingId">
+    <header class="demo-chapter__header">
+        <h2 id="@headingId">@Info.Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Info.Description))
+        {
+            <p class="demo-chapter__description">@Info.Description</p>
+        }
+    </header>
+    @ChildContent
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public DemoChapterInfo Info { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

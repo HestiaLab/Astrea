@@ -1,0 +1,63 @@
+@using Astrea.Demo.Components.Demo
+
+<CascadingValue Value="_store" IsFixed="true">
+    <div class="demo-component-layout">
+        <aside class="demo-component-sidebar" aria-label="组件导航">
+            <DemoComponentNav />
+        </aside>
+
+        <div class="demo-component-main">
+            <details class="demo-component-menu">
+                <summary>切换组件：<strong>@Component.Title</strong></summary>
+                <DemoComponentNav />
+            </details>
+
+            <main id="main-content" class="demo-component-content">
+                <nav class="demo-breadcrumb" aria-label="面包屑">
+                    <NavLink href="/" Match="NavLinkMatch.All">组件</NavLink>
+                    <span aria-hidden="true">/</span>
+                    <span aria-current="page">@Component.Title</span>
+                </nav>
+
+                <header class="demo-page-hero">
+                    <div class="demo-page-hero__meta">
+                        <span class="demo-eyebrow">@Component.Category</span>
+                        <span class="demo-tag demo-tag--active">Active</span>
+                    </div>
+                    <h1 data-demo-page-heading tabindex="-1">@Component.Title</h1>
+                    <p class="demo-page-hero__summary">@Component.Summary</p>
+                </header>
+
+                @if (Chapters.Count > 0)
+                {
+                    <nav class="demo-anchor-nav" aria-label="本页能力">
+                        @foreach (var chapter in Chapters)
+                        {
+                            <a href="#@chapter.Id">@chapter.Title</a>
+                        }
+                    </nav>
+                }
+
+                @ChildContent
+
+                <DemoRuntimePanel Store="_store" StatusContent="@RuntimeStatus" />
+            </main>
+        </div>
+    </div>
+</CascadingValue>
+
+@code {
+    private readonly DemoEventLogStore _store = new();
+
+    [Parameter, EditorRequired]
+    public DemoComponentInfo Component { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<DemoChapterInfo> Chapters { get; set; } = Array.Empty<DemoChapterInfo>();
+
+    [Parameter]
+    public RenderFragment? RuntimeStatus { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

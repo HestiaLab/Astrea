@@ -104,15 +104,15 @@
 | REQ-F-095 | 🟡 | Active | `TreeBrowserTests.ResourceTable_KeyboardResize_AdjustsWidthsAndForwardsKey`; `ResourceTable.HandleKeyDown` implementation |
 | REQ-F-096 | 🔴 | Active | `ResourceTableRenderTests.EmptyColumns_RenderNoHeaderCellAndKeepBody`; `ResourceTableColumnsParameterTests.ColumnsSetter_AcceptsEmptyCollection` |
 | REQ-F-097 | 🟢 | Active | `ResourceTableRenderTests.ToolbarIcons_UseDefaultsAndAllowOverrides` |
-| REQ-NF-001 | 🔴 | Active | `src/Astrea/Astrea.csproj` TargetFramework net6.0; build/test suite runs on net6.0 |
+| REQ-NF-001 | 🔴 | Active | `src/Astrea.Components/Astrea.Components.csproj` TargetFramework net6.0; build/test suite runs on net6.0 |
 | REQ-NF-002 | 🟡 | Active | Gap: latest Edge/Chromium/Firefox/WebKit matrix passes; second major version execution pending — plan in `docs/browser-version-verification-plan.md` |
 | REQ-NF-003 | 🟡 | Deferred | Deferred（附录 B） |
 | REQ-NF-004 | 🔴 | Active | Gap: manual screen-reader/WCAG session pending — checklist in `docs/accessibility-validation-checklist.md`; automated axe 0 serious/critical plus keyboard browser tests recorded in `docs/release-evidence.md` |
-| REQ-NF-005 | 🟡 | Active | `src/Astrea/Astrea.csproj` uses FrameworkReference only; no third-party runtime packages |
-| REQ-NF-006 | 🔴 | Active | `scripts/verify_package.py` packs Astrea 0.7.0 and verifies clean Blazor Server and WebAssembly consumption; results in `docs/release-evidence.md` |
-| REQ-NF-007 | 🟡 | Active | `README.md` current-release scope and ResourceTable docs; `docs/Roadmap.md`; SRS v0.7.0 |
+| REQ-NF-005 | 🟡 | Active | `src/Astrea.Components/Astrea.Components.csproj` uses FrameworkReference only; no third-party runtime packages |
+| REQ-NF-006 | 🔴 | Active | `scripts/verify_package.py` packs Astrea.Components 0.8.0 and verifies clean Blazor Server and WebAssembly consumption; results in `docs/release-evidence.md` |
+| REQ-NF-007 | 🟡 | Active | `README.md` current-release scope and ResourceTable docs; `docs/Roadmap.md`; SRS v0.8.0 |
 | REQ-NF-008 | 🔴 | Active | `docs/requirements-test-matrix.md`; `scripts/verify_srs_consistency.py`; CI gates |
 | REQ-NF-009 | 🔴 | Active | `ServerSmokeBrowserTests.*`; minimal Server host in `tests/Astrea.ServerSmoke`; results in `docs/release-evidence.md` |
 | REQ-NF-010 | 🔴 | Active | `TreeComponentLifecycleTests.NodeText_IsRenderedAsTextNotMarkup`; components perform no external network calls |
 | REQ-NF-011 | 🔴 | Active | `TreeComponentLifecycleTests.ClearingDataSource_EndsEditingSession`; `DisposeAsync_EndsEditingSession`; `TreeInteropLifecycleTests.*`; `ResourceTableInteropTests.ResizeInterop_FollowsResizableColumnsAndColumnChanges` |
-| REQ-NF-012 | 🟡 | Active | `CHANGELOG.md` and README versioning policy; package version 0.7.0 aligned with SRS; `global.json` pinned to the .NET 10 build SDK |
+| REQ-NF-012 | 🟡 | Active | `CHANGELOG.md` and README versioning policy; package version 0.8.0 aligned with SRS; `global.json` pinned to the .NET 10 build SDK |

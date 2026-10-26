@@ -1,0 +1,147 @@
+@page "/components/tree"
+@using Astrea.Demo.Components.Demo
+
+<PageTitle>Tree · Astrea 组件演示</PageTitle>
+
+<DemoComponentPage Component="@DemoComponentCatalog.Tree" Chapters="@Chapters">
+    <RuntimeStatus>
+        <DemoStateInspector TreeAccessor="@(() => _playground?.Tree)"
+                            ModeAccessor="@(() => _playground?.ModeLabel ?? "—")"
+                            ControlledSelection="true"
+                            ControlledExpansion="false"
+                            Caption="主树由应用持有 SelectedIds；受控展开树在对应章节内显示摘要。" />
+    </RuntimeStatus>
+
+    <ChildContent>
+
+    <DemoChapter Info="@PlaygroundChapter">
+        <TreePlayground @ref="_playground" />
+        <DemoDetails Summary="交互说明与最小代码">
+            <ul class="demo-list">
+                <li>拖放到目标节点的上缘 / 中部 / 下缘，分别得到 before / inside / after；OnDrop 只触发一次。</li>
+                <li>拖到「资源」会被 <code>BeforeDropAsync</code> 否决；自引用、循环、跨树和过期会话由组件内置拒绝。</li>
+                <li>右键只触发 <code>OnContextMenu</code>，不改变选择或焦点；应用自行渲染菜单。</li>
+                <li>F2 由应用调用 <code>BeginEditAsync</code>；Enter 提交、Escape 取消、失焦提交后焦点回到树。</li>
+            </ul>
+            <DemoCodeSample Code="@PlaygroundSample" />
+        </DemoDetails>
+    </DemoChapter>
+
+    <DemoChapter Info="@EditingChapter">
+        <TreeCustomEditDemo />
+    </DemoChapter>
+
+    <DemoChapter Info="@IconsChapter">
+        <TreeIconsThemeDemo />
+    </DemoChapter>
+
+    <DemoChapter Info="@ExpansionChapter">
+        <TreeControlledExpansionDemo />
+    </DemoChapter>
+
+    <DemoChapter Info="@VirtualizationChapter">
+        <TreeVirtualizationDemo />
+    </DemoChapter>
+
+    <DemoChapter Info="@KeyboardChapter">
+        <DemoDetails Summary="快捷键与 ARIA 说明">
+            <div class="demo-shortcuts-wrap">
+                <table class="demo-shortcuts">
+                    <caption class="demo-visually-hidden">Tree 键盘与鼠标操作</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">操作</th>
+                            <th scope="col">行为</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Tab / Shift+Tab</td><td>进入或离开树；树内部只有一个 Tab 停靠点。</td></tr>
+                        <tr><td>↑ / ↓</td><td>移动焦点；Shift+↑/↓ 从锚点扩展多选范围。</td></tr>
+                        <tr><td>Home / End</td><td>移动到首个 / 最后一个可见节点；Shift 组合扩展范围。</td></tr>
+                        <tr><td>→</td><td>展开折叠节点；已展开时移动到首个子节点。</td></tr>
+                        <tr><td>←</td><td>折叠展开节点；已折叠时移动到父节点。</td></tr>
+                        <tr><td>Space</td><td>多选时切换当前节点；单选时选中当前节点。</td></tr>
+                        <tr><td>Enter</td><td>激活当前节点并触发 OnNodeInvoked，不改变选择。</td></tr>
+                        <tr><td>F2</td><td>应用调用 BeginEditAsync 进入编辑（本 Demo 的 OnKeyDown 实现）。</td></tr>
+                        <tr><td>Ctrl / Shift + 单击</td><td>Ctrl 切换选中；Shift 从上次点击节点扩展范围。</td></tr>
+                        <tr><td>右键</td><td>触发 OnContextMenu，不移动焦点、不改变选择。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="demo-hint">
+                Tree 遵循 WAI-ARIA Tree View Pattern：单一 Tab 停靠点、DOM 焦点留在容器、通过
+                <code>aria-activedescendant</code> 跟踪当前节点。禁用节点仍可导航和聚焦，但不可选中、展开或激活。
+            </p>
+        </DemoDetails>
+    </DemoChapter>
+    </ChildContent>
+</DemoComponentPage>
+
+@code {
+    private static readonly DemoChapterInfo PlaygroundChapter = new(
+        "playground",
+        "交互实验台",
+        "主树默认多选、启用拖拽，并由应用持有 SelectedIds 的受控选择。点击、Space、Shift+方向键、F2、拖放与右键都会写入此页的运行状态和事件日志。");
+
+    private static readonly DemoChapterInfo EditingChapter = new(
+        "editing",
+        "自定义编辑",
+        "默认编辑使用 F2，自定义 EditTemplate 可以完全接管输入 UI 与焦点注册；BeforeRenameAsync 可否决重命名。");
+
+    private static readonly DemoChapterInfo IconsChapter = new(
+        "icons",
+        "图标与主题",
+        "IconTemplate 为节点提供内容图标；没有图标时不保留空图标容器。--ast-tree-* 变量写在组件根节点上覆盖默认主题。");
+
+    private static readonly DemoChapterInfo ExpansionChapter = new(
+        "expansion",
+        "受控展开",
+        "ExpandedIds 非 null 即受控：用户展开/折叠只提出下一次集合，应用接受后才更新；应用直接替换集合不会反向触发事件。");
+
+    private static readonly DemoChapterInfo VirtualizationChapter = new(
+        "virtualization",
+        "虚拟化",
+        "固定行高虚拟化需要宿主提供有界高度。只有点击按钮才生成 5 万节点；End/Home 会滚动视口并保持有效焦点。");
+
+    private static readonly DemoChapterInfo KeyboardChapter = new(
+        "keyboard",
+        "键盘与可访问性",
+        "单一 Tab 停靠点、方向键、Home/End、Space、Enter 与 F2 的完整键盘路径。");
+
+    private static readonly DemoChapterInfo[] Chapters =
+    {
+        PlaygroundChapter,
+        EditingChapter,
+        IconsChapter,
+        ExpansionChapter,
+        VirtualizationChapter,
+        KeyboardChapter,
+    };
+
+    private const string PlaygroundSample = @"<Tree DataSource=""_roots""
+      SelectionMode=""TreeSelectionMode.Multiple""
+      SelectedIds=""_selectedIds""
+      SelectedIdsChanged=""OnSelectionChanged""
+      AllowDrag=""true""
+      BeforeDropAsync=""BeforeDrop""
+      OnDrop=""OnDrop""
+      OnContextMenu=""OnContextMenu"" />
+
+@code {
+    private IReadOnlyCollection<string> _selectedIds = Array.Empty<string>();
+
+    private void OnSelectionChanged(IReadOnlyCollection<string> proposedIds)
+        => _selectedIds = proposedIds; // 应用接受提案后，受控选择才更新
+
+    private ValueTask<bool> BeforeDrop(TreeDropEventArgs args)
+        => ValueTask.FromResult(args.TargetNode.Text != ""资源"");
+
+    private void OnDrop(TreeDropEventArgs args)
+    {
+        // args.SourceNodes / args.TargetNode / args.Relation
+        // 结构更新由应用决定。
+    }
+}";
+
+    private TreePlayground? _playground;
+}

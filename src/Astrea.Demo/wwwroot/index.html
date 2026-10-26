@@ -4,21 +4,29 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Astrea 组件库演示</title>
+    <meta name="description" content="Astrea 组件演示：Tree 与 ResourceTable 的可运行交互、状态检查器、事件日志与最小代码示例。" />
+    <title>Astrea 组件目录</title>
     <base href="/" />
     <link rel="icon" href="data:," />
-    <link href="_content/Astrea/astrea-tree.css" rel="stylesheet" />
-    <link href="_content/Astrea/astrea-resource-table.css" rel="stylesheet" />
-    <link href="css/app.css" rel="stylesheet" />
+    <link href="_content/Astrea.Components/astrea-tree.css" rel="stylesheet" />
+    <link href="_content/Astrea.Components/astrea-resource-table.css" rel="stylesheet" />
+    <link href="css/tokens.css" rel="stylesheet" />
+    <link href="css/shell.css" rel="stylesheet" />
+    <link href="css/demo-primitives.css" rel="stylesheet" />
+    <link href="css/tree.css" rel="stylesheet" />
+    <link href="css/resource-table.css" rel="stylesheet" />
 </head>
 
 <body>
-    <div id="app">加载中…</div>
+    <div id="app">
+        <p style="font-family: system-ui, sans-serif; padding: 1.5rem;">加载 Astrea 演示…</p>
+    </div>
     <div id="blazor-error-ui">
         发生错误。
         <a href="" class="reload">重新加载</a>
-        <a class="dismiss">🗙</a>
+        <a class="dismiss" role="button" aria-label="关闭错误提示">🗙</a>
     </div>
+    <script src="js/demo-shell.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

@@ -1,0 +1,101 @@
+@page "/components/resource-table"
+@using Astrea.Demo.Components.Demo
+
+<PageTitle>ResourceTable · Astrea 组件演示</PageTitle>
+
+<DemoComponentPage Component="@DemoComponentCatalog.ResourceTable" Chapters="@Chapters">
+    <RuntimeStatus>
+        <DemoResourceTableInspector Accessor="@(() => _tableDemo?.Status)" />
+    </RuntimeStatus>
+
+    <ChildContent>
+
+    <DemoChapter Info="@PlaygroundChapter">
+        <ResourceTableDemo @ref="_tableDemo" />
+        <DemoDetails Summary="查看最小代码">
+            <DemoCodeSample Code="@UsageSample" />
+        </DemoDetails>
+    </DemoChapter>
+
+    <DemoChapter Info="@ColumnsChapter">
+        <ul class="demo-list">
+            <li>在上方实验台勾选 / 取消「列宽拖拽」，手柄会立即添加或移除。</li>
+            <li>聚焦第一个列边界，按 → / ←：每次 10px，键盘事件仍会转发给应用的 OnKeyDown。</li>
+            <li>第一列 ID 的 MinWidth 为 40px；最后一列不生成手柄；相邻两列总宽守恒。</li>
+        </ul>
+        <DemoDetails Summary="查看列宽与键盘代码">
+            <DemoCodeSample Code="@ColumnsSample" />
+        </DemoDetails>
+    </DemoChapter>
+
+    <DemoChapter Info="@VariantsChapter">
+        <ResourceTableVariantsDemo />
+    </DemoChapter>
+    </ChildContent>
+</DemoComponentPage>
+
+@code {
+    private static readonly DemoChapterInfo PlaygroundChapter = new(
+        "playground",
+        "交互实验台",
+        "唯一可交互主表；工具栏 Add / Remove / Move Up / Move Down / Undo / Redo 真实修改本地数据，撤销/重做由应用快照栈实现。");
+
+    private static readonly DemoChapterInfo ColumnsChapter = new(
+        "columns",
+        "列宽与键盘",
+        "每个可调整列边界都是可聚焦的 role=separator；指针拖动或方向键调整都遵守 MinWidth，并保持相邻两列总宽不变。");
+
+    private static readonly DemoChapterInfo VariantsChapter = new(
+        "variants",
+        "空列、主题与图标",
+        "空列集合不渲染空表头；--ast-rt-* 变量可覆盖颜色与边框；内置 SVG 工具栏图标可以被宿主完全替换。");
+
+    private static readonly DemoChapterInfo[] Chapters =
+    {
+        PlaygroundChapter,
+        ColumnsChapter,
+        VariantsChapter,
+    };
+
+    private const string UsageSample = @"<div style=""height: 360px;"">
+    <ResourceTable Columns=""_columns""
+                   TableBody=""RenderRows""
+                   ResizableColumns=""true""
+                   ShowRedoButton=""true""
+                   CanUndo=""_undo.Count > 0""
+                   OnAddClicked=""AddRow""
+                   OnColumnResized=""OnColumnResized"" />
+</div>
+
+@code {
+    private readonly List<TableColumn> _columns = new()
+    {
+        new(""ID"") { Key = ""id"", Width = ""60px"", MinWidth = 40 },
+        new(""名称"") { Key = ""name"", Width = ""160px"", MinWidth = 60 },
+        new(""类型"") { Key = ""type"", Width = ""100px"" },
+        new(""备注"") { Key = ""note"" }
+    };
+}";
+
+    private const string ColumnsSample = @"<ResourceTable Columns=""_columns""
+               TableBody=""RenderRows""
+               ResizableColumns=""true""
+               OnColumnResized=""OnColumnResized"" />
+
+@code {
+    private readonly List<TableColumn> _columns = new()
+    {
+        new(""ID"") { Key = ""id"", Width = ""60px"", MinWidth = 40 },
+        new(""名称"") { Key = ""name"", Width = ""160px"", MinWidth = 60 },
+        new(""类型"") { Key = ""type"", Width = ""100px"" },
+        new(""备注"") { Key = ""note"" }
+    };
+
+    private void OnColumnResized(ColumnResizedEventArgs args)
+    {
+        // args.ColumnIndex / args.ColumnKey / args.NewWidth
+    }
+}";
+
+    private ResourceTableDemo? _tableDemo;
+}

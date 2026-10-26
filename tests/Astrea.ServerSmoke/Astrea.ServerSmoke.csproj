@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Astrea\Astrea.csproj" />
+    <ProjectReference Include="..\..\src\Astrea.Components\Astrea.Components.csproj" />
   </ItemGroup>
 
 </Project>

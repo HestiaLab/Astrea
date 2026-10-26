@@ -1,0 +1,198 @@
+@using Astrea.Components.ResourceTable
+
+<div class="demo-variant-grid">
+    <div class="demo-variant">
+        <h4>空列：不渲染表头，表体仍保留</h4>
+        <div class="demo-table-box demo-table-box--short">
+            <ResourceTable Columns="_emptyColumns"
+                           TableBody="RenderEmptyRows"
+                           ShowButton="false"
+                           ResizableColumns="false"
+                           aria-label="空列资源表示例" />
+        </div>
+        <p class="demo-hint">空列集合不会生成空 <code>&lt;th&gt;</code> 或 <code>&lt;thead&gt;</code>，表体行照常渲染。</p>
+    </div>
+
+    <div class="demo-variant">
+        <div class="demo-controls">
+            <label class="demo-check">
+                <input id="toggle-rt-theme" type="checkbox" checked="@_applyTheme" @onchange="ToggleTheme" />
+                应用 --ast-rt-* 主题覆盖
+            </label>
+            <label class="demo-check">
+                <input id="toggle-rt-custom-icons" type="checkbox" checked="@_showCustomIcons" @onchange="ToggleCustomIcons" />
+                自定义 SVG 图标
+            </label>
+        </div>
+        <div class="demo-table-box demo-table-box--short">
+            <ResourceTable Columns="_themeColumns"
+                           TableBody="RenderThemeRows"
+                           ShowRedoButton="true"
+                           CanUndo="false"
+                           CanRedo="false"
+                           style="@(_applyTheme ? ThemeStyle : string.Empty)"
+                           aria-label="主题与图标表"
+                           IconAdd="@(_showCustomIcons ? CustomAddIcon : null)"
+                           IconRemove="@(_showCustomIcons ? CustomRemoveIcon : null)"
+                           IconUndo="@(_showCustomIcons ? CustomUndoIcon : null)"
+                           OnAddClicked="AddThemeRow"
+                           OnRemoveClicked="RemoveThemeRow"
+                           OnMoveUpClicked="MoveThemeRowUp"
+                           OnMoveDownClicked="MoveThemeRowDown">
+            </ResourceTable>
+        </div>
+        <p class="demo-hint">主题覆盖只在勾选时以内联变量应用；表格工具栏按钮仍使用各自的默认标题作为可访问名称。</p>
+        <p class="demo-status" role="status" aria-live="polite">@_variantStatus</p>
+    </div>
+</div>
+
+<DemoDetails Summary="查看空列与自定义图标代码">
+    <DemoCodeSample Code="@UsageSample" />
+</DemoDetails>
+
+@code {
+    private const string UsageSample = @"<!-- 空列：不渲染表头 -->
+<ResourceTable Columns=""Array.Empty<TableColumn>()""
+               TableBody=""RenderRows"" />
+
+<!-- 自定义图标：内置 SVG 可被完全替换 -->
+<ResourceTable Columns=""_columns"" TableBody=""RenderRows"">
+    <IconAdd>
+        <svg viewBox=""0 0 24 24"" aria-hidden=""true"">
+            <circle cx=""12"" cy=""12"" r=""9"" />
+            <path d=""M12 8v8M8 12h8"" />
+        </svg>
+    </IconAdd>
+</ResourceTable>";
+
+    private const string ThemeStyle =
+        "--ast-rt-color-header-bg: #eaf3fb; " +
+        "--ast-rt-color-border: #aebdca; " +
+        "--ast-rt-color-accent: #0b5cad; " +
+        "--ast-rt-color-hover-bg: #dbeafe; " +
+        "--ast-rt-color-selected-bg: #dbeafe;";
+
+    private readonly TableColumn[] _emptyColumns = Array.Empty<TableColumn>();
+
+    private static readonly RenderFragment CustomAddIcon = builder =>
+        builder.AddMarkupContent(
+            0,
+            "<svg class=\"demo-rt-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">" +
+            "<circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"></circle>" +
+            "<path d=\"M12 8v8M8 12h8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"></path>" +
+            "</svg>");
+
+    private static readonly RenderFragment CustomRemoveIcon = builder =>
+        builder.AddMarkupContent(
+            0,
+            "<svg class=\"demo-rt-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">" +
+            "<circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"></circle>" +
+            "<path d=\"M8 12h8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"></path>" +
+            "</svg>");
+
+    private static readonly RenderFragment CustomUndoIcon = builder =>
+        builder.AddMarkupContent(
+            0,
+            "<svg class=\"demo-rt-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">" +
+            "<path d=\"M4 8h9a5 5 0 1 1-4.6 7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"></path>" +
+            "<path d=\"M4 4v4h4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path>" +
+            "</svg>");
+
+    private readonly List<TableColumn> _themeColumns = new()
+    {
+        new("名称") { Key = "name", Width = "120px", MinWidth = 80 },
+        new("类型") { Key = "type", Width = "110px" },
+        new("说明") { Key = "note" },
+    };
+
+    private readonly List<VariantRow> _themeRows = new()
+    {
+        new("颜色表", "ColorTable", "主题覆盖示例"),
+        new("字体表", "FontTable", "自定义图标示例"),
+    };
+
+    private bool _applyTheme;
+    private bool _showCustomIcons = true;
+    private int _nextVariantId = 3;
+    private string _variantStatus = "工具栏操作为本地外观示例，不写入共享事件日志。";
+
+    private sealed record VariantRow(string Name, string Type, string Note);
+
+    private RenderFragment RenderEmptyRows => builder =>
+    {
+        builder.OpenElement(0, "tr");
+        builder.OpenElement(1, "td");
+        builder.AddContent(2, "没有列定义时，表头为空，但表体内容仍然渲染。");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderThemeRows => builder =>
+    {
+        for (var i = 0; i < _themeRows.Count; i++)
+        {
+            var row = _themeRows[i];
+            builder.OpenElement(0, "tr");
+            builder.OpenElement(1, "td");
+            builder.AddContent(2, row.Name);
+            builder.CloseElement();
+            builder.OpenElement(3, "td");
+            builder.AddContent(4, row.Type);
+            builder.CloseElement();
+            builder.OpenElement(5, "td");
+            builder.AddContent(6, row.Note);
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+    };
+
+    private void ToggleTheme(ChangeEventArgs args)
+        => _applyTheme = (bool)(args.Value ?? false);
+
+    private void ToggleCustomIcons(ChangeEventArgs args)
+        => _showCustomIcons = (bool)(args.Value ?? false);
+
+    private void AddThemeRow()
+    {
+        var id = _nextVariantId++;
+        _themeRows.Add(new VariantRow($"资源 {id}", "NewTable", "本地外观示例"));
+        _variantStatus = $"已添加「资源 {id}」（仅本地示例）。";
+    }
+
+    private void RemoveThemeRow()
+    {
+        if (_themeRows.Count == 0)
+        {
+            _variantStatus = "没有可移除的示例行。";
+            return;
+        }
+
+        var removed = _themeRows[^1];
+        _themeRows.RemoveAt(_themeRows.Count - 1);
+        _variantStatus = $"已移除「{removed.Name}」。";
+    }
+
+    private void MoveThemeRowUp()
+    {
+        if (_themeRows.Count < 2)
+        {
+            _variantStatus = "至少需要两行才能上移。";
+            return;
+        }
+
+        (_themeRows[^1], _themeRows[^2]) = (_themeRows[^2], _themeRows[^1]);
+        _variantStatus = "已上移最后一行（本地示例）。";
+    }
+
+    private void MoveThemeRowDown()
+    {
+        if (_themeRows.Count < 2)
+        {
+            _variantStatus = "至少需要两行才能下移。";
+            return;
+        }
+
+        (_themeRows[0], _themeRows[1]) = (_themeRows[1], _themeRows[0]);
+        _variantStatus = "已下移第一行（本地示例）。";
+    }
+}

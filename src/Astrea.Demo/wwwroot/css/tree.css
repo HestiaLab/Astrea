@@ -1,0 +1,64 @@
+/* Tree page specifics. Library tree styling remains in _content/Astrea.Components/astrea-tree.css. */
+
+.demo-tree-stage {
+    min-width: 0;
+    padding: 0.5rem;
+    overflow-x: auto;
+    border: 1px solid var(--demo-border);
+    border-radius: 8px;
+    background: var(--demo-surface);
+}
+
+.demo-tree-stage--compact {
+    padding: 0.35rem;
+}
+
+.demo-tree-virtual {
+    position: relative;
+    height: 320px;
+    margin-top: 0.75rem;
+    padding: 0.25rem;
+    overflow: hidden;
+    border: 1px solid var(--demo-border);
+    border-radius: 8px;
+    background: var(--demo-surface);
+}
+
+.demo-tree-virtual .tree-container {
+    height: 100%;
+}
+
+.demo-tree-virtual__empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 1rem;
+    color: var(--demo-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+.demo-demo-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+    align-items: start;
+    gap: 1rem;
+}
+
+.demo-custom-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+@media (max-width: 760px) {
+    .demo-demo-row {
+        grid-template-columns: 1fr;
+    }
+
+    .demo-tree-virtual {
+        height: 280px;
+    }
+}

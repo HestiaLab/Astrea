@@ -205,7 +205,7 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
             if (module is null)
             {
                 module = await Js!.InvokeAsync<IJSObjectReference>("import",
-                    "./_content/Astrea/astrea-resource-table.js");
+                    "./_content/Astrea.Components/astrea-resource-table.js");
                 if (_disposed || !ResizableColumns)
                 {
                     await DisposeReferenceQuietlyAsync(module);

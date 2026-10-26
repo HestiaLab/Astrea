@@ -1,7 +1,8 @@
-using System.Text.Json;
 using Astrea.Tests.Browser;
 using Microsoft.Playwright;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static Astrea.Tests.Browser.BrowserWait;
+using static Astrea.Tests.Browser.TreePageAssertions;
 
 namespace Astrea.Tests.Tree;
 
@@ -45,7 +46,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task KeyboardFocusAndAria_UseOneTabStopAndExistingActiveDescendant()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var tree = session.Page.Locator("[data-testid=demo-tree]");
         await tree.FocusAsync();
         Assert.AreEqual("0", await tree.GetAttributeAsync("tabindex"));
@@ -68,7 +69,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task EqualLogicalIdsAndDynamicDrag_RemainIsolated()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var ids = await session.Page.Locator("[data-node-id=project]")
             .EvaluateAllAsync<string[]>("nodes => nodes.map(node => node.id)");
         Assert.AreEqual(2, ids.Length);
@@ -88,7 +89,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task DefaultAndCustomEditing_FocusAndCommitOnce()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var tree = session.Page.Locator("[data-testid=demo-tree]");
         await tree.FocusAsync();
         await session.Page.Keyboard.PressAsync("F2");
@@ -98,10 +99,7 @@ public sealed class TreeBrowserTests
         await defaultInput.FillAsync("项目-浏览器测试");
         await defaultInput.PressAsync("Enter");
         await defaultInput.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Detached });
-        Assert.AreEqual(1, await session.Page.Locator(".demo-log div", new PageLocatorOptions
-        {
-            HasText = "项目-浏览器测试",
-        }).CountAsync());
+        Assert.AreEqual(1, await CountLogAsync(session.Page, "项目-浏览器测试"));
 
         await session.Page.Locator("#btn-custom-edit").ClickAsync();
         var customInput = session.Page.Locator("input.demo-custom-editor");
@@ -110,10 +108,7 @@ public sealed class TreeBrowserTests
         await customInput.FillAsync("自定义提交");
         await customInput.PressAsync("Enter");
         await customInput.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Detached });
-        Assert.AreEqual(1, await session.Page.Locator(".demo-log div", new PageLocatorOptions
-        {
-            HasText = "自定义提交",
-        }).CountAsync());
+        Assert.AreEqual(1, await CountLogAsync(session.Page, "自定义提交"));
         var customTree = session.Page.Locator("[aria-label='自定义编辑树']");
         await WaitUntilAsync(
             () => customTree.EvaluateAsync<bool>("element => element === document.activeElement"),
@@ -124,7 +119,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task VirtualizedFiftyThousandNodes_NavigateAcrossViewportWithValidAria()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         await session.Page.Locator("#btn-load-50k").ClickAsync();
         var tree = session.Page.Locator("[aria-label='虚拟化树']");
         await tree.Locator("[role=treeitem]").First.WaitForAsync();
@@ -145,7 +140,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task ShowLink_DrawsIndentConnectors()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var tree = session.Page.Locator("[data-testid=demo-tree]");
         var rootIndent = tree.Locator("[data-node-id=project] .tree-node-indent");
         var childIndent = tree.Locator("[data-node-id=specs] .tree-node-indent");
@@ -160,7 +155,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task VirtualizedEditing_AfterOffscreenNavigation_KeepsInputUsable()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         await page.Locator("#btn-load-50k").ClickAsync();
         var tree = page.Locator("[aria-label='虚拟化树']");
@@ -188,7 +183,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task NodesWithoutContentIcons_DoNotReserveIconContainers()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var firstTree = session.Page.Locator("[data-testid=demo-tree]");
         Assert.AreEqual(0, await firstTree.Locator(".tree-node-content .tree-node-icon").CountAsync());
         Assert.IsTrue(await session.Page.Locator("[aria-label='第二棵树'] .tree-node-content .tree-node-icon").CountAsync() > 0);
@@ -198,7 +193,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task ClickingTreeItem_KeepsDomFocusOnContainer_AndArrowKeysSyncActiveDescendant()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var tree = session.Page.Locator("[data-testid=demo-tree]");
         var item = tree.Locator("[data-node-id=df-1]");
         var itemDomId = await item.GetAttributeAsync("id");
@@ -226,7 +221,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task EditingEnds_CommitCancelAndBlur_RestoreFocusToTree()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         var tree = page.Locator("[data-testid=demo-tree]");
         var item = tree.Locator("[data-node-id=df-1]");
@@ -276,7 +271,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task DragDrop_BeforeInsideAfter_NotifiesOnceWithRelation()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         var tree = page.Locator("[data-testid=demo-tree]");
         var source = tree.Locator("[data-node-id=df-1]");
@@ -304,7 +299,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task DragDrop_VetoedOrCyclic_DoesNotNotify()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         var tree = page.Locator("[data-testid=demo-tree]");
         var source = tree.Locator("[data-node-id=df-1]");
@@ -330,7 +325,7 @@ public sealed class TreeBrowserTests
     [TestMethod]
     public async Task KeyboardMultiSelect_SpaceTogglesAndShiftArrowExtendsRange()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         var tree = page.Locator("[data-testid=demo-tree]");
         await tree.FocusAsync();
@@ -370,69 +365,9 @@ public sealed class TreeBrowserTests
     }
 
     [TestMethod]
-    public async Task Accessibility_Axe_NoSeriousViolations()
-    {
-        var axePath = Path.Combine(BrowserAppHost.RepositoryRoot, "tests", "Astrea.A11y", "node_modules", "axe-core", "axe.min.js");
-        if (!File.Exists(axePath))
-        {
-            Assert.Inconclusive("axe-core is not installed. Run: npm ci --prefix tests/Astrea.A11y");
-        }
-
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
-        var page = session.Page;
-        var tree = page.Locator("[data-testid=demo-tree]");
-        await tree.Locator("[data-node-id=df-1] .tree-node-content__main").ClickAsync();
-        await WaitForActiveDescendantAsync(tree, "df-1");
-        await page.AddScriptTagAsync(new PageAddScriptTagOptions
-        {
-            Content = await File.ReadAllTextAsync(axePath),
-        });
-
-        var raw = await page.EvaluateAsync<string>(@"async () => {
-            const targets = [
-                document.querySelector('[data-testid=demo-tree]'),
-                document.querySelector('[data-testid=demo-resource-table]')
-            ].filter(Boolean);
-            const violations = [];
-            for (const target of targets) {
-                const result = await axe.run(target, {
-                    runOnly: {
-                        type: 'tag',
-                        values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
-                    }
-                });
-                for (const violation of result.violations) {
-                    violations.push({
-                        id: violation.id,
-                        impact: violation.impact,
-                        nodes: violation.nodes.map(node => node.target.join(' '))
-                    });
-                }
-            }
-            return JSON.stringify(violations);
-        }");
-
-        using var document = JsonDocument.Parse(raw);
-        var blocking = document.RootElement.EnumerateArray()
-            .Where(violation => violation.GetProperty("impact").GetString() is "serious" or "critical")
-            .ToList();
-        if (blocking.Count > 0)
-        {
-            var details = string.Join(
-                Environment.NewLine,
-                blocking.Select(violation =>
-                    $"{violation.GetProperty("id").GetString()} ({violation.GetProperty("impact").GetString()}): " +
-                    string.Join(", ", violation.GetProperty("nodes").EnumerateArray().Select(node => node.GetString()))));
-            Assert.Fail("axe serious/critical violations:" + Environment.NewLine + details);
-        }
-
-        session.AssertNoConsoleErrors();
-    }
-
-    [TestMethod]
     public async Task ContextMenu_NotifiesWithoutChangingSelectionOrFocus()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
         var tree = page.Locator("[data-testid=demo-tree]");
         var item = tree.Locator("[data-node-id=df-1]");
@@ -452,319 +387,22 @@ public sealed class TreeBrowserTests
     }
 
     [TestMethod]
-    public async Task ResourceTable_ToolbarButtons_Notify()
+    public async Task Accessibility_Axe_NoSeriousViolations()
     {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
+        await using var session = await OpenTreeAsync();
         var page = session.Page;
-        var table = page.Locator("[data-testid=demo-resource-table]");
-        await table.Locator("button[title='Add']").ClickAsync();
-        await WaitForLogAsync(page, "添加：资源 4");
+        var tree = page.Locator("[data-testid=demo-tree]");
+        await tree.Locator("[data-node-id=df-1] .tree-node-content__main").ClickAsync();
+        await WaitForActiveDescendantAsync(tree, "df-1");
 
-        var undo = table.Locator("button[title='Undo']");
-        await WaitUntilAsync(async () => !await undo.IsDisabledAsync(), "Undo did not become enabled.");
-        await undo.ClickAsync();
-        await WaitForLogAsync(page, "撤销");
+        await AxeBrowserAudit.AssertNoSeriousViolationsAsync(page, "[data-testid=demo-tree]");
         session.AssertNoConsoleErrors();
     }
 
-    [TestMethod]
-    public async Task ResourceTable_ThemeVariable_OverridesBorderColor()
-    {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
-        var page = session.Page;
-        var table = page.Locator("[data-testid=demo-resource-table]");
-        var button = table.Locator("button[title='Add']");
-        var before = await button.EvaluateAsync<string>("element => getComputedStyle(element).borderColor");
-
-        await table.EvaluateAsync("element => element.style.setProperty('--ast-rt-color-border', 'rgb(255, 0, 0)')");
-        await WaitUntilAsync(
-            async () => await button.EvaluateAsync<string>("element => getComputedStyle(element).borderColor") == "rgb(255, 0, 0)",
-            "The ResourceTable border theme variable did not override the button border.");
-
-        var after = await button.EvaluateAsync<string>("element => getComputedStyle(element).borderColor");
-        Assert.AreNotEqual(before, after);
-        session.AssertNoConsoleErrors();
-    }
-
-    [TestMethod]
-    public async Task ResourceTable_ResizeToggle_AddsAndRemovesKeyboardHandles()
-    {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
-        var page = session.Page;
-        var table = page.Locator("[data-testid=demo-resource-table]");
-        Assert.AreEqual(3, await table.Locator(".ast-rt-resize-handle").CountAsync());
-        var firstHandle = table.Locator(".ast-rt-resize-handle").First;
-        Assert.AreEqual("separator", await firstHandle.GetAttributeAsync("role"));
-        Assert.AreEqual("0", await firstHandle.GetAttributeAsync("tabindex"));
-        StringAssert.Contains(await firstHandle.GetAttributeAsync("aria-label"), "ID");
-
-        await page.Locator("#toggle-rt-resizable").UncheckAsync();
-        await WaitUntilAsync(
-            async () => await table.Locator(".ast-rt-resize-handle").CountAsync() == 0,
-            "Disabling ResizableColumns did not remove resize handles.");
-
-        await page.Locator("#toggle-rt-resizable").CheckAsync();
-        await WaitUntilAsync(
-            async () => await table.Locator(".ast-rt-resize-handle").CountAsync() == 3,
-            "Re-enabling ResizableColumns did not restore resize handles.");
-        firstHandle = table.Locator(".ast-rt-resize-handle").First;
-        await firstHandle.ScrollIntoViewIfNeededAsync();
-        await firstHandle.FocusAsync();
-        for (var attempt = 0; attempt < 10 && await CountLogAsync(page, "列宽调整：列 0（id）") == 0; attempt++)
-        {
-            await page.Keyboard.PressAsync("ArrowRight");
-            await Task.Delay(100);
-        }
-
-        await WaitForLogAsync(page, "列宽调整：列 0（id）");
-        session.AssertNoConsoleErrors();
-    }
-
-    [TestMethod]
-    public async Task ResourceTable_KeyboardResize_AdjustsWidthsAndForwardsKey()
-    {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
-        var page = session.Page;
-        var table = page.Locator("[data-testid=demo-resource-table]");
-        var headers = table.Locator("thead th");
-        var first = headers.Nth(0);
-        var second = headers.Nth(1);
-        var firstBefore = await WidthAsync(first);
-        var secondBefore = await WidthAsync(second);
-        var handle = table.Locator(".ast-rt-resize-handle").First;
-
-        await handle.ScrollIntoViewIfNeededAsync();
-        await handle.FocusAsync();
-        await page.Keyboard.PressAsync("ArrowRight");
-        await WaitForLogAsync(page, "列宽调整：列 0（id）");
-        await WaitUntilAsync(
-            async () => Math.Abs(await WidthAsync(first) - (firstBefore + 10)) < 1.5,
-            "ArrowRight did not widen the focused column by the keyboard step.");
-        Assert.IsTrue(Math.Abs(await WidthAsync(first) + await WidthAsync(second) - (firstBefore + secondBefore)) < 1.5);
-        await WaitForLogAsync(page, "键盘：ArrowRight");
-
-        await page.Keyboard.PressAsync("ArrowLeft");
-        await WaitUntilAsync(
-            async () => Math.Abs(await WidthAsync(first) - firstBefore) < 1.5,
-            "ArrowLeft did not restore the column width.");
-        Assert.AreEqual(2, await CountLogAsync(page, "列宽调整：列 0（id）"));
-        session.AssertNoConsoleErrors();
-    }
-
-    [TestMethod]
-    public async Task ResourceTable_PointerResize_ConservesWidthAndNotifiesOnce()
-    {
-        await using var session = await BrowserSession.CreateAsync(Browser, BaseUrl);
-        var page = session.Page;
-        var table = page.Locator("[data-testid=demo-resource-table]");
-        var headers = table.Locator("thead th");
-        var first = headers.Nth(0);
-        var second = headers.Nth(1);
-        var firstBefore = await WidthAsync(first);
-        var secondBefore = await WidthAsync(second);
-        var handle = table.Locator(".ast-rt-resize-handle").First;
-        await handle.ScrollIntoViewIfNeededAsync();
-        var box = await handle.BoundingBoxAsync();
-        Assert.IsNotNull(box);
-
-        var x = box!.X + box.Width / 2;
-        var y = box.Y + box.Height / 2;
-        await page.Mouse.MoveAsync(x, y);
-        await page.Mouse.DownAsync();
-        await page.Mouse.MoveAsync(x + 20, y);
-        await Task.Delay(150);
-        await page.Mouse.UpAsync();
-
-        await WaitForLogAsync(page, "列宽调整：列 0（id）");
-        await WaitUntilAsync(
-            async () => Math.Abs(await WidthAsync(first) - (firstBefore + 20)) < 2,
-            "Pointer drag did not widen the first column.");
-        Assert.IsTrue(Math.Abs(await WidthAsync(first) + await WidthAsync(second) - (firstBefore + secondBefore)) < 2);
-        Assert.AreEqual(1, await CountLogAsync(page, "列宽调整：列 0（id）"));
-        session.AssertNoConsoleErrors();
-    }
-
-    private static Task<double> WidthAsync(ILocator locator)
-        => locator.EvaluateAsync<double>("element => element.getBoundingClientRect().width");
-
-    private static Task<string[]> SelectedIdsAsync(IPage page)
-        => page.Locator("[data-testid=demo-tree] .tree-node.selected")
-            .EvaluateAllAsync<string[]>("nodes => nodes.map(node => node.dataset.nodeId)");
-
-    private static async Task WaitForSelectedIdsAsync(IPage page, params string[] expected)
-    {
-        string[] ids = Array.Empty<string>();
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            ids = await SelectedIdsAsync(page);
-            if (ids.Length == expected.Length && expected.All(ids.Contains))
-            {
-                return;
-            }
-
-            await Task.Delay(50);
-        }
-
-        Assert.Fail($"Selected nodes did not become [{string.Join(", ", expected)}]. Actual: [{string.Join(", ", ids)}]");
-    }
-
-    private static async Task WaitForActiveDescendantAsync(ILocator tree, string nodeId)
-    {
-        var domId = await tree.Locator($"[data-node-id={nodeId}]").GetAttributeAsync("id");
-        await WaitUntilAsync(
-            async () => await tree.GetAttributeAsync("aria-activedescendant") == domId,
-            $"Active descendant did not become '{nodeId}'.");
-    }
-
-    private static async Task DragAsync(IPage page, ILocator source, ILocator target, float y)
-    {
-        if (string.Equals(Environment.GetEnvironmentVariable("ASTREA_BROWSER_ENGINE"), "webkit", StringComparison.OrdinalIgnoreCase))
-        {
-            var sourceHandle = await source.ElementHandleAsync();
-            var targetHandle = await target.ElementHandleAsync();
-            Assert.IsNotNull(sourceHandle);
-            Assert.IsNotNull(targetHandle);
-            var relation = y < 10 ? "before" : y > 20 ? "after" : "inside";
-            await page.EvaluateAsync(
-                @"({ source, target, relation }) => {
-                    const dataTransfer = new DataTransfer();
-                    const rect = target.getBoundingClientRect();
-                    const offsetY = relation === 'before' ? 2 : relation === 'inside' ? rect.height / 2 : rect.height - 2;
-                    const clientX = rect.left + 20;
-                    const clientY = rect.top + offsetY;
-                    const event = (type) => {
-                        const dragEvent = new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer });
-                        // WebKit ignores clientX/clientY in the DragEvent constructor for synthetic events.
-                        Object.defineProperty(dragEvent, 'clientX', { value: clientX });
-                        Object.defineProperty(dragEvent, 'clientY', { value: clientY });
-                        return dragEvent;
-                    };
-                    source.dispatchEvent(event('dragstart'));
-                    target.dispatchEvent(event('dragover'));
-                    target.dispatchEvent(event('drop'));
-                    source.dispatchEvent(event('dragend'));
-                }",
-                new { source = sourceHandle, target = targetHandle, relation });
-            return;
-        }
-
-        await source.DragToAsync(target, new LocatorDragToOptions
-        {
-            TargetPosition = new TargetPosition { X = 20, Y = y }
-        });
-    }
-
-    private static Task<int> CountLogAsync(IPage page, string text)
-        => page.Locator(".demo-log div", new PageLocatorOptions { HasText = text }).CountAsync();
-
-    private static async Task WaitForLogAsync(IPage page, string text)
-    {
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            if (await CountLogAsync(page, text) > 0)
-            {
-                return;
-            }
-
-            await Task.Delay(50);
-        }
-
-        var logText = await page.Locator(".demo-log").First.InnerTextAsync();
-        Assert.Fail($"Log entry '{text}' did not appear. Current log:{Environment.NewLine}{logText}");
-    }
-
-    private static async Task WaitUntilAsync(Func<Task<bool>> condition, string message)
-    {
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            if (await condition())
-            {
-                return;
-            }
-
-            await Task.Delay(50);
-        }
-
-        Assert.Fail(message);
-    }
+    private static Task<BrowserSession> OpenTreeAsync()
+        => BrowserSession.OpenAsync(Browser, BaseUrl, "/components/tree", "[data-testid=demo-tree]");
 
     private static IBrowser Browser => _browser ?? throw new InvalidOperationException("Browser was not initialized.");
 
     private static string BaseUrl => _baseUrl ?? throw new InvalidOperationException("Demo URL was not initialized.");
-
-    private static async Task<string> WaitForValidActiveDescendantAsync(ILocator tree)
-    {
-        string? activeId = null;
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            activeId = await tree.GetAttributeAsync("aria-activedescendant");
-            if (!string.IsNullOrEmpty(activeId) && await tree.Locator($"#{activeId}").CountAsync() == 1)
-            {
-                return activeId;
-            }
-
-            await Task.Delay(50);
-        }
-
-        Assert.Fail($"aria-activedescendant did not resolve to a rendered element. Last value: {activeId}");
-        return string.Empty;
-    }
-
-    private static async Task WaitForActiveNodeAsync(ILocator tree, string expectedNodeId)
-    {
-        string? activeId = null;
-        string? actualNodeId = null;
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            activeId = await tree.GetAttributeAsync("aria-activedescendant");
-            if (!string.IsNullOrEmpty(activeId))
-            {
-                actualNodeId = await tree.EvaluateAsync<string?>(
-                    "(_element, id) => document.getElementById(id)?.getAttribute('data-node-id')",
-                    activeId);
-                if (actualNodeId == expectedNodeId)
-                {
-                    return;
-                }
-            }
-
-            await Task.Delay(50);
-        }
-
-        Assert.Fail($"Active descendant did not resolve to '{expectedNodeId}'. Last active id: {activeId}, node: {actualNodeId}");
-    }
-
-    private sealed class BrowserSession : IAsyncDisposable
-    {
-        private readonly List<string> _consoleErrors = new();
-
-        private BrowserSession(IPage page)
-        {
-            Page = page;
-            Page.Console += (_, message) =>
-            {
-                if (message.Type == "error")
-                {
-                    _consoleErrors.Add(message.Text);
-                }
-            };
-            Page.PageError += (_, error) => _consoleErrors.Add(error);
-        }
-
-        public IPage Page { get; }
-
-        public static async Task<BrowserSession> CreateAsync(IBrowser browser, string baseUrl)
-        {
-            var page = await browser.NewPageAsync();
-            var session = new BrowserSession(page);
-            await page.GotoAsync(baseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-            await page.Locator("[data-testid=demo-tree]").WaitForAsync();
-            return session;
-        }
-
-        public void AssertNoConsoleErrors()
-            => Assert.AreEqual(0, _consoleErrors.Count, string.Join(Environment.NewLine, _consoleErrors));
-
-        public async ValueTask DisposeAsync() => await Page.CloseAsync();
-    }
 }
