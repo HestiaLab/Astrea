@@ -47,6 +47,6 @@ jobs:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dotnet nuget push "artifacts/packages/Astrea.Components.*.nupkg" \
-            --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.xml" \
+            --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json" \
             --api-key "${NUGET_AUTH_TOKEN}" \
             --skip-duplicate
