@@ -1,0 +1,52 @@
+name: Publish NuGet package to GitHub Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: |
+            10.0.x
+            6.0.x
+
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Astrea.Components/Astrea.Components.csproj | head -n 1)"
+          if [ -z "${version}" ]; then
+            echo "::error::Could not read <Version> from Astrea.Components.csproj"
+            exit 1
+          fi
+          if [ "${RELEASE_TAG}" != "${version}" ] && [ "${RELEASE_TAG}" != "v${version}" ]; then
+            echo "::error::Release tag ${RELEASE_TAG} does not match package version ${version}"
+            exit 1
+          fi
+
+      - name: Pack
+        run: dotnet pack src/Astrea.Components/Astrea.Components.csproj --configuration Release --output artifacts/packages --nologo
+
+      - name: Publish to GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget push "artifacts/packages/Astrea.Components.*.nupkg" \
+            --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.xml" \
+            --api-key "${NUGET_AUTH_TOKEN}" \
+            --skip-duplicate
