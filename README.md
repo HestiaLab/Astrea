@@ -69,7 +69,7 @@ Releases are also published to this repository's GitHub Packages feed. GitHub Pa
 ```xml
 <configuration>
   <packageSources>
-    <add key="astrea-github" value="https://nuget.pkg.github.com/HestiaLab/index.xml" />
+    <add key="astrea-github" value="https://nuget.pkg.github.com/HestiaLab/index.json" />
   </packageSources>
   <packageSourceCredentials>
     <astrea-github>
