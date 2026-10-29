@@ -62,6 +62,24 @@ dotnet add package Astrea.Components --version 0.8.0
 }
 ```
 
+### GitHub Packages
+
+Releases are also published to this repository's GitHub Packages feed. GitHub Packages requires authentication even for public packages, so restoring from it needs a personal access token with `read:packages`. Add the source to your `nuget.config`:
+
+```xml
+<configuration>
+  <packageSources>
+    <add key="astrea-github" value="https://nuget.pkg.github.com/HestiaLab/index.xml" />
+  </packageSources>
+  <packageSourceCredentials>
+    <astrea-github>
+      <add key="Username" value="YOUR_GITHUB_USERNAME" />
+      <add key="ClearTextPassword" value="YOUR_GITHUB_TOKEN" />
+    </astrea-github>
+  </packageSourceCredentials>
+</configuration>
+```
+
 ## Tree Parameters
 
 | Parameter | Type | Default | Description |
