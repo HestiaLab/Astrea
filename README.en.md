@@ -5,7 +5,7 @@ English | [简体中文](README.md)
 **Blazor UI components for .NET 10 — Tree and ResourceTable.**
 
 **Positioning**: Teams building Blazor Web App / standalone WebAssembly applications on .NET 10 that need a keyboard-operable tree editor with controlled state and a column-driven resource table.
-**Status**: 0.8.0 released (evidence: GitHub Release v0.8.0 with `Astrea.Components.0.8.0.nupkg`; nuget.org package 0.8.0; `<Version>0.8.0</Version>` in `Astrea.Components.csproj`); 0.9.0 pending (this branch targets .NET 10 and publishes `net10.0` assets only). 0.x preview: minor releases may include documented breaking changes; only Tree and ResourceTable are Active, the other 9 planned components are Deferred.
+**Status**: 0.9.0 released (targets .NET 10 and publishes `net10.0` assets only; GitHub Packages is published by the release workflow, nuget.org is separate). 0.x preview: minor releases may include documented breaking changes; only Tree and ResourceTable are Active, the other 9 planned components are Deferred.
 
 [![CI](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/HestiaLab/Astrea)](https://github.com/HestiaLab/Astrea/releases)
@@ -47,7 +47,7 @@ All in-app links must remain relative to the `<base>` path (for example `compone
 
 ## Quick Start
 
-> **0.9.0 is pending publication:** this branch targets .NET 10.0 and publishes `net10.0` assets only. Until 0.9.0 is available on the feed, use 0.8.0 for .NET 6 applications.
+> **0.9.0 release:** targets .NET 10.0 and publishes `net10.0` assets only. .NET 6 applications must stay on 0.8.0. The release workflow publishes to GitHub Packages; nuget.org publication is separate (see below).
 
 > **Package identity (0.8.0):** the NuGet package ID, assembly name, and static asset base path are `Astrea.Components` (formerly `Astrea`). Update `PackageReference Include="Astrea.Components"` and change `_content/Astrea/` links to `_content/Astrea.Components/`; public namespaces remain `Astrea.Components.*`. Version 0.8.0 is the first release under the new package identity; component behavior is unchanged.
 

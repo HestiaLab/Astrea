@@ -2,9 +2,9 @@
 
 > 需求状态与证据映射见 [requirements-test-matrix.md](requirements-test-matrix.md)。本文件记录实际执行的浏览器、可访问性与 Blazor Web App 验证结果。
 
-## 0.9.0 候选（未发布，2026-10-30）
+## 0.9.0（2026-10-30）
 
-> 本节记录 0.9.0 候选版本的本地验证结果；该版本尚未发布到 GitHub Packages。
+> 本节记录 0.9.0 的本地验证结果；GitHub Packages 发布由 release 工作流完成，nuget.org 发布需单独执行。
 
 ### 环境
 
