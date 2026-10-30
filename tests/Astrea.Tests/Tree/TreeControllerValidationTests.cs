@@ -11,7 +11,7 @@ public class TreeControllerValidationTests
         var r1 = new TreeNode("r1", id: "dup");
         var r2 = new TreeNode("r2", id: "dup");
 
-        Assert.ThrowsException<TreeStructureException>(() => new TreeController(new[] { r1, r2 }));
+        Assert.ThrowsExactly<TreeStructureException>(() => new TreeController(new[] { r1, r2 }));
     }
 
     [TestMethod]
@@ -19,7 +19,7 @@ public class TreeControllerValidationTests
     {
         var node = new TreeNode("n");
 
-        Assert.ThrowsException<TreeStructureException>(() => new TreeController(new[] { node, node }));
+        Assert.ThrowsExactly<TreeStructureException>(() => new TreeController(new[] { node, node }));
     }
 
     [TestMethod]
@@ -29,7 +29,7 @@ public class TreeControllerValidationTests
         var proposedRoot = new TreeNode("proposed-root");
         externalParent.Add(proposedRoot);
 
-        Assert.ThrowsException<TreeStructureException>(() => new TreeController(new[] { proposedRoot }));
+        Assert.ThrowsExactly<TreeStructureException>(() => new TreeController(new[] { proposedRoot }));
     }
 
     [TestMethod]
@@ -45,7 +45,7 @@ public class TreeControllerValidationTests
         var b = new TreeNode("b", id: "a");
         root.Add(b);
 
-        Assert.ThrowsException<TreeStructureException>(() => controller.Refresh());
+        Assert.ThrowsExactly<TreeStructureException>(() => controller.Refresh());
 
         // 校验失败后，控制器旧状态与索引不被部分破坏
         Assert.AreSame(a, controller.FindById("a"));

@@ -18,7 +18,7 @@ Astrea 是一个 Blazor UI 组件库仓库（`HestiaLab/Astrea`）。任何 AI �
 ## 质量基线
 
 8. `docs/SRS.md` 是组件可观察行为的权威来源；需求只描述 **WHAT**（行为），不描述 HOW（设计实现）。
-9. 目标框架 `net6.0`；同时支持 Blazor Server 与 Blazor WebAssembly。
+9. 目标框架 `net10.0`；同时支持 Blazor Web App（Interactive Server）与 standalone Blazor WebAssembly。
 10. 核心纯 C# 逻辑（`TreeNode` / `TreeController` / `TreeState` / `DragProtocol` / `TreeKeyboardNavigation`）必须有 MSTest 单测覆盖。
 11. 组件需符合 WAI-ARIA 语义与键盘可操作性（见 SRS 通用需求 REQ-F-006 / REQ-F-007）。
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Pack Astrea.Components and verify consumption from clean Blazor Server and WebAssembly apps.
+"""Pack Astrea.Components and verify consumption from clean Blazor Web App and WebAssembly apps.
 
 This is a release-engineering check, not a unit test. It uses the local package
 source and a temporary NuGet cache so it does not accidentally consume a cached
@@ -61,7 +61,7 @@ def pack(version: str) -> Path:
         fail(f"expected package not found: {package}")
 
     required = {
-        "lib/net6.0/Astrea.Components.dll",
+        "lib/net10.0/Astrea.Components.dll",
         "README.md",
         "LICENSE",
         "CHANGELOG.md",
@@ -72,6 +72,9 @@ def pack(version: str) -> Path:
         missing = required - names
         if missing:
             fail(f"package is missing entries: {sorted(missing)}")
+        legacy = sorted(name for name in names if name.startswith("lib/net6.0/"))
+        if legacy:
+            fail(f"package must not contain net6.0 assets: {legacy}")
         nuspec = archive.read("Astrea.Components.nuspec").decode("utf-8")
         for expected in (
             f"<version>{version}</version>",
@@ -195,7 +198,7 @@ def verify_server_app(temp: Path, version: str, package_dir: Path, nuget_cache: 
         finally:
             stop_process(process)
 
-    print("Blazor Server package consumption verified")
+    print("Blazor Web App package consumption verified")
 
 
 def verify_wasm_app(temp: Path, version: str, package_dir: Path, nuget_cache: Path) -> None:

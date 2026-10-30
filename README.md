@@ -1,6 +1,6 @@
 # Astrea
 
-Enterprise-grade Blazor UI component library targeting .NET 6, built around correctness, accessibility, and testability. The current release delivers **Tree** and **ResourceTable** per [SRS v0.8.0](docs/SRS.md); all other planned components are [Deferred](docs/Roadmap.md) rather than part of the current release contract.
+Enterprise-grade Blazor UI component library targeting .NET 10, built around correctness, accessibility, and testability. The upcoming 0.9.0 release delivers **Tree** and **ResourceTable** per [SRS v0.9.0](docs/SRS.md); all other planned components are [Deferred](docs/Roadmap.md) rather than part of the current release contract.
 
 ## Current Release Scope
 
@@ -29,12 +29,14 @@ All in-app links must remain relative to the `<base>` path (for example `compone
 
 ## Quick Start
 
+> **0.9.0 is pending publication:** this branch targets .NET 10.0 and publishes `net10.0` assets only. Until 0.9.0 is available on the feed, use 0.8.0 for .NET 6 applications.
+
 > **Package identity (0.8.0):** the NuGet package ID, assembly name, and static asset base path are `Astrea.Components` (formerly `Astrea`). Update `PackageReference Include="Astrea.Components"` and change `_content/Astrea/` links to `_content/Astrea.Components/`; public namespaces remain `Astrea.Components.*`. Version 0.8.0 is the first release under the new package identity; component behavior is unchanged.
 
 1. Install the NuGet package (or reference `src/Astrea.Components/Astrea.Components.csproj` for local development):
 
 ```sh
-dotnet add package Astrea.Components --version 0.8.0
+dotnet add package Astrea.Components --version 0.9.0
 ```
 
 2. Add the namespace to `_Imports.razor`:
@@ -428,9 +430,9 @@ ResourceTable:
 
 ## Versioning
 
-Astrea follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain documented breaking behavior changes; see [CHANGELOG.md](CHANGELOG.md). A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS. The package builds with the .NET 10 LTS SDK pinned in `global.json` and publishes `net6.0` assets.
+Astrea follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain documented breaking behavior changes; see [CHANGELOG.md](CHANGELOG.md). A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS. The package builds with the .NET 10 LTS SDK pinned in `global.json` and publishes `net10.0` assets.
 
-The published assets target `net6.0` to honor the SRS compatibility contract. .NET 6 is out of support; consumers are responsible for runtime security updates or for upgrading the host runtime.
+The published assets target `net10.0`. .NET 6 is no longer supported; 0.8.0 remains the last release that publishes `net6.0` assets, so applications targeting .NET 6 must stay on 0.8.0 or retarget to .NET 10.
 
 ## Development
 
@@ -454,7 +456,7 @@ npm ci --prefix tests/Astrea.A11y
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCategory=Browser"
 ```
 
-Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Server results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
+Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Web App results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
 
 Manual release validation still required for the last two gaps:
 

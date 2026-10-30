@@ -1,8 +1,21 @@
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Astrea.ServerSmoke.Shared.MainLayout)" />
-    </Found>
-    <NotFound>
-        <p>Not found.</p>
-    </NotFound>
-</Router>
+@namespace Astrea.ServerSmoke
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astrea Server Smoke</title>
+    <base href="/" />
+    <link rel="icon" href="data:," />
+    <link href="_content/Astrea.Components/astrea-tree.css" rel="stylesheet" />
+    <link href="_content/Astrea.Components/astrea-resource-table.css" rel="stylesheet" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

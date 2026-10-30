@@ -1,6 +1,6 @@
 # Contributing
 
-Astrea 是一个企业级 Blazor UI 组件库（.NET 6.0），强调正确性、可访问性、可测试性。每个功能变更须可追溯到 `docs/SRS.md` 中的需求（REQ-F-xxx）。
+Astrea 是一个企业级 Blazor UI 组件库（.NET 10.0），强调正确性、可访问性、可测试性。每个功能变更须可追溯到 `docs/SRS.md` 中的需求（REQ-F-xxx）。
 
 ## 本地检查（提交前）
 

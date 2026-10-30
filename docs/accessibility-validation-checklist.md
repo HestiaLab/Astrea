@@ -5,7 +5,7 @@
 ## 1. 范围与环境
 
 - 组件：Tree、ResourceTable（当前版本 Active 组件）。
-- 应用：`src/Astrea.Demo`（Blazor WebAssembly）与 `tests/Astrea.ServerSmoke`（Blazor Server）。
+- 应用：`src/Astrea.Demo`（standalone Blazor WebAssembly）与 `tests/Astrea.ServerSmoke`（Blazor Web App，Interactive Server）。
 - 必须至少覆盖以下组合中的三类，其中必须包含一个真实 Safari + VoiceOver 组合：
   - Windows + NVDA + Firefox 或 Chrome；
   - Windows + JAWS + Edge 或 Chrome；
