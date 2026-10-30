@@ -10,7 +10,7 @@ public class TreeNodeInvariantTests
     {
         var node = new TreeNode("a");
 
-        Assert.ThrowsException<InvalidOperationException>(() => node.Add(node));
+        Assert.ThrowsExactly<InvalidOperationException>(() => node.Add(node));
     }
 
     [TestMethod]
@@ -20,7 +20,7 @@ public class TreeNodeInvariantTests
         var child = new TreeNode("child");
         root.Add(child);
 
-        Assert.ThrowsException<InvalidOperationException>(() => child.Add(root));
+        Assert.ThrowsExactly<InvalidOperationException>(() => child.Add(root));
     }
 
     [TestMethod]
@@ -32,7 +32,7 @@ public class TreeNodeInvariantTests
         root.Add(child);
         child.Add(grand);
 
-        Assert.ThrowsException<InvalidOperationException>(() => grand.Add(root));
+        Assert.ThrowsExactly<InvalidOperationException>(() => grand.Add(root));
     }
 
     [TestMethod]
@@ -42,13 +42,13 @@ public class TreeNodeInvariantTests
         var child = new TreeNode("child");
         root.Add(child);
 
-        Assert.ThrowsException<InvalidOperationException>(() => child.Insert(root, 0));
+        Assert.ThrowsExactly<InvalidOperationException>(() => child.Insert(root, 0));
     }
 
     [TestMethod]
     public void Constructor_BlankExplicitId_Throws()
     {
-        Assert.ThrowsException<ArgumentException>(() => new TreeNode("a", id: "   "));
+        Assert.ThrowsExactly<ArgumentException>(() => new TreeNode("a", id: "   "));
     }
 
     [TestMethod]
@@ -64,7 +64,7 @@ public class TreeNodeInvariantTests
     {
         var node = new TreeNode("a");
 
-        Assert.ThrowsException<ArgumentException>(() => node.Text = " ");
+        Assert.ThrowsExactly<ArgumentException>(() => node.Text = " ");
     }
 
     [TestMethod]
@@ -132,7 +132,7 @@ public class TreeNodeInvariantTests
         root.Add(target);
         root.Add(movable);
 
-        Assert.ThrowsException<InvalidOperationException>(() => target.AddChildren(new[] { movable, root }));
+        Assert.ThrowsExactly<InvalidOperationException>(() => target.AddChildren(new[] { movable, root }));
 
         CollectionAssert.AreEqual(new[] { target, movable }, root.Children.ToArray());
         Assert.AreEqual(0, target.Count);
@@ -148,7 +148,7 @@ public class TreeNodeInvariantTests
         root.Add(target);
         root.Add(movable);
 
-        Assert.ThrowsException<InvalidOperationException>(() => target.InsertChildren(new[] { movable, root }, 0));
+        Assert.ThrowsExactly<InvalidOperationException>(() => target.InsertChildren(new[] { movable, root }, 0));
 
         CollectionAssert.AreEqual(new[] { target, movable }, root.Children.ToArray());
         Assert.AreEqual(0, target.Count);

@@ -68,7 +68,7 @@ public class TreeNodeStructureTests
 
         Assert.AreSame(first, second);
         Assert.IsInstanceOfType(first, typeof(ReadOnlyCollection<TreeNode>));
-        Assert.ThrowsException<NotSupportedException>(() => ((IList<TreeNode>)first).Add(new TreeNode("injected")));
+        Assert.ThrowsExactly<NotSupportedException>(() => ((IList<TreeNode>)first).Add(new TreeNode("injected")));
         Assert.AreEqual(1, root.Children.Count);
     }
 

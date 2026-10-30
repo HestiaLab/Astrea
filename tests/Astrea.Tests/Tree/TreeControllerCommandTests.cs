@@ -35,7 +35,7 @@ public class TreeControllerCommandTests
         var flatten = controller.Flatten();
 
         Assert.IsInstanceOfType(flatten, typeof(ReadOnlyCollection<TreeNode>));
-        Assert.ThrowsException<NotSupportedException>(
+        Assert.ThrowsExactly<NotSupportedException>(
             () => ((ICollection<TreeNode>)flatten).Add(new TreeNode("injected", id: "injected")));
         Assert.AreEqual(2, controller.Flatten().Count);
         Assert.IsNull(controller.FindById("injected"));
@@ -54,7 +54,7 @@ public class TreeControllerCommandTests
 
         Assert.IsInstanceOfType(first, typeof(ReadOnlyCollection<TreeNode>));
         Assert.IsInstanceOfType(second, typeof(ReadOnlyCollection<TreeNode>));
-        Assert.ThrowsException<NotSupportedException>(
+        Assert.ThrowsExactly<NotSupportedException>(
             () => ((ICollection<TreeNode>)second).Add(new TreeNode("injected", id: "injected")));
         Assert.AreEqual(2, controller.FlattenVisible().Count);
     }

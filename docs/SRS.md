@@ -3,11 +3,11 @@
 | 项目 | 内容 |
 |------|------|
 | 项目名称 | Astrea |
-| 版本 | 0.8.0 |
+| 版本 | 0.9.0 |
 | 状态 | 草案 |
-| 日期 | 2026-10-26 |
+| 日期 | 2026-10-30 |
 | 作者 | wubing7755 |
-| 适用范围 | Blazor 组件库（.NET 6.0） |
+| 适用范围 | Blazor 组件库（.NET 10.0） |
 
 ---
 
@@ -15,13 +15,13 @@
 
 ## 1.1 目的
 
-本文档定义 Astrea——一个面向 .NET 6.0 / Blazor 的 UI 组件库——的功能需求与非功能需求。本文档是 Astrea 用户可观察行为和非功能需求的权威来源，是后续概要设计、详细设计、开发与测试的需求依据。
+本文档定义 Astrea——一个面向 .NET 10.0 / Blazor 的 UI 组件库——的功能需求与非功能需求。本文档是 Astrea 用户可观察行为和非功能需求的权威来源，是后续概要设计、详细设计、开发与测试的需求依据。
 
 ## 1.2 范围
 
 ### 1.2.1 范围内
 
-Astrea 提供可复用的 UI 组件。当前版本（v0.8.0）的交付范围为 Tree 与 ResourceTable：
+Astrea 提供可复用的 UI 组件。当前版本（v0.9.0）的交付范围为 Tree 与 ResourceTable：
 
 | 分类 | 组件 |
 |------|------|
@@ -144,7 +144,7 @@ Astrea 是一个企业级 Blazor UI 组件库，强调**正确性、可访问性
 
 | 类型 | 内容 |
 |------|------|
-| 技术约束 | 目标框架为 .NET 6.0；支持在 .NET 6.0 Blazor Server 与 Blazor WebAssembly 应用中使用 |
+| 技术约束 | 目标框架为 .NET 10.0；支持在 .NET 10.0 Blazor Web App（Interactive Server）与 standalone Blazor WebAssembly 应用中使用 |
 | 浏览器约束 | 支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本 |
 | 假设 | 使用方项目已配置 Blazor 所需的基础设施 |
 
@@ -3638,13 +3638,13 @@ Then 该按钮显示应用提供的图标内容
 REQ-NF-001 🔴 [Actor: Application Developer]
 
 Title
-.NET 6.0 目标框架
+.NET 10.0 目标框架
 
 Description
-Astrea 发布包的目标框架标识必须为 net6.0，并且能够由以 .NET 6.0 为目标的 Blazor 应用引用、还原、编译和运行，不得要求应用升级到更高 .NET 版本。
+Astrea 发布包的目标框架标识必须为 net10.0，并且能够由以 .NET 10.0 为目标的 Blazor 应用引用、还原、编译和运行，不得要求应用升级到高于 .NET 10 的版本。
 
 Source
-项目技术基线：.NET 6.0
+项目技术基线：.NET 10.0（LTS）
 
 Acceptance Criteria
 
@@ -3652,11 +3652,11 @@ AC1：包框架标识
 
 Given Astrea 发布包已经生成
 When 应用开发者检查包中声明的目标框架资产
-Then 存在 net6.0 资产且不以更高目标框架资产代替
+Then 存在 net10.0 资产且不包含 net6.0 资产
 
 AC2：应用消费
 
-Given 一个以 net6.0 为目标的最小 Blazor 应用
+Given 一个以 net10.0 为目标的最小 Blazor 应用
 When 安装 Astrea 包、使用一个基础组件并执行还原与编译
 Then 还原和编译成功且不要求更改目标框架
 
@@ -3785,7 +3785,7 @@ Title
 运行时依赖约束
 
 Description
-使用 Astrea 的 .NET 6.0 Blazor 应用不得被强制安装与组件功能无关的第三方运行时包。任何必须随 Astrea 安装的运行时依赖都必须在包元数据和使用文档中声明。
+使用 Astrea 的 .NET 10.0 Blazor 应用不得被强制安装与组件功能无关的第三方运行时包。任何必须随 Astrea 安装的运行时依赖都必须在包元数据和使用文档中声明。
 
 Source
 组件库轻量依赖要求
@@ -3800,7 +3800,7 @@ Then 所有必需依赖均已声明且不存在未记录依赖
 
 AC2：最小应用
 
-Given 一个仅包含 .NET 6.0 Blazor 基础能力的最小应用
+Given 一个仅包含 .NET 10.0 Blazor 基础能力的最小应用
 When 安装 Astrea 并使用基础组件
 Then 不需要手工安装文档之外的第三方运行时包
 ```
@@ -3812,7 +3812,7 @@ Title
 NuGet 包可消费性
 
 Description
-Astrea 必须以 NuGet 包交付。包必须包含运行组件所需的程序集和静态资源，并能够被干净的 .NET 6.0 Blazor Server 与 Blazor WebAssembly 应用安装和使用。
+Astrea 必须以 NuGet 包交付。包必须包含运行组件所需的程序集和静态资源，并能够被干净的 .NET 10.0 Blazor Web App 与 standalone Blazor WebAssembly 应用安装和使用。
 
 Source
 发布与分发要求
@@ -3825,15 +3825,15 @@ Given Astrea 发布包已生成
 When 检查包内容
 Then 包含运行公开组件所需的程序集、静态资源和包元数据
 
-AC2：Server 消费
+AC2：Blazor Web App 消费
 
-Given 一个干净的 .NET 6.0 Blazor Server 应用
+Given 一个干净的 .NET 10.0 Blazor Web App
 When 安装 Astrea 包并显示代表性组件
 Then 应用构建和运行成功，组件样式与交互可用
 
 AC3：WebAssembly 消费
 
-Given 一个干净的 .NET 6.0 Blazor WebAssembly 应用
+Given 一个干净的 .NET 10.0 standalone Blazor WebAssembly 应用
 When 安装 Astrea 包并显示代表性组件
 Then 应用构建和运行成功，组件样式与交互可用
 ```
@@ -3908,27 +3908,27 @@ Then 发布被阻止，除非需求状态经正式变更并记录
 REQ-NF-009 🔴 [Actor: Application Developer]
 
 Title
-.NET 6 Blazor 托管兼容性
+.NET 10 Blazor 托管兼容性
 
 Description
-Astrea 的公开组件能力必须同时支持 .NET 6.0 Blazor Server 和 Blazor WebAssembly。Blazor Server 预呈现阶段应提供稳定的初始内容，建立交互连接后功能正常；WebAssembly 应用加载完成后提供相同行为。
+Astrea 的公开组件能力必须同时支持 .NET 10.0 Blazor Web App（Interactive Server 渲染模式）和 standalone Blazor WebAssembly。Blazor Web App 预呈现阶段应提供稳定的初始内容，建立交互连接后功能正常；WebAssembly 应用加载完成后提供相同行为。
 
 Source
-.NET 6 Blazor 应用兼容性要求
+.NET 10 Blazor 应用兼容性要求
 
 Acceptance Criteria
 
-AC1：Blazor Server
+AC1：Blazor Web App（Interactive Server）
 
-Given .NET 6.0 Blazor Server 应用使用 Astrea 组件
+Given .NET 10.0 Blazor Web App 应用以 Interactive Server 渲染模式使用 Astrea 组件
 When 页面完成初始显示并建立交互连接
 Then 初始内容稳定，交互功能按需求工作且不出现重复事件
 
 AC2：Blazor WebAssembly
 
-Given .NET 6.0 Blazor WebAssembly 应用使用相同组件场景
+Given .NET 10.0 standalone Blazor WebAssembly 应用使用相同组件场景
 When 应用加载完成
-Then 组件功能和状态结果与 Blazor Server 场景一致
+Then 组件功能和状态结果与 Blazor Web App 场景一致
 
 AC3：初始显示
 
@@ -4237,7 +4237,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
-| REQ-NF-001 | 🔴 | Application Developer | .NET 6.0 目标框架 |
+| REQ-NF-001 | 🔴 | Application Developer | .NET 10.0 目标框架 |
 | REQ-NF-002 | 🟡 | End User | 桌面浏览器兼容性 |
 | REQ-NF-003 | 🟡 | End User | 代表性数据量性能 |
 | REQ-NF-004 | 🔴 | Assistive Technology User | 支持 WCAG 2.2 AA |
@@ -4245,7 +4245,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | REQ-NF-006 | 🔴 | Application Developer | NuGet 包可消费性 |
 | REQ-NF-007 | 🟡 | Application Developer | 公共使用文档 |
 | REQ-NF-008 | 🔴 | Application Developer | 需求可验证性与发布门禁 |
-| REQ-NF-009 | 🔴 | Application Developer | .NET 6 Blazor 托管兼容性 |
+| REQ-NF-009 | 🔴 | Application Developer | .NET 10 Blazor 托管兼容性 |
 | REQ-NF-010 | 🔴 | Application Developer | 安全内容呈现 |
 | REQ-NF-011 | 🔴 | End User | 重复使用与移除可靠性 |
 | REQ-NF-012 | 🟡 | Application Developer | 公共行为兼容性 |
@@ -4346,6 +4346,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | 2026-08-14 | **v0.6.0 Tree 交付合同冻结**: 明确选择与展开的受控/非受控语义、跨根范围内禁用节点规则、异步应用决策、过期编辑操作和拖拽结果单次消费 | Codex |
 | 2026-10-25 | **v0.7.0 交付范围收敛**: 当前版本交付范围收敛为 Tree 与 ResourceTable；其余 9 类组件的 60 条 Active 功能需求及依赖 Table 的 REQ-NF-003 移入 Deferred（附录 B）；新增 docs/Roadmap.md 与需求-测试矩阵 | wubing7755 |
 | 2026-10-26 | **v0.8.0 包身份迁移**: NuGet 包 ID、程序集与静态资源基础路径改为 Astrea.Components；组件行为与需求范围不变；同步 Demo、测试、打包探针与文档 | wubing7755 |
+| 2026-10-30 | **v0.9.0 目标框架升级**: 目标框架改为 .NET 10.0，停止发布 net6.0 资产；托管兼容性改为 Blazor Web App（Interactive Server）与 standalone Blazor WebAssembly；同步 CI、测试栈、文档与发布证据 | wubing7755 |
 
 ---
 

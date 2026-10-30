@@ -4,6 +4,29 @@ All notable changes to Astrea are documented here. The format follows [Keep a Ch
 
 While the version is below 1.0.0, a minor release may contain documented breaking behavior changes. A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS.
 
+## [Unreleased]
+
+The 0.9.0 package version is prepared but not yet published.
+
+### Breaking (0.x)
+
+- Target framework is now `net10.0`; the package no longer publishes `net6.0` assets. Applications targeting .NET 6 must stay on 0.8.0. SRS REQ-NF-001, REQ-NF-005, REQ-NF-006, and REQ-NF-009 were revised for .NET 10.
+- Hosting compatibility now covers Blazor Web App (Interactive Server, including prerender) and standalone Blazor WebAssembly. `tests/Astrea.ServerSmoke` is now a Blazor Web App.
+
+### Changed
+
+- Build SDK pinned to .NET SDK 10.0.401; ASP.NET Core package references updated to 10.0.14.
+- Test toolchain updated to MSTest 4.5.2, Microsoft.NET.Test.Sdk 18.11.0, and Microsoft Playwright 1.64.1; `Assert.ThrowsException` usages migrated to `Assert.ThrowsExactly`.
+- README, SRS, requirements matrix, Roadmap, accessibility checklist, and Demo version labels updated for 0.9.0.
+
+### Fixed
+
+- Tree: virtualized editing no longer calls `FocusAsync` before the edit input element reference is configured, preventing `ElementReference has not been configured correctly` console errors in Blazor WebAssembly.
+
+### Known release blockers
+
+- REQ-NF-002 and REQ-NF-004 evidence gaps remain open; `verify_srs_consistency.py --release` still fails until they are closed.
+
 ## [0.8.0] - 2026-10-26
 
 ### Breaking (0.x)

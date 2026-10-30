@@ -2,10 +2,10 @@
 
 English | [简体中文](README.md)
 
-**Blazor UI components for .NET 6 — Tree and ResourceTable.**
+**Blazor UI components for .NET 10 — Tree and ResourceTable.**
 
-**Positioning**: Teams still maintaining Blazor Server / WebAssembly applications on .NET 6 that need a keyboard-operable tree editor with controlled state and a column-driven resource table.
-**Status**: 0.8.0 released (evidence: GitHub Release v0.8.0 with `Astrea.Components.0.8.0.nupkg`; nuget.org package 0.8.0; `<Version>0.8.0</Version>` in `Astrea.Components.csproj`). 0.x preview: minor releases may include documented breaking changes; only Tree and ResourceTable are Active, the other 9 planned components are Deferred.
+**Positioning**: Teams building Blazor Web App / standalone WebAssembly applications on .NET 10 that need a keyboard-operable tree editor with controlled state and a column-driven resource table.
+**Status**: 0.8.0 released (evidence: GitHub Release v0.8.0 with `Astrea.Components.0.8.0.nupkg`; nuget.org package 0.8.0; `<Version>0.8.0</Version>` in `Astrea.Components.csproj`); 0.9.0 pending (this branch targets .NET 10 and publishes `net10.0` assets only). 0.x preview: minor releases may include documented breaking changes; only Tree and ResourceTable are Active, the other 9 planned components are Deferred.
 
 [![CI](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/HestiaLab/Astrea)](https://github.com/HestiaLab/Astrea/releases)
@@ -16,7 +16,7 @@ English | [简体中文](README.md)
 
 ![Astrea Tree demo page: component navigation on the left, interactive playground tree (project, pages, icons, resources), and the multi-select/drag toggles](docs/images/astrea-tree-light.png)
 
-Astrea is a Blazor UI component library for .NET 6. The current release delivers two components: Tree and ResourceTable; the other 9 planned components are marked Deferred and are not part of the current release contract.
+Astrea is a Blazor UI component library for .NET 10. The current release delivers two components: Tree and ResourceTable; the other 9 planned components are marked Deferred and are not part of the current release contract.
 Tree supports multi-select, three-state drag and drop with application veto, F2 inline editing, context-menu notification, controlled or uncontrolled selection and expansion, and fixed-row-height virtualization (the demo can generate 50,000 nodes).
 Components follow the WAI-ARIA Tree View pattern with a single tab stop and `aria-activedescendant`; the published release evidence records 0 serious/critical axe violations scoped to the Tree and ResourceTable containers.
 
@@ -47,12 +47,14 @@ All in-app links must remain relative to the `<base>` path (for example `compone
 
 ## Quick Start
 
+> **0.9.0 is pending publication:** this branch targets .NET 10.0 and publishes `net10.0` assets only. Until 0.9.0 is available on the feed, use 0.8.0 for .NET 6 applications.
+
 > **Package identity (0.8.0):** the NuGet package ID, assembly name, and static asset base path are `Astrea.Components` (formerly `Astrea`). Update `PackageReference Include="Astrea.Components"` and change `_content/Astrea/` links to `_content/Astrea.Components/`; public namespaces remain `Astrea.Components.*`. Version 0.8.0 is the first release under the new package identity; component behavior is unchanged.
 
 1. Install the NuGet package (or reference `src/Astrea.Components/Astrea.Components.csproj` for local development):
 
 ```sh
-dotnet add package Astrea.Components --version 0.8.0
+dotnet add package Astrea.Components --version 0.9.0
 ```
 
 2. Add the namespace to `_Imports.razor`:
@@ -446,9 +448,9 @@ ResourceTable:
 
 ## Versioning
 
-Astrea follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain documented breaking behavior changes; see [CHANGELOG.md](CHANGELOG.md). A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS. The package builds with the .NET 10 LTS SDK pinned in `global.json` and publishes `net6.0` assets.
+Astrea follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain documented breaking behavior changes; see [CHANGELOG.md](CHANGELOG.md). A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS. The package builds with the .NET 10 LTS SDK pinned in `global.json` and publishes `net10.0` assets.
 
-The published assets target `net6.0` to honor the SRS compatibility contract. .NET 6 is out of support; consumers are responsible for runtime security updates or for upgrading the host runtime.
+The published assets target `net10.0`. .NET 6 is no longer supported; 0.8.0 remains the last release that publishes `net6.0` assets, so applications targeting .NET 6 must stay on 0.8.0 or retarget to .NET 10.
 
 ## Development
 
@@ -472,7 +474,7 @@ npm ci --prefix tests/Astrea.A11y
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCategory=Browser"
 ```
 
-Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Server results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
+Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Web App results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
 
 Manual release validation still required for the last two gaps:
 

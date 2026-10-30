@@ -37,7 +37,7 @@ public class TreeDragSessionTests
 
         var message = BeginAndCreateMessage(tree, controller, treeId, "session-2");
 
-        await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => tree.HandleDrop(message));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => tree.HandleDrop(message));
         await tree.HandleDrop(message);
 
         Assert.AreEqual(1, notificationCount);

@@ -18,7 +18,7 @@ public class TreeVirtualizationPolicyTests
     [TestMethod]
     public void Enabled_ItemSizeZero_Throws()
     {
-        Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             TreeVirtualizationPolicy.Validate(
                 enableVirtualization: true,
                 itemSize: 0f,
@@ -29,7 +29,7 @@ public class TreeVirtualizationPolicyTests
     [TestMethod]
     public void Enabled_ItemSizeNegative_Throws()
     {
-        Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             TreeVirtualizationPolicy.Validate(
                 enableVirtualization: true,
                 itemSize: -1f,
@@ -40,7 +40,7 @@ public class TreeVirtualizationPolicyTests
     [TestMethod]
     public void Enabled_NodeTemplateSet_Throws()
     {
-        Assert.ThrowsException<InvalidOperationException>(() =>
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
             TreeVirtualizationPolicy.Validate(
                 enableVirtualization: true,
                 itemSize: 32f,
@@ -51,7 +51,7 @@ public class TreeVirtualizationPolicyTests
     [TestMethod]
     public void Enabled_EditTemplateSet_Throws()
     {
-        Assert.ThrowsException<InvalidOperationException>(() =>
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
             TreeVirtualizationPolicy.Validate(
                 enableVirtualization: true,
                 itemSize: 32f,

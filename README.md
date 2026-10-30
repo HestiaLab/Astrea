@@ -2,10 +2,10 @@
 
 [English](README.en.md) | 简体中文
 
-**Blazor UI components for .NET 6 — Tree and ResourceTable.** · 面向 .NET 6 Blazor 应用的可复用组件库，当前交付 Tree 与 ResourceTable。
+**Blazor UI components for .NET 10 — Tree and ResourceTable.** · 面向 .NET 10 Blazor 应用的可复用组件库，当前交付 Tree 与 ResourceTable。
 
-**定位**：仍在 .NET 6 上维护 Blazor Server / WebAssembly 应用，需要键盘可操作、状态可控的树形编辑器与列驱动资源表格的团队。
-**状态**：已发布 0.8.0（依据：GitHub Release v0.8.0 附 `Astrea.Components.0.8.0.nupkg`；nuget.org 同名包 0.8.0；`Astrea.Components.csproj` 的 `<Version>` 为 `0.8.0`）。0.x 预览期，小版本可能包含已在 CHANGELOG 记录的破坏性变更；Active 组件仅 Tree 与 ResourceTable，其余 9 个为 Deferred。
+**定位**：在 .NET 10 上构建 Blazor Web App / standalone WebAssembly 应用，需要键盘可操作、状态可控的树形编辑器与列驱动资源表格的团队。
+**状态**：已发布 0.8.0（依据：GitHub Release v0.8.0 附 `Astrea.Components.0.8.0.nupkg`；nuget.org 同名包 0.8.0；`Astrea.Components.csproj` 的 `<Version>` 为 `0.8.0`）；0.9.0 待发布（本分支目标 .NET 10，包只提供 `net10.0` 资产）。0.x 预览期，小版本可能包含已在 CHANGELOG 记录的破坏性变更；Active 组件仅 Tree 与 ResourceTable，其余 9 个为 Deferred。
 
 [![CI](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/HestiaLab/Astrea)](https://github.com/HestiaLab/Astrea/releases)
@@ -16,7 +16,7 @@
 
 ![Astrea Tree 演示页：左侧组件导航，中间交互实验台树（我的项目、页面、图符、资源）与多选/拖拽开关](docs/images/astrea-tree-light.png)
 
-Astrea 是面向 .NET 6 的 Blazor 组件库，当前版本只交付两个组件：Tree（树形编辑器）与 ResourceTable（列驱动资源表格），其余 9 个规划组件标记为 Deferred，不属于当前发布契约。
+Astrea 是面向 .NET 10 的 Blazor 组件库，当前版本只交付两个组件：Tree（树形编辑器）与 ResourceTable（列驱动资源表格），其余 9 个规划组件标记为 Deferred，不属于当前发布契约。
 Tree 支持多选、三态拖放与应用侧否决、F2 内联编辑、右键通知、受控/非受控选择与展开，以及固定行高虚拟化（演示页可生成 5 万节点）。
 组件按 WAI-ARIA Tree View 模式实现单一 Tab 停靠点与 `aria-activedescendant`；发布的验证证据记录 Tree 与 ResourceTable 容器的 axe 审计为 0 个 serious/critical 违规。
 
@@ -47,14 +47,16 @@ Blazor WebAssembly 演示以 GitHub Pages 项目站点发布：<https://hestiala
 
 ## 快速开始
 
+> **0.9.0 待发布：** 本分支目标 .NET 10.0，只发布 `net10.0` 资产。0.9.0 上架前，.NET 6 应用请继续使用 0.8.0。
+
 > **包标识（0.8.0）：** NuGet 包 ID、程序集名称与静态资源基路径均为 `Astrea.Components`（旧名为 `Astrea`）。请更新 `PackageReference Include="Astrea.Components"`，并把 `_content/Astrea/` 链接改为 `_content/Astrea.Components/`；公共命名空间仍为 `Astrea.Components.*`。0.8.0 是新包标识下的第一个版本，组件行为未变。
 
-包只提供 `net6.0` 资产，宿主项目需要面向 .NET 6。以下命令在宿主 Blazor 项目目录中执行；默认源为 nuget.org，可直接安装，GitHub Packages 是可选替代（见下文）。
+包只提供 `net10.0` 资产，宿主项目需要面向 .NET 10。以下命令在宿主 Blazor 项目目录中执行；默认源为 nuget.org，可直接安装，GitHub Packages 是可选替代（见下文）。
 
 1. 安装 NuGet 包（本地开发也可直接引用 `src/Astrea.Components/Astrea.Components.csproj`）：
 
 ```sh
-dotnet add package Astrea.Components --version 0.8.0
+dotnet add package Astrea.Components --version 0.9.0
 ```
 
 2. 在 `_Imports.razor` 中添加命名空间：
@@ -448,9 +450,9 @@ ResourceTable：
 
 ## 版本策略
 
-Astrea 遵循[语义化版本 2.0](https://semver.org/spec/v2.0.0.html)。版本低于 1.0.0 时，小版本可能包含已在文档中记录的破坏性行为变更；见 [CHANGELOG.md](CHANGELOG.md)。1.0.0 会冻结 SRS 中列为 Active 的组件的公共行为契约。包使用 `global.json` 固定的 .NET 10 LTS SDK 构建，并发布 `net6.0` 资产。
+Astrea 遵循[语义化版本 2.0](https://semver.org/spec/v2.0.0.html)。版本低于 1.0.0 时，小版本可能包含已在文档中记录的破坏性行为变更；见 [CHANGELOG.md](CHANGELOG.md)。1.0.0 会冻结 SRS 中列为 Active 的组件的公共行为契约。包使用 `global.json` 固定的 .NET 10 LTS SDK 构建，并发布 `net10.0` 资产。
 
-发布资产面向 `net6.0`，以满足 SRS 兼容性契约。.NET 6 已停止支持；消费者需自行负责运行时安全更新，或升级宿主运行时。
+发布资产面向 `net10.0`。.NET 6 已停止支持；0.8.0 是最后一个发布 `net6.0` 资产的版本，.NET 6 应用需停留在 0.8.0 或升级到 .NET 10。
 
 ## 开发
 
@@ -474,7 +476,7 @@ npm ci --prefix tests/Astrea.A11y
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCategory=Browser"
 ```
 
-发布门禁使用 `python3 scripts/verify_srs_consistency.py --release`；只要任何 Active 需求在 [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md) 中仍有未闭环的证据缺口，它就会失败。实际浏览器、axe 与 Blazor Server 结果记录在 [docs/release-evidence.md](docs/release-evidence.md)。
+发布门禁使用 `python3 scripts/verify_srs_consistency.py --release`；只要任何 Active 需求在 [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md) 中仍有未闭环的证据缺口，它就会失败。实际浏览器、axe 与 Blazor Web App 结果记录在 [docs/release-evidence.md](docs/release-evidence.md)。
 
 最后两个缺口仍需人工发布验证：
 

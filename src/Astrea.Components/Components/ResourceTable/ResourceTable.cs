@@ -29,12 +29,14 @@ public sealed partial class ResourceTable : ComponentBase, IAsyncDisposable
     /// <summary>
     /// 列定义；允许空集合（渲染空表头）
     /// </summary>
+#pragma warning disable BL0007 // The setter normalizes null and snapshots the caller's sequence; an auto property cannot preserve that contract.
     [Parameter, EditorRequired]
     public IEnumerable<TableColumn> Columns
     {
         get => _columns;
         set => _columns = value?.ToList() ?? new List<TableColumn>();
     }
+#pragma warning restore BL0007
 
     /// <summary>
     /// 表体模板（行内容由应用渲染）
