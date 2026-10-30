@@ -1,57 +1,77 @@
 # Astrea
 
-Enterprise-grade Blazor UI component library targeting .NET 10, built around correctness, accessibility, and testability. The upcoming 0.9.0 release delivers **Tree** and **ResourceTable** per [SRS v0.9.0](docs/SRS.md); all other planned components are [Deferred](docs/Roadmap.md) rather than part of the current release contract.
+[English](README.en.md) | 简体中文
 
-## Current Release Scope
+**Blazor UI components for .NET 10 — Tree and ResourceTable.** · 面向 .NET 10 Blazor 应用的可复用组件库，当前交付 Tree 与 ResourceTable。
 
-| Component | Status | SRS |
+**定位**：在 .NET 10 上构建 Blazor Web App / standalone WebAssembly 应用，需要键盘可操作、状态可控的树形编辑器与列驱动资源表格的团队。
+**状态**：已发布 0.8.0（依据：GitHub Release v0.8.0 附 `Astrea.Components.0.8.0.nupkg`；nuget.org 同名包 0.8.0；`Astrea.Components.csproj` 的 `<Version>` 为 `0.8.0`）；0.9.0 待发布（本分支目标 .NET 10，包只提供 `net10.0` 资产）。0.x 预览期，小版本可能包含已在 CHANGELOG 记录的破坏性变更；Active 组件仅 Tree 与 ResourceTable，其余 9 个为 Deferred。
+
+[![CI](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/HestiaLab/Astrea)](https://github.com/HestiaLab/Astrea/releases)
+[![NuGet](https://img.shields.io/nuget/v/Astrea.Components)](https://www.nuget.org/packages/Astrea.Components)
+[![License](https://img.shields.io/github/license/HestiaLab/Astrea)](LICENSE)
+
+[在线演示](https://hestialab.github.io/Astrea/) · [快速开始](#快速开始) · [SRS](docs/SRS.md) · [Roadmap](docs/Roadmap.md) · [更新日志](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
+
+![Astrea Tree 演示页：左侧组件导航，中间交互实验台树（我的项目、页面、图符、资源）与多选/拖拽开关](docs/images/astrea-tree-light.png)
+
+Astrea 是面向 .NET 10 的 Blazor 组件库，当前版本只交付两个组件：Tree（树形编辑器）与 ResourceTable（列驱动资源表格），其余 9 个规划组件标记为 Deferred，不属于当前发布契约。
+Tree 支持多选、三态拖放与应用侧否决、F2 内联编辑、右键通知、受控/非受控选择与展开，以及固定行高虚拟化（演示页可生成 5 万节点）。
+组件按 WAI-ARIA Tree View 模式实现单一 Tab 停靠点与 `aria-activedescendant`；发布的验证证据记录 Tree 与 ResourceTable 容器的 axe 审计为 0 个 serious/critical 违规。
+
+## 当前版本范围
+
+| 组件 | 状态 | SRS |
 |---|---|---|
 | Tree | Active | §3.10 |
 | ResourceTable | Active | §3.12 |
-| Button, Alert, Divider, Input, Label, Modal, Progress, Select, Table | Deferred | Appendix B / [Roadmap](docs/Roadmap.md) |
+| Button、Alert、Divider、Input、Label、Modal、Progress、Select、Table | Deferred | 附录 B / [Roadmap](docs/Roadmap.md) |
 
-## Demo Site
+## 演示站
 
-The Blazor WebAssembly demo is published as a GitHub Pages project site at <https://hestialab.github.io/Astrea/>. The deploy workflow rewrites `<base href>` to `/Astrea/` and copies the rewritten `index.html` to `404.html`, so direct links and refreshes reach the Blazor router.
+Blazor WebAssembly 演示以 GitHub Pages 项目站点发布：<https://hestialab.github.io/Astrea/>。部署工作流会把 `<base href>` 改写为 `/Astrea/`，并把改写后的 `index.html` 复制为 `404.html`，因此直接访问链接或刷新时仍能进入 Blazor 路由。
 
-All in-app links must remain relative to the `<base>` path (for example `components/tree`; use an empty `href` for the catalog home). Avoid root-absolute paths such as `/components/tree`, which resolve outside the project site. Pushes to `main` or `dev` deploy automatically; use the `Deploy demo to GitHub Pages` workflow's `workflow_dispatch` trigger to redeploy manually.
+应用内所有链接必须保持相对于 `<base>` 路径（例如 `components/tree`；目录首页使用空 `href`）。不要使用 `/components/tree` 这类根绝对路径，它会解析到项目站点之外。推送到 `main` 或 `dev` 会自动部署；也可以使用 `Deploy demo to GitHub Pages` 工作流的 `workflow_dispatch` 手动重新部署。
 
-## Tree Features
+## Tree 功能
 
-- **Multi-select** — Ctrl toggles selection; Shift ranges may cross root boundaries in the same Tree, reject disabled endpoints, and skip disabled intermediate nodes. Keyboard: Space toggles the focused node; Shift+Arrow/Home/End extends a range from the keyboard anchor.
-- **Drag & drop** — `before` / `inside` / `after` placement; application veto; built-in rejection of self-reference, cross-tree, cycles, stale operations, and duplicate completion.
-- **Inline editing** — F2 to enter, Enter to commit, Esc to cancel; `BeforeRename` veto.
-- **Context menu notification** — the tree only notifies (node + position); the app renders the menu and it does not change selection or focus.
-- **ARIA keyboard navigation** — Arrow keys / Home / End / Space / Enter, single tab stop, `aria-activedescendant`.
-- **Controlled or uncontrolled** — `SelectedIds` / `ExpandedIds` `null` = uncontrolled, non-`null` = controlled.
-- **Optional virtualization** — fixed row height only; `EnableVirtualization` defaults to `false`.
-- **Robustness** — disabled nodes, empty state, focus recovery, state preserved across `DataSource` replacement by stable id.
+- **多选** — Ctrl 切换选中；Shift 范围选择可以跨同一 Tree 的根边界，拒绝禁用端点并跳过禁用中间节点。键盘：Space 切换焦点节点；Shift+方向键/Home/End 从键盘锚点扩展范围。
+- **拖放** — `before` / `inside` / `after` 三种放置位置；支持应用侧否决；内置拒绝自引用、跨树、成环、过期操作与重复完成。
+- **内联编辑** — F2 进入，Enter 提交，Esc 取消；支持 `BeforeRename` 否决。
+- **右键菜单通知** — Tree 只通知（节点 + 位置）；菜单由应用渲染，且不改变选中或焦点。
+- **ARIA 键盘导航** — 方向键 / Home / End / Space / Enter，单一 Tab 停靠点，`aria-activedescendant`。
+- **受控或非受控** — `SelectedIds` / `ExpandedIds` 为 `null` 表示非受控，非 `null` 表示受控。
+- **可选虚拟化** — 仅支持固定行高；`EnableVirtualization` 默认 `false`。
+- **健壮性** — 禁用节点、空状态、焦点恢复；`DataSource` 按稳定 ID 替换后状态保留。
 
-## Quick Start
+## 快速开始
 
-> **0.9.0 is pending publication:** this branch targets .NET 10.0 and publishes `net10.0` assets only. Until 0.9.0 is available on the feed, use 0.8.0 for .NET 6 applications.
+> **0.9.0 待发布：** 本分支目标 .NET 10.0，只发布 `net10.0` 资产。0.9.0 上架前，.NET 6 应用请继续使用 0.8.0。
 
-> **Package identity (0.8.0):** the NuGet package ID, assembly name, and static asset base path are `Astrea.Components` (formerly `Astrea`). Update `PackageReference Include="Astrea.Components"` and change `_content/Astrea/` links to `_content/Astrea.Components/`; public namespaces remain `Astrea.Components.*`. Version 0.8.0 is the first release under the new package identity; component behavior is unchanged.
+> **包标识（0.8.0）：** NuGet 包 ID、程序集名称与静态资源基路径均为 `Astrea.Components`（旧名为 `Astrea`）。请更新 `PackageReference Include="Astrea.Components"`，并把 `_content/Astrea/` 链接改为 `_content/Astrea.Components/`；公共命名空间仍为 `Astrea.Components.*`。0.8.0 是新包标识下的第一个版本，组件行为未变。
 
-1. Install the NuGet package (or reference `src/Astrea.Components/Astrea.Components.csproj` for local development):
+包只提供 `net10.0` 资产，宿主项目需要面向 .NET 10。以下命令在宿主 Blazor 项目目录中执行；默认源为 nuget.org，可直接安装，GitHub Packages 是可选替代（见下文）。
+
+1. 安装 NuGet 包（本地开发也可直接引用 `src/Astrea.Components/Astrea.Components.csproj`）：
 
 ```sh
 dotnet add package Astrea.Components --version 0.9.0
 ```
 
-2. Add the namespace to `_Imports.razor`:
+2. 在 `_Imports.razor` 中添加命名空间：
 
 ```razor
 @using Astrea.Components.Tree
 ```
 
-3. Link the stylesheet in `wwwroot/index.html`:
+3. 在 `wwwroot/index.html` 中引入样式表：
 
 ```html
 <link href="_content/Astrea.Components/astrea-tree.css" rel="stylesheet" />
 ```
 
-4. Minimal example:
+4. 最小示例：
 
 ```razor
 <Tree DataSource="_roots" aria-label="Project files" />
@@ -66,7 +86,7 @@ dotnet add package Astrea.Components --version 0.9.0
 
 ### GitHub Packages
 
-Releases are also published to this repository's GitHub Packages feed. GitHub Packages requires authentication even for public packages, so restoring from it needs a personal access token with `read:packages`. Add the source to your `nuget.config`:
+发布版本也会推送到本仓库的 GitHub Packages 源。GitHub Packages 即使对公开包也要求认证，因此从该源还原需要具有 `read:packages` 权限的个人访问令牌。把源加入 `nuget.config`：
 
 ```xml
 <configuration>
@@ -82,77 +102,77 @@ Releases are also published to this repository's GitHub Packages feed. GitHub Pa
 </configuration>
 ```
 
-## Tree Parameters
+## Tree 参数
 
-| Parameter | Type | Default | Description |
+| 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `DataSource` | `IReadOnlyList<TreeNode>?` | required | Root nodes |
-| `SelectionMode` | `TreeSelectionMode` | `Single` | `Single` or `Multiple` |
-| `SelectedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = uncontrolled; non-`null` is the authoritative controlled selection |
-| `SelectedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Proposes the next controlled selection; does not commit it before the app supplies it |
-| `ExpandedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = uncontrolled; non-`null` is the authoritative controlled expansion |
-| `ExpandedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | Proposes the next controlled expansion; does not commit it before the app supplies it |
-| `AllowDrag` | `bool` | `false` | Enable drag & drop |
-| `EnableVirtualization` | `bool` | `false` | Fixed-row-height virtualization |
-| `AutoDetectStructureChanges` | `bool` | `true` | Detect in-place structure changes on each render; disable for large trees and call `RefreshAsync` after in-place mutations |
-| `ItemSize` | `float` | `32f` | Row height in px; must be > 0 when virtualizing |
-| `UseInternalKeyboard` | `bool` | `true` | Built-in ARIA keyboard navigation |
-| `ShowLink` | `bool` | `true` | Draw parent–child connector lines in the indentation area |
-| `BeforeExpandAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | Async expansion veto; configure instead of `BeforeExpand` |
-| `BeforeCollapseAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | Async collapse veto; configure instead of `BeforeCollapse` |
-| `BeforeDropAsync` | `Func<TreeDropEventArgs, ValueTask<bool>>?` | `null` | Async drop veto; configure instead of `BeforeDrop` |
-| `BeforeRenameAsync` | `Func<TreeNode, string, ValueTask<bool>>?` | `null` | Async rename veto; configure instead of `BeforeRename` |
-| `BeforeEditNameAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | Async edit veto; configure instead of `BeforeEditName` |
-| `Indent` | `int` | `20` | Indent per level in px |
-| `OnlyHighlightText` | `bool` | `true` | Highlight only the label on selection |
-| `LoadingText` | `string` | `"Loading items..."` | Virtualized loading placeholder text |
-| `EditLabelFormat` | `string` | `"Edit {0}"` | Default edit input accessible name; `{0}` is the node text |
-| `RenameRejectedText` | `string` | `"Rename rejected"` | Fallback validation message when a rename is vetoed |
-| `NodeTemplate` | `RenderFragment<TreeNode>?` | `null` | Custom node content (incompatible with virtualization) |
-| `IconTemplate` | `RenderFragment<TreeIconContext>?` | `null` | Custom node icon |
-| `EditTemplate` | `RenderFragment<TreeEditContext>?` | `null` | Custom edit UI (incompatible with virtualization) |
-| `BeforeExpand` | `Func<TreeNode, bool>?` | `null` | Veto expansion; `false` blocks |
-| `BeforeCollapse` | `Func<TreeNode, bool>?` | `null` | Veto collapse; `false` blocks |
-| `BeforeDrop` | `Func<TreeDropEventArgs, bool>?` | `null` | Veto a drop; `false` blocks |
-| `BeforeRename` | `Func<TreeNode, string, bool>?` | `null` | Veto a rename; `false` blocks |
-| `BeforeEditName` | `Func<TreeNode, bool>?` | `null` | Veto entering edit mode; `false` blocks |
-| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | Extra HTML attributes merged onto the `role="tree"` container |
+| `DataSource` | `IReadOnlyList<TreeNode>?` | 必填 | 根节点 |
+| `SelectionMode` | `TreeSelectionMode` | `Single` | `Single` 或 `Multiple` |
+| `SelectedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = 非受控；非 `null` 为受控选择的权威来源 |
+| `SelectedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | 提议下一次受控选择；在应用提供新集合前不会提交 |
+| `ExpandedIds` | `IReadOnlyCollection<string>?` | `null` | `null` = 非受控；非 `null` 为受控展开的权威来源 |
+| `ExpandedIdsChanged` | `EventCallback<IReadOnlyCollection<string>>` | — | 提议下一次受控展开；在应用提供新集合前不会提交 |
+| `AllowDrag` | `bool` | `false` | 启用拖放 |
+| `EnableVirtualization` | `bool` | `false` | 固定行高虚拟化 |
+| `AutoDetectStructureChanges` | `bool` | `true` | 每次渲染检测原地结构变化；大树可关闭，并在原地修改后调用 `RefreshAsync` |
+| `ItemSize` | `float` | `32f` | 行高（px）；虚拟化时必须大于 0 |
+| `UseInternalKeyboard` | `bool` | `true` | 内置 ARIA 键盘导航 |
+| `ShowLink` | `bool` | `true` | 在缩进区域绘制父子连接线 |
+| `BeforeExpandAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | 异步展开否决；用它替代 `BeforeExpand` |
+| `BeforeCollapseAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | 异步折叠否决；用它替代 `BeforeCollapse` |
+| `BeforeDropAsync` | `Func<TreeDropEventArgs, ValueTask<bool>>?` | `null` | 异步拖放否决；用它替代 `BeforeDrop` |
+| `BeforeRenameAsync` | `Func<TreeNode, string, ValueTask<bool>>?` | `null` | 异步重命名否决；用它替代 `BeforeRename` |
+| `BeforeEditNameAsync` | `Func<TreeNode, ValueTask<bool>>?` | `null` | 异步进入编辑否决；用它替代 `BeforeEditName` |
+| `Indent` | `int` | `20` | 每级缩进（px） |
+| `OnlyHighlightText` | `bool` | `true` | 选中时只高亮文本 |
+| `LoadingText` | `string` | `"Loading items..."` | 虚拟化加载占位文本 |
+| `EditLabelFormat` | `string` | `"Edit {0}"` | 默认编辑输入框的无障碍名称；`{0}` 为节点文本 |
+| `RenameRejectedText` | `string` | `"Rename rejected"` | 重命名被否决时的回退校验消息 |
+| `NodeTemplate` | `RenderFragment<TreeNode>?` | `null` | 自定义节点内容（与虚拟化不兼容） |
+| `IconTemplate` | `RenderFragment<TreeIconContext>?` | `null` | 自定义节点图标 |
+| `EditTemplate` | `RenderFragment<TreeEditContext>?` | `null` | 自定义编辑 UI（与虚拟化不兼容） |
+| `BeforeExpand` | `Func<TreeNode, bool>?` | `null` | 否决展开；`false` 阻止 |
+| `BeforeCollapse` | `Func<TreeNode, bool>?` | `null` | 否决折叠；`false` 阻止 |
+| `BeforeDrop` | `Func<TreeDropEventArgs, bool>?` | `null` | 否决拖放；`false` 阻止 |
+| `BeforeRename` | `Func<TreeNode, string, bool>?` | `null` | 否决重命名；`false` 阻止 |
+| `BeforeEditName` | `Func<TreeNode, bool>?` | `null` | 否决进入编辑模式；`false` 阻止 |
+| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | 合并到 `role="tree"` 容器上的额外 HTML 属性 |
 
-### Controlled state contract
+### 受控状态契约
 
-- `SelectedIds="null"` and `ExpandedIds="null"` select uncontrolled mode. Tree owns that state and reports actual user changes.
-- A non-`null` collection selects controlled mode, including an empty collection. It remains the displayed source of truth.
-- In controlled mode, a user action proposes at most one next collection. The display does not change until the app supplies that collection, including when no changed callback is attached or the app rejects or delays the proposal.
-- Replacing a controlled collection is an application update and does not emit a second user-change event.
-- `DataSource="null"` and an empty data source both keep an empty, accessible Tree container. Tree does not fabricate a node.
-- In-place structure changes are detected by default. For large trees, set `AutoDetectStructureChanges="false"` and call `RefreshAsync()` after mutations. Direct in-place `TreeNode.IsExpanded` changes also require `RefreshAsync()`; prefer `ExpandedIds` or `SetExpandedAsync`.
-- The redesign does not add a hidden synthetic-root mode. Supply the nodes that should appear at the first visible level directly as `DataSource` roots.
+- `SelectedIds="null"` 与 `ExpandedIds="null"` 表示非受控模式。Tree 持有该状态，并报告真实的用户变更。
+- 非 `null` 集合（包括空集合）表示受控模式。它始终是显示的权威来源。
+- 在受控模式下，一次用户操作最多提议一个下一集合。在应用提供该集合之前，显示不会改变；即使未附加变更回调，或应用拒绝/延迟该提议，也是如此。
+- 替换受控集合属于应用侧更新，不会再触发一次用户变更事件。
+- `DataSource="null"` 与空数据源都会保留一个空但可访问的 Tree 容器。Tree 不会伪造节点。
+- 默认检测原地结构变化。大树可设置 `AutoDetectStructureChanges="false"`，并在修改后调用 `RefreshAsync()`。直接原地修改 `TreeNode.IsExpanded` 也需要 `RefreshAsync()`；优先使用 `ExpandedIds` 或 `SetExpandedAsync`。
+- 本次重构不引入隐藏的合成根模式。应直接把需要出现在第一可见层级的节点作为 `DataSource` 根提供。
 
-## Tree Events
+## Tree 事件
 
-| Event | EventArgs | Description |
+| 事件 | EventArgs | 说明 |
 |---|---|---|
-| `OnSelectionChanged` | `TreeSelectionChangedEventArgs` | Fired once when the selection actually changes (`OldSelectedIds`, `SelectedIds`) |
-| `OnExpandedChanged` | `TreeExpandedChangedEventArgs` | Fired when expansion changes (`Node`, `IsExpanded`) |
-| `OnNodeClicked` | `TreeNodeEventArgs` | Fired on click of a non-disabled node |
-| `OnNodeInvoked` | `TreeNodeEventArgs` | Fired on double-click activation |
-| `OnContextMenu` | `TreeContextMenuEventArgs` | Right-click notification (`Node`, `MouseArgs`); tree does not render a menu |
-| `OnDrop` | `TreeDropEventArgs` | Fired once after protocol, structure, and guard checks pass (`SourceNodes`, `TargetNode`, `Relation`) |
-| `OnEditCommitted` | `TreeEditEventArgs` | Fired when an edit is committed (`Node`, `Value`) |
-| `OnEditCancelled` | `TreeNodeEventArgs` | Fired when an edit is cancelled |
-| `OnEditRejected` | `TreeEditRejectedEventArgs` | Fired when a rename is vetoed (`Node`, `Value`, `Reason`) |
-| `OnKeyDown` | `KeyboardEventArgs` | Fired before internal keyboard navigation |
+| `OnSelectionChanged` | `TreeSelectionChangedEventArgs` | 选中实际变化时触发一次（`OldSelectedIds`、`SelectedIds`） |
+| `OnExpandedChanged` | `TreeExpandedChangedEventArgs` | 展开状态变化时触发（`Node`、`IsExpanded`） |
+| `OnNodeClicked` | `TreeNodeEventArgs` | 点击未禁用节点时触发 |
+| `OnNodeInvoked` | `TreeNodeEventArgs` | 双击激活时触发 |
+| `OnContextMenu` | `TreeContextMenuEventArgs` | 右键通知（`Node`、`MouseArgs`）；Tree 不渲染菜单 |
+| `OnDrop` | `TreeDropEventArgs` | 协议、结构与守卫检查全部通过后触发一次（`SourceNodes`、`TargetNode`、`Relation`） |
+| `OnEditCommitted` | `TreeEditEventArgs` | 编辑提交时触发（`Node`、`Value`） |
+| `OnEditCancelled` | `TreeNodeEventArgs` | 编辑取消时触发 |
+| `OnEditRejected` | `TreeEditRejectedEventArgs` | 重命名被否决时触发（`Node`、`Value`、`Reason`） |
+| `OnKeyDown` | `KeyboardEventArgs` | 内置键盘导航之前触发 |
 
-## Public Methods
+## 公共方法
 
-| Member | Description |
+| 成员 | 说明 |
 |---|---|
-| `View` | Read-only Tree query view; `Flatten`/`FlattenVisible` return true read-only views over internal caches |
-| `SelectAsync`, `FocusAsync`, `BeginEditAsync`, `RefreshAsync` | Validated Tree commands identified by stable node id |
+| `View` | 只读 Tree 查询视图；`Flatten`/`FlattenVisible` 返回基于内部缓存的真实只读视图 |
+| `SelectAsync`、`FocusAsync`、`BeginEditAsync`、`RefreshAsync` | 以稳定节点 ID 标识、带校验的 Tree 命令 |
 
-All state-changing public paths use the same ownership, disabled-node, selection-mode, revision, and session validation. A query object does not expose selection, expansion, editing, or structure mutation methods.
+所有改变状态的公共路径都经过同一套所有权、禁用节点、选择模式、修订版本与会话校验。查询对象不暴露选择、展开、编辑或结构修改方法。
 
-## Core Types
+## 核心类型
 
 ### TreeNode
 
@@ -161,47 +181,47 @@ var node = new TreeNode("Label", icon: null, bindData: null, id: "stable-id");
 node.Add(new TreeNode("Child"));
 ```
 
-- **Identity**: `Id` (app-provided ids survive rebuilds; auto-assigned otherwise), `Text` (rejects null/empty), `BindData`, `PlaceHolder`.
-- **Structure**: `Parent`, `Children`, `Index`, `Level`, `IsRoot`, `HasChildren`, `IsLeaf`, `Root`, `Count`, `Siblings()`, `GetPathToRoot()`, `IsDescendantOf(node)`, `IsAncestorOf(node)`.
-- **Structure change**: `Add`, `Remove`, `Insert`, `AddChildren`, `InsertChildren`, `RemoveChildren`. Cyclic attachment (self, or an ancestor below its descendant) throws.
-- **Style**: `SetCssClass(string)`, `CssClassResolver` (dynamic segment), `CssClass`.
-- **Icons**: `Icon`, `UnFoldIcon`, `ExpandedIcon`, `CollapsedIcon`, `ExpandIcon`, `FoldIcon`, `IsExpandIconDisable`, `IsFoldIconDisable`, `IsExpandDisable`.
-- **View state**: `IsSelected` and `IsFocused` are derived queries; `IsEditing` has an internal setter. `IsExpanded` is read-only to applications: set initial expansion with the `isExpanded` constructor argument, then use `ExpandedIds` or `SetExpandedAsync`. `IsDisabled` remains application data.
-- **Legacy node facade methods**: read-only query helpers remain available; state-changing helpers are internal to the validated Tree command boundary.
+- **标识**：`Id`（应用提供的 ID 可在重建后保留，否则自动分配）、`Text`（拒绝 null/空串）、`BindData`、`PlaceHolder`。
+- **结构**：`Parent`、`Children`、`Index`、`Level`、`IsRoot`、`HasChildren`、`IsLeaf`、`Root`、`Count`、`Siblings()`、`GetPathToRoot()`、`IsDescendantOf(node)`、`IsAncestorOf(node)`。
+- **结构变更**：`Add`、`Remove`、`Insert`、`AddChildren`、`InsertChildren`、`RemoveChildren`。成环挂载（挂到自身，或把祖先挂到其后代之下）会抛异常。
+- **样式**：`SetCssClass(string)`、`CssClassResolver`（动态片段）、`CssClass`。
+- **图标**：`Icon`、`UnFoldIcon`、`ExpandedIcon`、`CollapsedIcon`、`ExpandIcon`、`FoldIcon`、`IsExpandIconDisable`、`IsFoldIconDisable`、`IsExpandDisable`。
+- **视图状态**：`IsSelected` 与 `IsFocused` 是派生查询；`IsEditing` 只有内部 setter。`IsExpanded` 对应用只读：初始展开状态用构造函数参数 `isExpanded` 设置，之后使用 `ExpandedIds` 或 `SetExpandedAsync`。`IsDisabled` 仍是应用数据。
+- **旧节点门面方法**：只读查询辅助方法仍可用；改变状态的辅助方法收归到带校验的 Tree 命令边界内部。
 
-### Tree query view (via `Tree.View`)
+### Tree 查询视图（通过 `Tree.View`）
 
-- **Query**: selected ids, focused id/node, revision, stable-id lookup, and flattened visible nodes.
-- **Commands**: selection, focus, expansion, editing, and refresh go through the Tree command facade rather than this query view.
+- **查询**：选中的 ID、焦点 ID/节点、修订版本、稳定 ID 查找，以及扁平化的可见节点。
+- **命令**：选择、焦点、展开、编辑与刷新都通过 Tree 命令门面，而不是这个查询视图。
 
-### Enums and Contexts
+### 枚举与上下文
 
-- `TreeSelectionMode`: `Single`, `Multiple`.
-- `TreeDropRelation`: `Before`, `Inside`, `After`.
-- `TreeEditContext` (in `EditTemplate`): `Node`, `Value`, `SetValue(value)`, `CommitAsync()`, `CancelAsync()`, `ValidationMessage`.
-- `TreeIconContext` (in `IconTemplate`): `Node`, `IsExpanded`, `HasChildren`, `IsDisabled`.
+- `TreeSelectionMode`：`Single`、`Multiple`。
+- `TreeDropRelation`：`Before`、`Inside`、`After`。
+- `TreeEditContext`（用于 `EditTemplate`）：`Node`、`Value`、`SetValue(value)`、`CommitAsync()`、`CancelAsync()`、`ValidationMessage`。
+- `TreeIconContext`（用于 `IconTemplate`）：`Node`、`IsExpanded`、`HasChildren`、`IsDisabled`。
 
-Each edit context belongs to exactly one edit session. Once another edit starts, its node is replaced or removed, or the component is disposed, calls from the older context cannot commit or cancel the current edit.
+每个编辑上下文只属于一个编辑会话。一旦另一个编辑开始、其节点被替换或移除，或组件被释放，旧上下文的调用就不能提交或取消当前编辑。
 
-### API migration contract
+### API 迁移契约
 
-| Legacy surface | Frozen direction |
+| 旧接口 | 冻结方向 |
 |---|---|
-| `Tree.Controller`, writable `Controller.Selection`, or mutable selected/expanded collections | Queries use `Tree.View`; `TreeController` and `TreeState` are internal implementation details |
-| State-changing methods on `TreeController` | Internal; use validated asynchronous Tree commands with stable node ids |
-| State-changing `TreeNode` facade methods | Internal; use the corresponding validated Tree command |
-| Writable `TreeNode.IsSelected`, `IsFocused`, or `IsEditing` | Removed as authoritative state; `IsEditing` has an internal setter |
-| `TreeNode.IsExpanded` as a second source of truth | Read-only to applications; initial state via `isExpanded` constructor argument, then `ExpandedIds`/`SetExpandedAsync` |
-| Synchronous veto delegates | Configure `Before*` or `Before*Async` on Tree, not both; controller-level guards were removed in 0.7.0 |
-| Tuple event payloads | Named EventArgs types |
+| `Tree.Controller`、可写的 `Controller.Selection`，或可变的选中/展开集合 | 查询使用 `Tree.View`；`TreeController` 与 `TreeState` 成为内部实现细节 |
+| `TreeController` 上的状态变更方法 | 内部；使用以稳定节点 ID 标识、带校验的异步 Tree 命令 |
+| `TreeNode` 门面上的状态变更方法 | 内部；使用对应的带校验 Tree 命令 |
+| 可写的 `TreeNode.IsSelected`、`IsFocused` 或 `IsEditing` | 不再作为权威状态；`IsEditing` 只有内部 setter |
+| 作为第二状态源的 `TreeNode.IsExpanded` | 对应用只读；初始状态用构造函数参数 `isExpanded`，之后使用 `ExpandedIds`/`SetExpandedAsync` |
+| 同步否决委托 | 在 Tree 上配置 `Before*` 或 `Before*Async`，不要同时配置；控制器级守卫已在 0.7.0 移除 |
+| 元组形式的事件载荷 | 具名 EventArgs 类型 |
 
-Application decisions may complete asynchronously. Tree does not commit while waiting, revalidates the node and operation before applying the result, leaves state unchanged when the result is stale, and does not silently swallow decision errors. A drag operation is consumed at most once after acceptance, rejection, cancellation, disablement, or disposal.
+应用决策可以异步完成。Tree 在等待期间不提交，在应用结果前重新校验节点与操作；结果过期时保持状态不变，并且不会静默吞掉决策错误。一次拖放操作在接受、拒绝、取消、禁用或释放后最多被消费一次。
 
-`TreeController`, `TreeState`, `DragProtocol`, `TreeKeyboardNavigation`, and `TreeDropValidation` are internal as of 0.7.0. Applications interact through `Tree`, `TreeView`, `TreeNode`, events, and context types.
+自 0.7.0 起，`TreeController`、`TreeState`、`DragProtocol`、`TreeKeyboardNavigation` 与 `TreeDropValidation` 均为内部类型。应用通过 `Tree`、`TreeView`、`TreeNode`、事件与上下文类型交互。
 
-## Examples
+## 示例
 
-### Multi-select
+### 多选
 
 ```razor
 <Tree DataSource="_roots" SelectionMode="TreeSelectionMode.Multiple"
@@ -213,7 +233,7 @@ Application decisions may complete asynchronously. Tree does not commit while wa
 }
 ```
 
-### Drag & drop with veto
+### 带否决的拖放
 
 ```razor
 <Tree DataSource="_roots" AllowDrag="true"
@@ -231,7 +251,7 @@ Application decisions may complete asynchronously. Tree does not commit while wa
 }
 ```
 
-### Inline editing
+### 内联编辑
 
 ```razor
 <Tree DataSource="_roots" BeforeRename="BeforeRename"
@@ -252,7 +272,7 @@ Application decisions may complete asynchronously. Tree does not commit while wa
 }
 ```
 
-### Context menu notification
+### 右键菜单通知
 
 ```razor
 <Tree DataSource="_roots" OnContextMenu="OnContextMenu" />
@@ -265,7 +285,7 @@ Application decisions may complete asynchronously. Tree does not commit while wa
 }
 ```
 
-### Fixed-row-height virtualization
+### 固定行高虚拟化
 
 ```razor
 <div style="height: 320px;">
@@ -273,9 +293,9 @@ Application decisions may complete asynchronously. Tree does not commit while wa
 </div>
 ```
 
-Virtualization requires a bounded-height scroll container and a fixed row height. `ItemSize` must match the node height, and `NodeTemplate` / `EditTemplate` cannot be combined with virtualization.
+虚拟化需要一个有界高度的滚动容器和固定行高。`ItemSize` 必须与节点高度一致，并且 `NodeTemplate` / `EditTemplate` 不能与虚拟化同时使用。
 
-### Custom icon and edit templates
+### 自定义图标与编辑模板
 
 ```razor
 <Tree DataSource="_roots">
@@ -307,15 +327,15 @@ Virtualization requires a bounded-height scroll container and a fixed row height
 }
 ```
 
-## Accessibility (WAI-ARIA)
+## 无障碍（WAI-ARIA）
 
-Tree follows the [WAI-ARIA Tree View Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): a single tab stop on the container (`role="tree"` with `tabindex="0"`), non-focusable `role="treeitem"` nodes, and focus tracked through `aria-activedescendant`. Clicking a node moves DOM focus to the container. `aria-level`, `aria-selected`, `aria-expanded`, and `aria-disabled` are emitted. Disabled nodes are navigable but not selectable, expandable, or activatable.
+Tree 遵循 [WAI-ARIA Tree View 模式](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/)：容器上有单一 Tab 停靠点（`role="tree"` 与 `tabindex="0"`），`role="treeitem"` 节点不可聚焦，焦点通过 `aria-activedescendant` 跟踪。点击节点会把 DOM 焦点移到容器。组件输出 `aria-level`、`aria-selected`、`aria-expanded` 与 `aria-disabled`。禁用节点可导航，但不可选中、展开或激活。
 
 ## ResourceTable
 
-ResourceTable renders a column-driven header with an application-provided body. It supports pointer and keyboard column resizing, toolbar actions, undo/redo buttons, and empty column collections.
+ResourceTable 渲染列驱动的表头与应用提供的表体。它支持指针与键盘调整列宽、工具栏操作、撤销/重做按钮，以及空列集合。
 
-### Quick start
+### 快速开始
 
 ```razor
 @using Astrea.Components.ResourceTable
@@ -357,88 +377,88 @@ ResourceTable renders a column-driven header with an application-provided body. 
 }
 ```
 
-### ResourceTable Parameters
+### ResourceTable 参数
 
-| Parameter | Type | Default | Description |
+| 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `Columns` | `IEnumerable<TableColumn>` | required | Column definitions; an empty collection renders no header cell |
-| `TableBody` | `RenderFragment?` | required | Body markup rendered inside `tbody` |
-| `ToolBar` | `RenderFragment?` | `null` | Extra toolbar content |
-| `ShowButton` | `bool` | `true` | Render add/remove/move buttons |
-| `ShowRedoButton` | `bool` | `false` | Render undo/redo buttons |
-| `ContainerCss` | `string?` | `null` | Additional CSS class for the root container |
-| `ResizableColumns` | `bool` | `true` | Render resize handles and enable the resize module |
-| `CanUndo` / `CanRedo` | `bool` | `false` | Disable state for undo/redo buttons |
-| `OnAddClicked` / `OnRemoveClicked` / `OnMoveUpClicked` / `OnMoveDownClicked` | `EventCallback` | — | Toolbar action notifications |
-| `OnUndoClicked` / `OnRedoClicked` | `EventCallback` | — | Undo/redo notifications |
-| `OnKeyDown` | `EventCallback<KeyboardEventArgs>` | — | Container keyboard forwarding |
-| `OnColumnResized` | `EventCallback<ColumnResizedEventArgs>` | — | Fired after a pointer or keyboard resize |
-| `AddButtonLabel` / `RemoveButtonLabel` / `MoveUpButtonLabel` / `MoveDownButtonLabel` / `UndoButtonLabel` / `RedoButtonLabel` | `string` | `Add` / `Remove` / `Move Up` / `Move Down` / `Undo` / `Redo` | Toolbar button accessible names/tooltips |
-| `ResizeHandleLabelFormat` | `string` | `"Resize column {0}"` | Resize handle accessible name; `{0}` is the column title |
-| `IconAdd` / `IconRemove` / `IconMoveUp` / `IconMoveDown` / `IconUndo` / `IconRedo` | `RenderFragment?` | `null` | Override the built-in inline SVG icons |
-| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | Extra HTML attributes; app classes are appended to the component class |
+| `Columns` | `IEnumerable<TableColumn>` | 必填 | 列定义；空集合不渲染表头单元格 |
+| `TableBody` | `RenderFragment?` | 必填 | 渲染在 `tbody` 内的表体标记 |
+| `ToolBar` | `RenderFragment?` | `null` | 额外工具栏内容 |
+| `ShowButton` | `bool` | `true` | 渲染新增/删除/移动按钮 |
+| `ShowRedoButton` | `bool` | `false` | 渲染撤销/重做按钮 |
+| `ContainerCss` | `string?` | `null` | 根容器的额外 CSS 类 |
+| `ResizableColumns` | `bool` | `true` | 渲染调整手柄并启用调整模块 |
+| `CanUndo` / `CanRedo` | `bool` | `false` | 撤销/重做按钮的禁用状态 |
+| `OnAddClicked` / `OnRemoveClicked` / `OnMoveUpClicked` / `OnMoveDownClicked` | `EventCallback` | — | 工具栏操作通知 |
+| `OnUndoClicked` / `OnRedoClicked` | `EventCallback` | — | 撤销/重做通知 |
+| `OnKeyDown` | `EventCallback<KeyboardEventArgs>` | — | 容器键盘事件转发 |
+| `OnColumnResized` | `EventCallback<ColumnResizedEventArgs>` | — | 指针或键盘调整列宽后触发 |
+| `AddButtonLabel` / `RemoveButtonLabel` / `MoveUpButtonLabel` / `MoveDownButtonLabel` / `UndoButtonLabel` / `RedoButtonLabel` | `string` | `Add` / `Remove` / `Move Up` / `Move Down` / `Undo` / `Redo` | 工具栏按钮的无障碍名称/提示 |
+| `ResizeHandleLabelFormat` | `string` | `"Resize column {0}"` | 调整手柄的无障碍名称；`{0}` 为列标题 |
+| `IconAdd` / `IconRemove` / `IconMoveUp` / `IconMoveDown` / `IconUndo` / `IconRedo` | `RenderFragment?` | `null` | 覆盖内置内联 SVG 图标 |
+| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | — | 额外 HTML 属性；应用的类会追加到组件类之后 |
 
-`TableColumn` declares `Title`, `Width`, `Key`, `MinWidth`, and `Resizable` (the last column never gets a resize handle).
+`TableColumn` 声明 `Title`、`Width`、`Key`、`MinWidth` 与 `Resizable`（最后一列永远没有调整手柄）。
 
-### Keyboard and accessibility
+### 键盘与无障碍
 
-- Each resize handle is a focusable `role="separator"` with `aria-orientation="vertical"` and an accessible name.
-- ArrowLeft/ArrowRight adjust the focused boundary by 10 px, honoring `MinWidth` and preserving the two-column total width.
-- Resize keydown events do not stop propagation; the application still receives them through `OnKeyDown`.
-- `ResizableColumns="false"` removes all handles and disposes the resize listeners. The module reinitializes when column definitions or min widths change.
+- 每个调整手柄都是可聚焦的 `role="separator"`，带 `aria-orientation="vertical"` 与无障碍名称。
+- ArrowLeft/ArrowRight 以 10 px 调整焦点边界，遵守 `MinWidth`，并保持两列总宽度不变。
+- 调整列宽的 keydown 事件不会停止传播；应用仍可通过 `OnKeyDown` 收到它们。
+- `ResizableColumns="false"` 会移除所有手柄并释放调整监听器。列定义或最小宽度变化时模块会重新初始化。
 
-### Theme variables
+### 主题变量
 
-Components expose documented `--ast-*` variables. Override them on the component root or any ancestor.
+组件公开有文档的 `--ast-*` 变量。可在组件根或任意祖先上覆盖。
 
-Tree:
+Tree：
 
-| Variable | Default | Purpose |
+| 变量 | 默认值 | 用途 |
 |---|---|---|
-| `--ast-tree-font-size` | `14px` | Node text size |
-| `--ast-tree-line-height` | `1.6` | Node line height |
-| `--ast-tree-color-text` | `#1f2328` | Node text color |
-| `--ast-tree-node-height` | `32px` | Minimum node height |
-| `--ast-tree-color-hover` | `rgba(0,0,0,0.05)` | Hover background |
-| `--ast-tree-color-focus` | `rgba(24,144,255,0.15)` | Focus background |
-| `--ast-tree-color-active` | `rgba(24,144,255,0.25)` | Selected background |
-| `--ast-tree-color-border` | `#d0d7de` | Edit input border |
-| `--ast-tree-icon-size` | `16px` | Icon box size |
-| `--ast-tree-control-indent` | `20px` | Expand-control slot width |
-| `--ast-tree-font-weight-bold` | `600` | Bold node text |
+| `--ast-tree-font-size` | `14px` | 节点文本大小 |
+| `--ast-tree-line-height` | `1.6` | 节点行高 |
+| `--ast-tree-color-text` | `#1f2328` | 节点文本颜色 |
+| `--ast-tree-node-height` | `32px` | 节点最小高度 |
+| `--ast-tree-color-hover` | `rgba(0,0,0,0.05)` | 悬停背景 |
+| `--ast-tree-color-focus` | `rgba(24,144,255,0.15)` | 焦点背景 |
+| `--ast-tree-color-active` | `rgba(24,144,255,0.25)` | 选中背景 |
+| `--ast-tree-color-border` | `#d0d7de` | 编辑输入框边框 |
+| `--ast-tree-icon-size` | `16px` | 图标框大小 |
+| `--ast-tree-control-indent` | `20px` | 展开控件槽宽度 |
+| `--ast-tree-font-weight-bold` | `600` | 粗体节点文本 |
 
-ResourceTable:
+ResourceTable：
 
-| Variable | Default | Purpose |
+| 变量 | 默认值 | 用途 |
 |---|---|---|
-| `--ast-rt-font-family` | `sans-serif` | Table font family |
-| `--ast-rt-font-size` | `14px` | Table font size |
-| `--ast-rt-color-text` | `#333` | Text color |
-| `--ast-rt-color-bg` | `#fff` | Surface/button background |
-| `--ast-rt-color-header-bg` | `#f5f5f5` | Header background |
-| `--ast-rt-color-border` | `#ddd` | Cell/button border |
-| `--ast-rt-color-border-strong` | `#989ca4` | Scroll container border |
-| `--ast-rt-color-accent` | `#268cda` | Hover/focus accent |
-| `--ast-rt-color-hover-bg` | `#e0eef9` | Button hover background |
-| `--ast-rt-color-selected-bg` | `#c3c3ff` | App-selected row background |
-| `--ast-rt-color-resize` | `#d0d7de` | Resize indicator |
-| `--ast-rt-color-resizing-bg` | `#f8f9fa` | Header background while resizing |
-| `--ast-rt-radius` | `4px` | Button radius |
-| `--ast-rt-btn-size` | `24px` | Toolbar button size |
-| `--ast-rt-icon-size` | `14px` | Toolbar icon size |
-| `--ast-rt-resize-width` | `24px` | Resize handle hit width |
+| `--ast-rt-font-family` | `sans-serif` | 表格字体 |
+| `--ast-rt-font-size` | `14px` | 表格字号 |
+| `--ast-rt-color-text` | `#333` | 文本颜色 |
+| `--ast-rt-color-bg` | `#fff` | 表面/按钮背景 |
+| `--ast-rt-color-header-bg` | `#f5f5f5` | 表头背景 |
+| `--ast-rt-color-border` | `#ddd` | 单元格/按钮边框 |
+| `--ast-rt-color-border-strong` | `#989ca4` | 滚动容器边框 |
+| `--ast-rt-color-accent` | `#268cda` | 悬停/焦点强调色 |
+| `--ast-rt-color-hover-bg` | `#e0eef9` | 按钮悬停背景 |
+| `--ast-rt-color-selected-bg` | `#c3c3ff` | 应用选中行背景 |
+| `--ast-rt-color-resize` | `#d0d7de` | 调整指示线 |
+| `--ast-rt-color-resizing-bg` | `#f8f9fa` | 调整列宽时的表头背景 |
+| `--ast-rt-radius` | `4px` | 按钮圆角 |
+| `--ast-rt-btn-size` | `24px` | 工具栏按钮尺寸 |
+| `--ast-rt-icon-size` | `14px` | 工具栏图标尺寸 |
+| `--ast-rt-resize-width` | `24px` | 调整手柄命中宽度 |
 
-## Versioning
+## 版本策略
 
-Astrea follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain documented breaking behavior changes; see [CHANGELOG.md](CHANGELOG.md). A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS. The package builds with the .NET 10 LTS SDK pinned in `global.json` and publishes `net10.0` assets.
+Astrea 遵循[语义化版本 2.0](https://semver.org/spec/v2.0.0.html)。版本低于 1.0.0 时，小版本可能包含已在文档中记录的破坏性行为变更；见 [CHANGELOG.md](CHANGELOG.md)。1.0.0 会冻结 SRS 中列为 Active 的组件的公共行为契约。包使用 `global.json` 固定的 .NET 10 LTS SDK 构建，并发布 `net10.0` 资产。
 
-The published assets target `net10.0`. .NET 6 is no longer supported; 0.8.0 remains the last release that publishes `net6.0` assets, so applications targeting .NET 6 must stay on 0.8.0 or retarget to .NET 10.
+发布资产面向 `net10.0`。.NET 6 已停止支持；0.8.0 是最后一个发布 `net6.0` 资产的版本，.NET 6 应用需停留在 0.8.0 或升级到 .NET 10。
 
-## Development
+## 开发
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Requirements are traceable to [docs/SRS.md](docs/SRS.md) (REQ-F-xxx / REQ-NF-xxx).
+见 [CONTRIBUTING.md](CONTRIBUTING.md)。需求可追溯到 [docs/SRS.md](docs/SRS.md)（REQ-F-xxx / REQ-NF-xxx）。
 
-Verification commands (all must pass after any change):
+任何改动后都必须通过以下验证命令：
 
 ```sh
 dotnet build Astrea.sln
@@ -449,16 +469,20 @@ node --test tests/Astrea.JsTests/*.test.mjs
 python3 scripts/verify_package.py
 ```
 
-Install the optional accessibility tooling and run the browser matrix:
+安装可选的无障碍工具并运行浏览器矩阵：
 
 ```sh
 npm ci --prefix tests/Astrea.A11y
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCategory=Browser"
 ```
 
-Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Web App results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
+发布门禁使用 `python3 scripts/verify_srs_consistency.py --release`；只要任何 Active 需求在 [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md) 中仍有未闭环的证据缺口，它就会失败。实际浏览器、axe 与 Blazor Web App 结果记录在 [docs/release-evidence.md](docs/release-evidence.md)。
 
-Manual release validation still required for the last two gaps:
+最后两个缺口仍需人工发布验证：
 
-- [Accessibility validation checklist](docs/accessibility-validation-checklist.md) — WCAG 2.2 AA, keyboard, and screen-reader sessions.
-- [Browser version verification plan](docs/browser-version-verification-plan.md) — second recent major version per browser.
+- [无障碍验证清单](docs/accessibility-validation-checklist.md) — WCAG 2.2 AA、键盘与屏幕阅读器会话。
+- [浏览器版本验证计划](docs/browser-version-verification-plan.md) — 每个浏览器最近两个大版本。
+
+## 许可证
+
+Astrea 以 [MIT 许可证](LICENSE) 发布。
