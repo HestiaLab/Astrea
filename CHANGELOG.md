@@ -4,9 +4,7 @@ All notable changes to Astrea are documented here. The format follows [Keep a Ch
 
 While the version is below 1.0.0, a minor release may contain documented breaking behavior changes. A 1.0.0 release freezes the public behavior contract for the components listed as Active in the SRS.
 
-## [Unreleased]
-
-The 0.9.0 package version is prepared but not yet published.
+## [0.9.0] - 2026-10-30
 
 ### Breaking (0.x)
 

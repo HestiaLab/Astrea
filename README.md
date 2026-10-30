@@ -5,7 +5,7 @@
 **Blazor UI components for .NET 10 — Tree and ResourceTable.** · 面向 .NET 10 Blazor 应用的可复用组件库，当前交付 Tree 与 ResourceTable。
 
 **定位**：在 .NET 10 上构建 Blazor Web App / standalone WebAssembly 应用，需要键盘可操作、状态可控的树形编辑器与列驱动资源表格的团队。
-**状态**：已发布 0.8.0（依据：GitHub Release v0.8.0 附 `Astrea.Components.0.8.0.nupkg`；nuget.org 同名包 0.8.0；`Astrea.Components.csproj` 的 `<Version>` 为 `0.8.0`）；0.9.0 待发布（本分支目标 .NET 10，包只提供 `net10.0` 资产）。0.x 预览期，小版本可能包含已在 CHANGELOG 记录的破坏性变更；Active 组件仅 Tree 与 ResourceTable，其余 9 个为 Deferred。
+**状态**：已发布 0.9.0（目标 .NET 10，仅提供 `net10.0` 资产；GitHub Packages 由 release 工作流发布，nuget.org 需单独发布）。0.x 预览期，小版本可能包含已在 CHANGELOG 记录的破坏性变更；Active 组件仅 Tree 与 ResourceTable，其余 9 个为 Deferred。
 
 [![CI](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HestiaLab/Astrea/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/HestiaLab/Astrea)](https://github.com/HestiaLab/Astrea/releases)
@@ -47,11 +47,11 @@ Blazor WebAssembly 演示以 GitHub Pages 项目站点发布：<https://hestiala
 
 ## 快速开始
 
-> **0.9.0 待发布：** 本分支目标 .NET 10.0，只发布 `net10.0` 资产。0.9.0 上架前，.NET 6 应用请继续使用 0.8.0。
+> **0.9.0 发布：** 目标 .NET 10.0，只发布 `net10.0` 资产。.NET 6 应用需停留在 0.8.0。GitHub Packages 由 release 工作流发布；nuget.org 需单独发布（见下文）。
 
 > **包标识（0.8.0）：** NuGet 包 ID、程序集名称与静态资源基路径均为 `Astrea.Components`（旧名为 `Astrea`）。请更新 `PackageReference Include="Astrea.Components"`，并把 `_content/Astrea/` 链接改为 `_content/Astrea.Components/`；公共命名空间仍为 `Astrea.Components.*`。0.8.0 是新包标识下的第一个版本，组件行为未变。
 
-包只提供 `net10.0` 资产，宿主项目需要面向 .NET 10。以下命令在宿主 Blazor 项目目录中执行；默认源为 nuget.org，可直接安装，GitHub Packages 是可选替代（见下文）。
+包只提供 `net10.0` 资产，宿主项目需要面向 .NET 10。以下命令在宿主 Blazor 项目目录中执行；0.9.0 已发布到 GitHub Packages，nuget.org 需单独发布（GitHub Packages 源配置见下文）。
 
 1. 安装 NuGet 包（本地开发也可直接引用 `src/Astrea.Components/Astrea.Components.csproj`）：
 
