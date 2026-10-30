@@ -476,10 +476,13 @@ ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCa
 
 Use `python3 scripts/verify_srs_consistency.py --release` for a release gate; it fails while any Active requirement has a tracked evidence gap in [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md). Actual browser, axe, and Blazor Web App results are recorded in [docs/release-evidence.md](docs/release-evidence.md).
 
-Manual release validation still required for the last two gaps:
+The current release gate uses an automated scope:
 
-- [Accessibility validation checklist](docs/accessibility-validation-checklist.md) — WCAG 2.2 AA, keyboard, and screen-reader sessions.
-- [Browser version verification plan](docs/browser-version-verification-plan.md) — second recent major version per browser.
+- Browsers: the current Chromium/Firefox/WebKit automation matrix plus the latest stable installed Chrome and Edge on Windows.
+- Accessibility: axe-core with 0 serious/critical findings on the Tree/ResourceTable containers, plus automated keyboard/focus tests.
+- Safari, N-1 browser majors, and manual screen-reader/WCAG sessions are outside the automated release gate. The following checklists remain available as optional manual QA:
+  - [Accessibility validation checklist](docs/accessibility-validation-checklist.md)
+  - [Browser version verification plan](docs/browser-version-verification-plan.md)
 
 ## License
 

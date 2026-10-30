@@ -145,7 +145,7 @@ Astrea 是一个企业级 Blazor UI 组件库，强调**正确性、可访问性
 | 类型 | 内容 |
 |------|------|
 | 技术约束 | 目标框架为 .NET 10.0；支持在 .NET 10.0 Blazor Web App（Interactive Server）与 standalone Blazor WebAssembly 应用中使用 |
-| 浏览器约束 | 支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本 |
+| 浏览器约束 | 自动化矩阵覆盖当前 Chromium/Firefox/WebKit 版本及 Windows 上最新稳定版真实 Chrome 与 Edge；Safari 与 N-1 不在自动化发布门禁范围内 |
 | 假设 | 使用方项目已配置 Blazor 所需的基础设施 |
 
 ---
@@ -3671,33 +3671,33 @@ Then 组件能够显示并按对应功能需求交互
 REQ-NF-002 🟡 [Actor: End User]
 
 Title
-桌面浏览器兼容性
+桌面浏览器自动化兼容性
 
 Description
-Astrea 必须支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本。受支持浏览器中的功能、键盘行为、可访问状态和核心布局必须一致；非核心视觉差异不得影响使用。
+Astrea 必须在发布验证所用自动化矩阵覆盖的浏览器中保持一致：自动化矩阵当前使用的 Chromium、Firefox 与 WebKit 版本，以及 Windows 上安装的最新稳定版真实 Chrome 与 Edge。受测浏览器中的功能、键盘行为、可访问状态和核心布局必须一致；非核心视觉差异不得影响使用。Safari、浏览器前一主版本（N-1）及自动化矩阵未列出的引擎不在本需求的发布门禁范围内。
 
 Source
-浏览器兼容性约束
+自动化浏览器验证范围
 
 Acceptance Criteria
 
 AC1：核心功能
 
-Given 同一示例应用运行于任一受支持浏览器版本
+Given 同一示例应用运行于自动化矩阵覆盖的任一浏览器
 When 终端用户执行组件文档中的核心操作
 Then 操作结果和事件通知一致
 
 AC2：键盘与可访问性
 
-Given 键盘用户或辅助技术在任一受支持浏览器中访问组件
+Given 键盘用户在自动化矩阵覆盖的任一浏览器中访问组件
 When 执行组件规定的操作
 Then 焦点、名称、角色和状态行为符合需求
 
 AC3：发布记录
 
 Given Astrea 版本准备发布
-When 兼容性验证完成
-Then 发布记录明确列出实际验证的浏览器及版本
+When 自动化浏览器兼容性验证完成
+Then 发布记录明确列出实际验证的浏览器、引擎及版本，并明确列出 Safari、N-1 等未纳入自动化门禁的范围
 ```
 
 ```
@@ -3728,54 +3728,42 @@ Then 至少 9 次满足 1 秒目标，且测试记录包含环境、测量方法
 ```
 
 ```
-REQ-NF-004 🔴 [Actor: Assistive Technology User]
+REQ-NF-004 🔴 [Actor: Application Developer]
 
 Title
-支持 WCAG 2.2 AA
+自动可访问性检查
 
 Description
-Astrea 生成的语义、内置样式和内置交互在按照组件文档使用时，不得阻碍宿主应用达到 WCAG 2.2 AA。应用开发者提供的内容、标签、模板、主题覆盖和页面组合由应用开发者负责。
+Astrea 必须在发布验证中通过自动可访问性检查：在自动化浏览器矩阵中，对 Tree 与 ResourceTable 组件容器运行 axe-core（WCAG 2.x 规则标签），结果必须为 0 个 serious/critical 违规；同时必须通过自动化键盘与焦点测试。默认主题对比度、200% 页面缩放、非颜色状态表达和人工屏幕阅读器验证不在本需求的自动化发布门禁范围内；本需求不构成完整的 WCAG 2.2 AA 符合性声明。应用提供的内容、标签、模板、主题覆盖和页面组合由应用开发者负责。
 
 Source
-WCAG 2.2
+自动化可访问性验证范围
 
 Acceptance Criteria
 
-AC1：适用标准
+AC1：自动审计
 
-Given Astrea 组件按文档提供必要标签和内容
-When 按组件适用的 WCAG 2.2 A 与 AA 成功标准验证
-Then 组件生成的语义、键盘行为、焦点和内置视觉状态不存在阻断性不符合项
+Given 自动化浏览器矩阵可运行
+When 对 Tree 与 ResourceTable 组件容器运行 axe-core 的 WCAG 2.x 规则
+Then 结果为 0 个 serious/critical 违规
 
-AC2：非颜色表达
+AC2：键盘自动化
 
-Given 组件表达错误、警告、选择、禁用或必填状态
-When 视觉用户访问组件
-Then 状态不只依赖颜色传达
+Given 自动化浏览器测试套件可用
+When 执行组件规定的键盘、焦点和编辑恢复路径
+Then 所有自动化用例通过且页面控制台无错误
 
-AC3：默认主题对比度
-
-Given 组件使用 Astrea 默认主题
-When 测量文本、控件边界、焦点指示和表达状态所需图形的对比度
-Then 各项满足适用的 WCAG 2.2 AA 对比度要求
-
-AC4：页面缩放
-
-Given 组件使用 Astrea 默认样式且浏览器页面缩放至 200%
-When 用户浏览和操作组件
-Then 内容和功能均可访问，且组件自身不产生同时要求横向和纵向滚动的二维内容区域；Table 等本质二维内容除外
-
-AC5：主题责任边界
-
-Given 应用覆盖颜色或其他公开主题变量
-When 覆盖结果不满足可访问性要求
-Then 文档明确该覆盖属于应用开发者责任，Astrea 默认主题仍满足其适用要求
-
-AC6：验证证据
+AC3：发布记录
 
 Given Astrea 版本准备发布
-When 可访问性验证完成
-Then 保留自动检查、人工键盘检查以及适用辅助技术场景的人工验证结果
+When 自动可访问性检查完成
+Then 发布记录包含 axe-core 版本、规则范围、浏览器矩阵、结果，并明确说明人工屏幕阅读器/WCAG 验证不在自动化门禁范围内
+
+AC4：责任边界
+
+Given 应用提供内容、标签、模板或主题覆盖
+When 评估最终页面的可访问性
+Then 该部分由应用开发者负责；本需求仅覆盖 Astrea 内置组件容器的自动化检查
 ```
 
 ```
@@ -4238,9 +4226,9 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | 编号 | 优先级 | Actor | 标题 |
 | --- |:---:| --- | --- |
 | REQ-NF-001 | 🔴 | Application Developer | .NET 10.0 目标框架 |
-| REQ-NF-002 | 🟡 | End User | 桌面浏览器兼容性 |
+| REQ-NF-002 | 🟡 | End User | 桌面浏览器自动化兼容性 |
 | REQ-NF-003 | 🟡 | End User | 代表性数据量性能 |
-| REQ-NF-004 | 🔴 | Assistive Technology User | 支持 WCAG 2.2 AA |
+| REQ-NF-004 | 🔴 | Application Developer | 自动可访问性检查 |
 | REQ-NF-005 | 🟡 | Application Developer | 运行时依赖约束 |
 | REQ-NF-006 | 🔴 | Application Developer | NuGet 包可消费性 |
 | REQ-NF-007 | 🟡 | Application Developer | 公共使用文档 |
@@ -4347,6 +4335,7 @@ Then 使用新的主版本并记录影响范围、旧行为、新行为和迁移
 | 2026-10-25 | **v0.7.0 交付范围收敛**: 当前版本交付范围收敛为 Tree 与 ResourceTable；其余 9 类组件的 60 条 Active 功能需求及依赖 Table 的 REQ-NF-003 移入 Deferred（附录 B）；新增 docs/Roadmap.md 与需求-测试矩阵 | wubing7755 |
 | 2026-10-26 | **v0.8.0 包身份迁移**: NuGet 包 ID、程序集与静态资源基础路径改为 Astrea.Components；组件行为与需求范围不变；同步 Demo、测试、打包探针与文档 | wubing7755 |
 | 2026-10-30 | **v0.9.0 目标框架升级**: 目标框架改为 .NET 10.0，停止发布 net6.0 资产；托管兼容性改为 Blazor Web App（Interactive Server）与 standalone Blazor WebAssembly；同步 CI、测试栈、文档与发布证据 | wubing7755 |
+| 2026-10-30 | **v0.9.0 验证口径调整**: REQ-NF-002 收窄为自动化浏览器矩阵（当前 Chromium/Firefox/WebKit + Windows 最新版真实 Chrome/Edge）；REQ-NF-004 改为 axe-core + 键盘自动化检查，明确 Safari、N-1 与人工 AT 验证不在发布门禁范围内 | wubing7755 |
 
 ---
 

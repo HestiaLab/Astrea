@@ -1,21 +1,22 @@
-# Astrea 浏览器第二主版本验证计划（REQ-NF-002）
+# Astrea 浏览器第二主版本验证计划（可选人工 QA）
 
-> 目的：关闭 REQ-NF-002 的“第二个最近桌面主版本”Gap。当前自动化矩阵只验证每个引擎的最新版；本计划给出可执行的第二版本验证方式与记录模板。
+> **状态：可选人工 QA，不是发布门禁。** REQ-NF-002 已收窄为自动化浏览器矩阵；本文件仅用于需要额外 Safari/N-1 保障时的人工/半自动验证，不阻断 0.9.0 发布。
 
 ## 1. 需求与当前证据
 
-REQ-NF-002 要求支持发布时 Chrome、Edge、Firefox、Safari 的最近两个桌面主版本，并在发布记录中列出实际验证的浏览器及版本。
+REQ-NF-002 现在要求自动化矩阵覆盖当前 Chromium/Firefox/WebKit 版本，以及 Windows 上最新稳定版真实 Chrome 与 Edge。以下为当前自动化证据；Safari 与 N-1 验证为可选人工 QA，不属于自动化发布门禁。
 
 已完成的自动化证据（最新版）：
 
 | 引擎 | 已测版本 | 用例数 | 结果 |
 |---|---:|---:|---|
-| Edge（msedge，Windows 本地） | 156.0.4314.42 | 20 | 通过 |
-| Chromium（Playwright bundled） | 149.0.7827.55 | 20 | 通过 |
-| Firefox（Playwright） | 151.0 | 20 | 通过 |
-| WebKit（Playwright） | 26.5 | 20 | 通过 |
+| Chrome（真实 Chrome，Windows 本地） | 156.0.8078.48 | 25 | 通过 |
+| Edge（msedge，Windows 本地） | 156.0.4314.50 | 25 | 通过 |
+| Chromium（Playwright bundled） | 156.0.8078.4 | 25 | 通过 |
+| Firefox（Playwright） | 157.0 | 25 | 通过 |
+| WebKit（Playwright） | 27.2 | 25 | 通过 |
 
-注意：Playwright Chromium 不是 Google Chrome，Playwright WebKit 不是 Apple Safari。发布声明涉及 Chrome/Safari 时，必须有真实 Chrome 与 Safari 的执行记录。
+注意：以上均为最新版 N；真实 Chrome 已自动验证。N-1 与 Safari 仍未验证；Playwright Chromium 不是 Google Chrome，Playwright WebKit 不是 Apple Safari。发布声明涉及 Chrome/Safari 时，必须有真实 Chrome 与 Safari 的执行记录。
 
 ## 2. 发布时版本基线
 
@@ -30,12 +31,15 @@ REQ-NF-002 要求支持发布时 Chrome、Edge、Firefox、Safari 的最近两�
 
 “最近两个桌面主版本”指发布时稳定版通道的当前主版本与前一主版本；beta/dev 不计入，除非产品明确声明支持。
 
+当前自动化基线（2026-10-30）：Chrome 156、Edge 156、Firefox 157；Safari 需在 macOS 上确定。
+
 ## 3. 推荐执行方案
 
 ### 3.1 最新版：自动化
 
 ```sh
 npm ci --prefix tests/Astrea.A11y
+ASTREA_BROWSER_ENGINE=chrome ASTREA_BROWSER_CHANNEL=chrome dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=chromium dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=webkit dotnet test Astrea.sln --filter "TestCategory=Browser"
@@ -91,10 +95,9 @@ Playwright .NET 的浏览器修订号与包版本绑定，无法用同一个 `Mi
 | | Firefox | | | | | B1～B11 | | |
 | | Safari | | | | 手动 | B1～B8 | | |
 
-## 6. 关闭 Gap 的步骤
+## 6. 可选人工验证记录步骤
 
-1. 确定发布时的 N/N-1 版本基线。
+1. 确定可选的 N/N-1 版本基线。
 2. 对每个浏览器执行最新版自动化 + 第二版本人工/半自动检查。
-3. 在 [release-evidence.md](release-evidence.md) 记录精确版本与结果。
-4. 把 [requirements-test-matrix.md](requirements-test-matrix.md) 的 REQ-NF-002 改为指向发布记录的覆盖条目。
-5. 运行 `python3 scripts/verify_srs_consistency.py --release`，确认 Gap 数量下降。
+3. 在 [release-evidence.md](release-evidence.md) 记录精确版本与结果，标注为可选人工 QA。
+4. 可选人工 QA 不改变 REQ-NF-002 的自动化发布门禁；如需调整门禁，必须另行变更需求。

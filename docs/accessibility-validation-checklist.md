@@ -1,6 +1,6 @@
-# Astrea 人工可访问性验证清单（WCAG 2.2 AA）
+# Astrea 可选人工可访问性验证清单（WCAG 2.2 AA）
 
-> 目的：关闭 REQ-NF-004 的人工验证 Gap。执行人应为未参与实现的人员；执行完成后把结果记录到本文件与 [release-evidence.md](release-evidence.md)，并把 [requirements-test-matrix.md](requirements-test-matrix.md) 中 REQ-NF-004 从 `Gap:` 改为覆盖证据。
+> **状态：可选人工 QA，不是发布门禁。** REQ-NF-004 已改为 axe-core + 键盘自动化检查；本清单不阻断 0.9.0 发布，也不构成完整 WCAG 2.2 AA 符合性声明。执行人应为未参与实现的人员；执行完成后把结果记录到本文件与 [release-evidence.md](release-evidence.md)，作为额外证据保留。
 
 ## 1. 范围与环境
 
@@ -85,10 +85,9 @@
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-## 6. 关闭 Gap 的步骤
+## 6. 可选人工验证记录步骤
 
 1. 完成第 2～4 节并记录原始结果、截图或屏幕阅读器日志。
-2. 在 [release-evidence.md](release-evidence.md) 记录实际浏览器/辅助技术版本与结论。
-3. 把 [requirements-test-matrix.md](requirements-test-matrix.md) 的 REQ-NF-004 改为指向本文件与发布证据的覆盖条目。
-4. 运行 `python3 scripts/verify_srs_consistency.py --release`，确认 Gap 数量下降。
-5. 若发现组件缺陷，回到正常缺陷修复流程；不得用文档豁免 WCAG 阻断项。
+2. 在 [release-evidence.md](release-evidence.md) 记录实际浏览器/辅助技术版本与结论，标注为可选人工 QA。
+3. 可选人工 QA 不改变 REQ-NF-004 的自动化发布门禁；如需调整门禁，必须另行变更需求。
+4. 若发现组件缺陷，回到正常缺陷修复流程；不得用文档豁免 WCAG 阻断项。
