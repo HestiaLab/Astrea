@@ -27,6 +27,7 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
     private (long SessionId, int ValueVersion)? _suppressBlurCommit;
     private bool _suppressNodeInvoke;
     private ElementReference _editInputRef;
+    private bool _editInputRendered;
     private ElementReference _containerRef;
     private bool _restoreFocusAfterEdit;
     private TreeNode? _keyboardRangeAnchor;
@@ -296,7 +297,9 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
         // 仅默认 input 分支会捕获 _editInputRef；EditTemplate 路径下聚焦由应用自绘 UI 管理
         if (_editingContext is not null && EditTemplate is null)
         {
-            if (Js is not null)
+            // 虚拟化滚动可能先触发父级 OnAfterRender，而编辑输入框尚未进入本轮渲染；
+            // 此时 ElementReference 尚未配置，聚焦会抛 InvalidOperationException。
+            if (Js is not null && _editInputRendered)
             {
                 await _editInputRef.FocusAsync();
             }
@@ -725,6 +728,8 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
         }
 
         _controller.SetFocus(node);
+        _editInputRef = default;
+        _editInputRendered = false;
         _editingContext = new TreeEditContext(
             ++_nextEditSessionId,
             _controller.Revision,
@@ -792,6 +797,8 @@ public sealed partial class Tree : ComponentBase, IAsyncDisposable
             _editingContext = null;
         }
 
+        _editInputRef = default;
+        _editInputRendered = false;
         _suppressBlurCommit = null;
         if (!keepNodeInvokeSuppression)
         {

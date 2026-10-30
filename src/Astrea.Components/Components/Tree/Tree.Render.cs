@@ -342,7 +342,11 @@ public sealed partial class Tree
             builder.AddAttribute(65, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => context.SetValue(e.Value?.ToString() ?? string.Empty)));
             builder.AddAttribute(66, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, _ => HandleEditBlur(context)));
             builder.AddAttribute(67, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => HandleEditKeyDown(context, e)));
-            builder.AddElementReferenceCapture(68, r => _editInputRef = r);
+            builder.AddElementReferenceCapture(68, r =>
+            {
+                _editInputRef = r;
+                _editInputRendered = true;
+            });
             builder.CloseElement();
         }
     }
