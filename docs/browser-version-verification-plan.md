@@ -10,12 +10,13 @@ REQ-NF-002 要求支持发布时 Chrome、Edge、Firefox、Safari 的最近两�
 
 | 引擎 | 已测版本 | 用例数 | 结果 |
 |---|---:|---:|---|
-| Edge（msedge，Windows 本地） | 156.0.4314.42 | 20 | 通过 |
-| Chromium（Playwright bundled） | 149.0.7827.55 | 20 | 通过 |
-| Firefox（Playwright） | 151.0 | 20 | 通过 |
-| WebKit（Playwright） | 26.5 | 20 | 通过 |
+| Chrome（真实 Chrome，Windows 本地） | 156.0.8078.48 | 25 | 通过 |
+| Edge（msedge，Windows 本地） | 156.0.4314.50 | 25 | 通过 |
+| Chromium（Playwright bundled） | 156.0.8078.4 | 25 | 通过 |
+| Firefox（Playwright） | 157.0 | 25 | 通过 |
+| WebKit（Playwright） | 27.2 | 25 | 通过 |
 
-注意：Playwright Chromium 不是 Google Chrome，Playwright WebKit 不是 Apple Safari。发布声明涉及 Chrome/Safari 时，必须有真实 Chrome 与 Safari 的执行记录。
+注意：以上均为最新版 N；真实 Chrome 已自动验证。N-1 与 Safari 仍未验证；Playwright Chromium 不是 Google Chrome，Playwright WebKit 不是 Apple Safari。发布声明涉及 Chrome/Safari 时，必须有真实 Chrome 与 Safari 的执行记录。
 
 ## 2. 发布时版本基线
 
@@ -30,12 +31,15 @@ REQ-NF-002 要求支持发布时 Chrome、Edge、Firefox、Safari 的最近两�
 
 “最近两个桌面主版本”指发布时稳定版通道的当前主版本与前一主版本；beta/dev 不计入，除非产品明确声明支持。
 
+当前自动化基线（2026-10-30）：Chrome 156、Edge 156、Firefox 157；Safari 需在 macOS 上确定。
+
 ## 3. 推荐执行方案
 
 ### 3.1 最新版：自动化
 
 ```sh
 npm ci --prefix tests/Astrea.A11y
+ASTREA_BROWSER_ENGINE=chrome ASTREA_BROWSER_CHANNEL=chrome dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=chromium dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --filter "TestCategory=Browser"
 ASTREA_BROWSER_ENGINE=webkit dotnet test Astrea.sln --filter "TestCategory=Browser"

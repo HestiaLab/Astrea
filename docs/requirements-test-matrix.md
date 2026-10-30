@@ -105,7 +105,7 @@
 | REQ-F-096 | 🔴 | Active | `ResourceTableRenderTests.EmptyColumns_RenderNoHeaderCellAndKeepBody`; `ResourceTableColumnsParameterTests.ColumnsSetter_AcceptsEmptyCollection` |
 | REQ-F-097 | 🟢 | Active | `ResourceTableRenderTests.ToolbarIcons_UseDefaultsAndAllowOverrides` |
 | REQ-NF-001 | 🔴 | Active | `src/Astrea.Components/Astrea.Components.csproj` TargetFramework net10.0; `scripts/verify_package.py` asserts `lib/net10.0` and no `lib/net6.0`; build/test suite runs on net10.0 |
-| REQ-NF-002 | 🟡 | Active | Gap: latest Edge/Chromium/Firefox/WebKit matrix passes; second major version execution pending — plan in `docs/browser-version-verification-plan.md` |
+| REQ-NF-002 | 🟡 | Active | Gap: latest Edge 156、真实 Chrome 156、Chromium 156、Firefox 157、WebKit 27.2 matrix passes; Chrome/Edge/Firefox N-1 and Safari execution pending — plan in `docs/browser-version-verification-plan.md` |
 | REQ-NF-003 | 🟡 | Deferred | Deferred（附录 B） |
 | REQ-NF-004 | 🔴 | Active | Gap: manual screen-reader/WCAG session pending — checklist in `docs/accessibility-validation-checklist.md`; automated axe 0 serious/critical plus keyboard browser tests recorded in `docs/release-evidence.md` |
 | REQ-NF-005 | 🟡 | Active | `src/Astrea.Components/Astrea.Components.csproj` declares `PackageReference` dependencies on `Microsoft.AspNetCore.Components` 10.0.14 and `Microsoft.AspNetCore.Components.Web` 10.0.14; no third-party runtime packages |

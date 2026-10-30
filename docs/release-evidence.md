@@ -24,12 +24,13 @@
 
 | 引擎 | 版本 | 用例数 | 结果 | 备注 |
 |---|---:|---:|---|---|
+| Chrome（真实 Chrome） | 156.0.8078.48 | 25 | 通过 | Windows 本地，`ASTREA_BROWSER_CHANNEL=chrome` |
 | Edge（msedge） | 156.0.4314.50 | 25 | 通过 | Windows 本地默认引擎 |
 | Chromium（bundled） | 156.0.8078.4 | 25 | 通过 | `ASTREA_BROWSER_CHANNEL=bundled` |
 | Firefox | 157.0 | 25 | 通过 | Playwright Firefox |
 | WebKit | 27.2 | 25 | 通过（合成拖放） | Playwright WebKit；原生 HTML5 拖放启动不可自动化，Tree 拖放用例改为派发合成 `DragEvent`，仍经过真实 JS/C# 链路 |
 
-每个浏览器用例都断言页面控制台无错误。CI 在 Ubuntu 上以 Chromium/Firefox/WebKit 三引擎矩阵运行同一组 Browser 分类测试；Edge 由 Windows 本地验证记录。
+每个浏览器用例都断言页面控制台无错误。CI 在 Ubuntu 上以 Chromium/Firefox/WebKit 三引擎矩阵运行同一组 Browser 分类测试；真实 Chrome 与 Edge 由 Windows 本地验证记录。以上均为每个引擎的最新版 N；N-1 与真实 Safari 仍未验证。
 
 ### 覆盖内容
 
@@ -97,7 +98,7 @@
 
 ### axe 自动审计
 
-`TreeBrowserTests.Accessibility_Axe_NoSeriousViolations` 在 0.8.0 与 0.9.0 候选的四引擎矩阵上运行，范围限定为 Tree 与 ResourceTable 组件容器，规则标签为 `wcag2a`、`wcag2aa`、`wcag21a`、`wcag21aa`、`wcag22aa`。结果：**0 个 serious/critical 违规**。
+`TreeBrowserTests.Accessibility_Axe_NoSeriousViolations` 在 0.8.0 与 0.9.0 候选的四引擎矩阵及真实 Chrome 最新版上运行，范围限定为 Tree 与 ResourceTable 组件容器，规则标签为 `wcag2a`、`wcag2aa`、`wcag21a`、`wcag21aa`、`wcag22aa`。结果：**0 个 serious/critical 违规**。
 
 - 应用页面的演示文案、布局与示例内容不属于组件库责任边界，未纳入组件审计范围。
 - 自动审计不能替代人工屏幕阅读器验证。
@@ -119,7 +120,7 @@
 
 - Playwright WebKit 不能自动启动原生 HTML5 拖放；WebKit 的拖放验证使用合成 `DragEvent`，未覆盖原生拖放手势。
 - Edge 仅在 Windows 本地验证；CI 矩阵覆盖 Chromium/Firefox/WebKit。
-- 每个引擎当前只验证一个最新版本；REQ-NF-002 要求的“最近两个主版本”中的第二个版本仍为发布阻断 Gap。
+- 每个引擎当前只验证一个最新版本（含真实 Chrome 156）；Chrome/Edge/Firefox 的 N-1 与真实 Safari 均未验证，REQ-NF-002 仍为发布阻断 Gap。
 - 未执行人工辅助技术会话；REQ-NF-004 仍为发布阻断 Gap。
 - REQ-NF-003 已随 Table 组件 Deferred，当前版本无 Active 性能基准要求。
 
