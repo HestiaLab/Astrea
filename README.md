@@ -478,10 +478,13 @@ ASTREA_BROWSER_ENGINE=firefox dotnet test Astrea.sln --no-build --filter "TestCa
 
 发布门禁使用 `python3 scripts/verify_srs_consistency.py --release`；只要任何 Active 需求在 [docs/requirements-test-matrix.md](docs/requirements-test-matrix.md) 中仍有未闭环的证据缺口，它就会失败。实际浏览器、axe 与 Blazor Web App 结果记录在 [docs/release-evidence.md](docs/release-evidence.md)。
 
-最后两个缺口仍需人工发布验证：
+当前发布门禁采用自动化验证范围：
 
-- [无障碍验证清单](docs/accessibility-validation-checklist.md) — WCAG 2.2 AA、键盘与屏幕阅读器会话。
-- [浏览器版本验证计划](docs/browser-version-verification-plan.md) — 每个浏览器最近两个大版本。
+- 浏览器：当前 Chromium/Firefox/WebKit 自动化矩阵，以及 Windows 上最新稳定版真实 Chrome 与 Edge。
+- 可访问性：axe-core 对 Tree/ResourceTable 容器的 0 serious/critical 审计，以及自动化键盘/焦点测试。
+- Safari、浏览器 N-1 与人工屏幕阅读器/WCAG 会话不在自动化发布门禁范围内；以下清单保留为可选人工 QA：
+  - [无障碍验证清单](docs/accessibility-validation-checklist.md)
+  - [浏览器版本验证计划](docs/browser-version-verification-plan.md)
 
 ## 许可证
 

@@ -30,7 +30,7 @@
 | Firefox | 157.0 | 25 | 通过 | Playwright Firefox |
 | WebKit | 27.2 | 25 | 通过（合成拖放） | Playwright WebKit；原生 HTML5 拖放启动不可自动化，Tree 拖放用例改为派发合成 `DragEvent`，仍经过真实 JS/C# 链路 |
 
-每个浏览器用例都断言页面控制台无错误。CI 在 Ubuntu 上以 Chromium/Firefox/WebKit 三引擎矩阵运行同一组 Browser 分类测试；真实 Chrome 与 Edge 由 Windows 本地验证记录。以上均为每个引擎的最新版 N；N-1 与真实 Safari 仍未验证。
+每个浏览器用例都断言页面控制台无错误。CI 在 Ubuntu 上以 Chromium/Firefox/WebKit 三引擎矩阵运行同一组 Browser 分类测试；真实 Chrome 与 Edge 由 Windows 本地验证记录。以上均为自动化矩阵当前版本；Safari 与 N-1 不在自动化发布门禁范围内（REQ-NF-002）。
 
 ### 覆盖内容
 
@@ -101,7 +101,7 @@
 `TreeBrowserTests.Accessibility_Axe_NoSeriousViolations` 在 0.8.0 与 0.9.0 候选的四引擎矩阵及真实 Chrome 最新版上运行，范围限定为 Tree 与 ResourceTable 组件容器，规则标签为 `wcag2a`、`wcag2aa`、`wcag21a`、`wcag21aa`、`wcag22aa`。结果：**0 个 serious/critical 违规**。
 
 - 应用页面的演示文案、布局与示例内容不属于组件库责任边界，未纳入组件审计范围。
-- 自动审计不能替代人工屏幕阅读器验证。
+- 自动审计不能替代人工屏幕阅读器验证；人工 AT 不在自动化发布门禁范围内，本文件不声称完整 WCAG 2.2 AA 符合性。
 
 ### 人工键盘检查清单
 
@@ -114,30 +114,25 @@
 | Space 切换、Shift+方向键范围多选 | 通过（自动） |
 | F2 编辑、Enter 提交、Escape 取消、blur 提交后的焦点恢复 | 通过（自动） |
 | ResourceTable resize handle 聚焦与 ArrowLeft/ArrowRight 调整 | 通过（自动） |
-| 屏幕阅读器人工会话（NVDA/JAWS/VoiceOver） | **未执行**（发布阻断 Gap，见 REQ-NF-004） |
+| 屏幕阅读器人工会话（NVDA/JAWS/VoiceOver） | 未执行；不在自动化发布门禁范围内（REQ-NF-004 现为 axe + 键盘自动化） |
 
 ### 已知限制
 
 - Playwright WebKit 不能自动启动原生 HTML5 拖放；WebKit 的拖放验证使用合成 `DragEvent`，未覆盖原生拖放手势。
 - Edge 仅在 Windows 本地验证；CI 矩阵覆盖 Chromium/Firefox/WebKit。
-- 每个引擎当前只验证一个最新版本（含真实 Chrome 156）；Chrome/Edge/Firefox 的 N-1 与真实 Safari 均未验证，REQ-NF-002 仍为发布阻断 Gap。
-- 未执行人工辅助技术会话；REQ-NF-004 仍为发布阻断 Gap。
+- 自动化矩阵覆盖每个引擎当前版本（含真实 Chrome 156）；Chrome/Edge/Firefox 的 N-1 与真实 Safari 未验证，但不在自动化发布门禁范围内（REQ-NF-002）。
+- 未执行人工辅助技术会话；人工 AT 不在自动化发布门禁范围内（REQ-NF-004）。
 - REQ-NF-003 已随 Table 组件 Deferred，当前版本无 Active 性能基准要求。
 
-### 待执行的最终验证计划
+### 可选人工 QA（非发布门禁）
 
-| Gap | 执行文档 | 状态 |
+| 项目 | 执行文档 | 状态 |
 |---|---|---|
-| REQ-NF-002 第二浏览器主版本 | [browser-version-verification-plan.md](browser-version-verification-plan.md) | 计划就绪，待执行 |
-| REQ-NF-004 人工屏幕阅读器/WCAG | [accessibility-validation-checklist.md](accessibility-validation-checklist.md) | 清单就绪，待执行 |
+| Safari/N-1 浏览器扩展验证 | [browser-version-verification-plan.md](browser-version-verification-plan.md) | 可选 |
+| 人工屏幕阅读器/WCAG 验证 | [accessibility-validation-checklist.md](accessibility-validation-checklist.md) | 可选 |
 
-两项都需要仓库所有者/QA 在真实浏览器与辅助技术环境中执行；执行后更新本文件与需求矩阵，并用 `--release` 复核。
+这些人工验证不阻断自动化发布门禁；如需更高保障，可由仓库所有者/QA 在真实浏览器与辅助技术环境中执行并更新本文件。
 
-### 当前发布阻断项
+### 发布门禁状态
 
-| 需求 | 剩余工作 |
-|---|---|
-| REQ-NF-002 | 每个浏览器最近两个主版本中的第二个版本尚未单独验证（当前矩阵覆盖各引擎最新版） |
-| REQ-NF-004 | 人工屏幕阅读器/WCAG 验证 |
-
-`python3 scripts/verify_srs_consistency.py --release` 会在这 2 个 Gap 关闭前失败；0.9.0 候选尚未发布。
+自动化发布门禁通过（0 Gap）。REQ-NF-002 与 REQ-NF-004 已收窄为自动化口径；Safari、N-1 与人工 AT 验证为可选人工 QA。

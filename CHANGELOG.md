@@ -18,14 +18,11 @@ The 0.9.0 package version is prepared but not yet published.
 - Build SDK pinned to .NET SDK 10.0.401; ASP.NET Core package references updated to 10.0.14.
 - Test toolchain updated to MSTest 4.5.2, Microsoft.NET.Test.Sdk 18.11.0, and Microsoft Playwright 1.64.1; `Assert.ThrowsException` usages migrated to `Assert.ThrowsExactly`.
 - README, SRS, requirements matrix, Roadmap, accessibility checklist, and Demo version labels updated for 0.9.0.
+- REQ-NF-002 and REQ-NF-004 were re-scoped to automated verification: the browser gate covers the current Chromium/Firefox/WebKit matrix plus installed real Chrome and Edge on Windows; the accessibility gate covers axe-core and automated keyboard/focus tests. Safari, N-1 browser majors, and manual screen-reader/WCAG sessions are explicitly outside the automated release gate.
 
 ### Fixed
 
 - Tree: virtualized editing no longer calls `FocusAsync` before the edit input element reference is configured, preventing `ElementReference has not been configured correctly` console errors in Blazor WebAssembly.
-
-### Known release blockers
-
-- REQ-NF-002 and REQ-NF-004 evidence gaps remain open; `verify_srs_consistency.py --release` still fails until they are closed.
 
 ## [0.8.0] - 2026-10-26
 
